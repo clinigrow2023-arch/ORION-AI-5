@@ -1,8 +1,9 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from '../types';
 
-// Safe access to process.env to prevent runtime crashes in pure browser environments
-const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
+// Access environment variable using Vite's import.meta.env
+// In Netlify, set VITE_GEMINI_API_KEY in environment variables
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 // Schema for the JSON response
 const planSchema: Schema = {

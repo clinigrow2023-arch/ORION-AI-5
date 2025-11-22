@@ -37,9 +37,18 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     setError(null);
     try {
       const newPlan = await geminiService.generateFormalPlan(history);
+      
+      // Validar que o plano recebido está completo
+      if (!newPlan || !newPlan.steps || !Array.isArray(newPlan.steps) || newPlan.steps.length === 0) {
+        setError("The generated plan is incomplete. Please try again or provide more details in the chat.");
+        return;
+      }
+      
       setPlan(newPlan);
-    } catch (err) {
-      setError("Failed to generate plan. Make sure you have provided enough details in the chat.");
+    } catch (err: any) {
+      const errorMessage = err?.message || "Failed to generate plan. Make sure you have provided enough details in the chat.";
+      setError(errorMessage);
+      console.error("Plan generation error:", err);
     } finally {
       setIsGenerating(false);
     }

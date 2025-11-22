@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { authService } from '../lib/auth';
 
@@ -62,12 +63,15 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 rounded-xl border border-slate-800 w-full max-w-md p-6 relative">
+  const modalContent = (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
+      <div 
+        className="bg-slate-900 rounded-xl border border-slate-800 w-full max-w-md p-6 relative shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+          className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
         >
           <X size={20} />
         </button>
@@ -194,6 +198,13 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
       </div>
     </div>
   );
+
+  // Renderizar modal usando Portal diretamente no body
+  if (typeof window !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  
+  return null;
 };
 
 export default ChangePassword;

@@ -46,10 +46,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     const checkExpiration = async () => {
       // Verificar se acesso expirou (mesmo que isActive ainda seja true)
-      if (
-        user.accessExpiresAt &&
-        new Date(user.accessExpiresAt) < new Date()
-      ) {
+      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
         // Acesso expirou - atualizar estado do usuário para refletir expiração
         // Isso atualiza os elementos visuais (Sidebar, ChatInterface header)
         await refreshUser();

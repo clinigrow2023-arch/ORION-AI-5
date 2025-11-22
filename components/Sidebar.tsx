@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
-import { MessageSquare, FileText, BookOpen, Star, LogOut, User, Shield, Lock } from 'lucide-react';
-import { ViewState } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import ChangePassword from './ChangePassword';
+import React, { useState } from "react";
+import {
+  MessageSquare,
+  FileText,
+  BookOpen,
+  Star,
+  LogOut,
+  User,
+  Shield,
+  Lock,
+} from "lucide-react";
+import { ViewState } from "../types";
+import { useAuth } from "../contexts/AuthContext";
+import ChangePassword from "./ChangePassword";
 
 interface SidebarProps {
-  currentView: ViewState | 'admin';
-  setView: (view: ViewState | 'admin') => void;
+  currentView: ViewState | "admin";
+  setView: (view: ViewState | "admin") => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
@@ -19,7 +28,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30">
           <Star className="w-5 h-5 text-white fill-white" />
         </div>
-        <h1 className="text-xl font-bold text-white tracking-tight">Orion AI</h1>
+        <h1 className="text-xl font-bold text-white tracking-tight">
+          Orion AI
+        </h1>
       </div>
 
       {/* User Info */}
@@ -30,18 +41,25 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
               <User size={20} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user.name}</p>
+              <p className="text-sm font-medium text-white truncate">
+                {user.name}
+              </p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
               {user.accessExpiresAt && (
-                <p className={`text-xs mt-1 ${
-                  new Date(user.accessExpiresAt) < new Date()
-                    ? 'text-red-400'
-                    : 'text-indigo-400'
-                }`}>
+                <p
+                  className={`text-xs mt-1 ${
+                    new Date(user.accessExpiresAt) < new Date()
+                      ? "text-red-400"
+                      : "text-indigo-400"
+                  }`}
+                >
                   {new Date(user.accessExpiresAt) < new Date()
-                    ? `Access expired on ${new Date(user.accessExpiresAt).toLocaleDateString()}`
-                    : `Access until ${new Date(user.accessExpiresAt).toLocaleDateString()}`
-                  }
+                    ? `Access expired on ${new Date(
+                        user.accessExpiresAt
+                      ).toLocaleDateString()}`
+                    : `Access until ${new Date(
+                        user.accessExpiresAt
+                      ).toLocaleDateString()}`}
                 </p>
               )}
               {!user.isActive && !user.accessExpiresAt && (
@@ -57,11 +75,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
 
       <nav className="flex-1 p-4 space-y-2">
         <button
-          onClick={() => setView('chat')}
+          onClick={() => setView("chat")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-            currentView === 'chat'
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            currentView === "chat"
+              ? "bg-indigo-600 text-white shadow-md"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
         >
           <MessageSquare size={20} />
@@ -69,11 +87,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </button>
 
         <button
-          onClick={() => setView('plan')}
+          onClick={() => setView("plan")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-            currentView === 'plan'
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            currentView === "plan"
+              ? "bg-indigo-600 text-white shadow-md"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
         >
           <FileText size={20} />
@@ -81,11 +99,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </button>
 
         <button
-          onClick={() => setView('guide')}
+          onClick={() => setView("guide")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-            currentView === 'guide'
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            currentView === "guide"
+              ? "bg-indigo-600 text-white shadow-md"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
         >
           <BookOpen size={20} />
@@ -94,11 +112,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
 
         {isAdmin && (
           <button
-            onClick={() => setView('admin')}
+            onClick={() => setView("admin")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              currentView === 'admin'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              currentView === "admin"
+                ? "bg-purple-600 text-white shadow-md"
+                : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
             }`}
           >
             <Shield size={20} />
@@ -112,7 +130,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           <p className="text-xs text-slate-400 leading-relaxed">
             "Emotions are the fuel, but strategy is the engine."
           </p>
-          <p className="text-xs text-indigo-400 mt-1 font-semibold">— Orion Philosophy</p>
+          <p className="text-xs text-indigo-400 mt-1 font-semibold">
+            — Orion Philosophy
+          </p>
         </div>
         <button
           onClick={() => setShowChangePassword(true)}

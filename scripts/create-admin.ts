@@ -1,20 +1,9 @@
 // Script para criar primeiro usuário admin
 // Execute: npx tsx scripts/create-admin.ts
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import * as readline from 'readline';
-
-// Usar o mesmo padrão do lib/prisma.ts
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ['error', 'warn'],
-  });
 
 const rl = readline.createInterface({
   input: process.stdin,

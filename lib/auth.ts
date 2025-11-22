@@ -127,6 +127,25 @@ export const authService = {
             return JSON.parse(userStr);
           }
         }
+        
+        // Se for 403, verificar se é notActive ou expired (não fazer logout nesses casos)
+        if (response.status === 403) {
+          try {
+            const data = await response.json();
+            if (data.notActive || data.expired) {
+              // Usuário sem acesso ativo ou expirado - retornar dados do localStorage
+              // O AuthContext vai tratar isso e mostrar a tela de espera
+              const userStr = localStorage.getItem('user');
+              if (userStr) {
+                return JSON.parse(userStr);
+              }
+            }
+          } catch {
+            // Se não conseguir fazer parse, continuar com logout
+          }
+        }
+        
+        // Para outros erros (401, 500, etc), fazer logout
         this.logout();
         return null;
       }

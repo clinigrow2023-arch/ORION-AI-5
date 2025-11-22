@@ -241,13 +241,23 @@ export class GeminiService {
 
   async generateFormalPlan(contextHistory: string): Promise<ActionPlan> {
     try {
+      // Get auth token for authorization header
+      const token = typeof window !== 'undefined' && localStorage.getItem('auth_token');
+      
       // Try Netlify Function first
       try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Adicionar token de autenticação se disponível
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             message: `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
       

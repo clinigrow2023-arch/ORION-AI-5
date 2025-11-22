@@ -33,3 +33,6 @@
   }
 }
 
+a, button{
+  cursor: pointer;
+}

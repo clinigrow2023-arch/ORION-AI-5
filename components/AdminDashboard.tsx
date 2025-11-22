@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../lib/auth';
 import { Users, Ban, CheckCircle, Coins, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface User {
@@ -13,7 +14,6 @@ interface User {
 }
 
 const AdminDashboard: React.FC = () => {
-  const { getToken } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -24,7 +24,7 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const token = getToken();
+      const token = authService.getToken();
       if (!token) {
         throw new Error('No token found');
       }
@@ -59,7 +59,7 @@ const AdminDashboard: React.FC = () => {
     try {
       setUpdating(userId);
       setError(null);
-      const token = getToken();
+      const token = authService.getToken();
       if (!token) {
         throw new Error('No token found');
       }

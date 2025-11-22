@@ -155,9 +155,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuth();
 
     // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
-    // Reduzido de 10s para 30s para evitar muitas requisições
+    // APENAS se o usuário estiver ativo (não verificar se está aguardando ativação)
     const interval = setInterval(async () => {
-      if (user && !user.isBlocked) {
+      // Não verificar periodicamente se usuário não tem acesso ativo
+      // A verificação será feita apenas quando clicar em "Verificar Ativação"
+      if (user && !user.isBlocked && user.isActive !== false) {
         const token = authService.getToken();
         if (token) {
           try {
@@ -174,13 +176,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 // Recarregar página para mostrar tela de login
                 window.location.reload();
-              } else if (data.notActive || data.expired) {
-                // Atualizar status se acesso foi liberado ou expirou
-                const userStr = localStorage.getItem('user');
-                if (userStr) {
-                  const currentUser = JSON.parse(userStr);
-                  setUser({ ...currentUser, isActive: false, ...data });
-                }
               }
             } else if (response.ok) {
               const data = await response.json();
@@ -192,7 +187,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 window.location.reload();
               } else {
-                // Atualizar dados do usuário (pode ter sido ativado)
+                // Atualizar dados do usuário
                 setUser(prev => prev ? { ...prev, ...updatedUser } : null);
               }
             }
@@ -201,7 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       }
-    }, 30000); // Verificar a cada 30 segundos (reduzido de 10s)
+    }, 30000); // Verificar a cada 30 segundos
 
     return () => clearInterval(interval);
   }, [user]);

@@ -8,8 +8,50 @@ const WaitingActivation: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refreshUser();
-    setRefreshing(false);
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        setRefreshing(false);
+        return;
+      }
+
+      // Fazer verificação direta quando usuário clicar
+      const response = await fetch('/.netlify/functions/auth-verify', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const updatedUser = data.user;
+        
+        // Se usuário foi ativado, atualizar estado
+        if (updatedUser.isActive) {
+          await refreshUser();
+          // Recarregar página para mostrar interface principal
+          window.location.reload();
+        } else {
+          // Ainda não foi ativado, apenas atualizar dados
+          await refreshUser();
+        }
+      } else if (response.status === 403) {
+        const data = await response.json().catch(() => ({}));
+        if (data.blocked) {
+          // Usuário bloqueado
+          authService.logout();
+          alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+          window.location.reload();
+        } else if (data.notActive || data.expired) {
+          // Ainda sem acesso ativo
+          await refreshUser();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to verify activation:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (

@@ -34,7 +34,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     // Evitar carregar múltiplas vezes
     if (hasLoadedHistory.current) return;
-    
+
     const loadConversation = async () => {
       try {
         const token = authService.getToken();
@@ -58,7 +58,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           // Carregar última conversa se existir
           if (data.conversations && data.conversations.length > 0) {
             const lastConv = data.conversations[0];
-            if (lastConv.messages && Array.isArray(lastConv.messages) && lastConv.messages.length > 0) {
+            if (
+              lastConv.messages &&
+              Array.isArray(lastConv.messages) &&
+              lastConv.messages.length > 0
+            ) {
               // Converter mensagens do histórico para o formato do componente
               const loadedMessages: Message[] = lastConv.messages.map(
                 (msg: any) => ({

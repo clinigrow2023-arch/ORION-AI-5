@@ -33,12 +33,22 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
               <p className="text-sm font-medium text-white truncate">{user.name}</p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
               {user.accessExpiresAt && (
-                <p className="text-xs text-indigo-400 mt-1">
-                  Access until {new Date(user.accessExpiresAt).toLocaleDateString()}
+                <p className={`text-xs mt-1 ${
+                  new Date(user.accessExpiresAt) < new Date()
+                    ? 'text-red-400'
+                    : 'text-indigo-400'
+                }`}>
+                  {new Date(user.accessExpiresAt) < new Date()
+                    ? `Access expired on ${new Date(user.accessExpiresAt).toLocaleDateString()}`
+                    : `Access until ${new Date(user.accessExpiresAt).toLocaleDateString()}`
+                  }
                 </p>
               )}
-              {!user.isActive && (
+              {!user.isActive && !user.accessExpiresAt && (
                 <p className="text-xs text-orange-400 mt-1">Access pending</p>
+              )}
+              {!user.isActive && user.accessExpiresAt && (
+                <p className="text-xs text-orange-400 mt-1">Access revoked</p>
               )}
             </div>
           </div>

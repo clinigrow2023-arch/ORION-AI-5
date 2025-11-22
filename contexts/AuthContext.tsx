@@ -176,12 +176,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkAuth();
 
-    // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
-    // APENAS se o usuário estiver ativo (não verificar se está aguardando ativação)
+    // Verificar periodicamente se o usuário foi bloqueado ou se acesso expirou (a cada 30 segundos)
+    // Verificar se usuário tem acesso ativo OU se tem accessExpiresAt (para detectar expiração)
     const interval = setInterval(async () => {
-      // Não verificar periodicamente se usuário não tem acesso ativo ou está undefined
-      // A verificação será feita apenas quando clicar em "Verificar Ativação"
-      if (user && !user.isBlocked && user.isActive === true) {
+      // Verificar se usuário existe e não está bloqueado
+      // Verificar também se tem accessExpiresAt para detectar expiração mesmo se isActive ainda for true
+      if (user && !user.isBlocked && (user.isActive === true || user.accessExpiresAt)) {
         const token = authService.getToken();
         if (token) {
           try {
@@ -198,6 +198,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setUser(null);
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 window.location.reload();
+              } else if (data.expired || data.notActive) {
+                // Acesso expirado ou revogado - atualizar estado sem fazer logout
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                  const currentUser = JSON.parse(userStr);
+                  setUser({ ...currentUser, isActive: false, ...data });
+                  localStorage.setItem('user', JSON.stringify({ ...currentUser, isActive: false, ...data }));
+                }
               }
             } else if (response.ok) {
               const data = await response.json();
@@ -209,7 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 window.location.reload();
               } else {
-                // Atualizar dados do usuário
+                // Atualizar dados do usuário (incluindo status de expiração)
                 localStorage.setItem('user', JSON.stringify(updatedUser));
                 setUser(prev => prev ? { ...prev, ...updatedUser } : null);
               }
@@ -222,7 +230,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, 30000); // Verificar a cada 30 segundos
 
     return () => clearInterval(interval);
-  }, [user?.isActive, user?.isBlocked]); // Apenas re-executar se isActive ou isBlocked mudar
+  }, [user?.isActive, user?.isBlocked, user?.accessExpiresAt]); // Re-executar se isActive, isBlocked ou accessExpiresAt mudar
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);

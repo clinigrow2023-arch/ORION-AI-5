@@ -151,7 +151,7 @@ export class GeminiService {
           return fullText;
         }
 
-        // If response is not ok, check if it's 404 and we're in development
+        // If response is 404 and we're in development, throw error to trigger fallback
         if (response.status === 404 && isDevelopment) {
           throw new Error('404 - Netlify Function not available');
         }
@@ -162,6 +162,14 @@ export class GeminiService {
           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
       } catch (netlifyError: any) {
+        // Debug logs
+        console.log('Netlify Function error:', {
+          message: netlifyError?.message,
+          status: response?.status,
+          isDevelopment,
+          hasApiKey: !!getDevApiKey()
+        });
+
         // If Netlify Function fails and we're in development, fallback to direct API
         const is404Error = netlifyError?.message?.includes('404') || 
                           netlifyError?.message?.includes('Failed to fetch') ||
@@ -205,7 +213,7 @@ export class GeminiService {
         }
         
         // If we have a response but it's not ok, throw with error details
-        if (response && !response.ok) {
+        if (response && !response.ok && response.status !== 404) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }

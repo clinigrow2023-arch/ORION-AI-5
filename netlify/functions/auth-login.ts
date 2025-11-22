@@ -53,6 +53,8 @@ export const handler: Handler = async (event, context) => {
         password: true,
         role: true,
         isBlocked: true,
+        isActive: true,
+        accessExpiresAt: true,
       },
     });
 
@@ -109,6 +111,9 @@ export const handler: Handler = async (event, context) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          isBlocked: user.isBlocked,
+          isActive: user.isActive,
+          accessExpiresAt: user.accessExpiresAt,
         },
       }),
     };

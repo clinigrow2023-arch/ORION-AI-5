@@ -213,20 +213,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);
-    // Após login, usar dados do localStorage e fazer verificação apenas se necessário
-    // Não chamar refreshUser() imediatamente para evitar requisições duplicadas
-    // O useEffect já vai verificar automaticamente
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const currentUser = JSON.parse(userStr);
-      // Verificar se precisa buscar dados completos (role, isActive, etc)
-      // Se o login já retornou role, usar os dados do login
-      if (response.user.role) {
-        setUser({ ...currentUser, ...response.user });
-      } else {
-        // Se não tem role, fazer refreshUser para buscar dados completos
-        await refreshUser();
-      }
+    // Após login, atualizar localStorage e estado com dados completos do servidor
+    // O login agora retorna isActive e accessExpiresAt, então não precisa fazer refreshUser
+    if (response.user) {
+      // Atualizar localStorage com dados completos do servidor
+      localStorage.setItem('user', JSON.stringify(response.user));
+      // Atualizar estado do contexto
+      setUser(response.user);
     }
   };
 

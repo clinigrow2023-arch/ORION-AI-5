@@ -137,6 +137,121 @@ export const handler: Handler = async (event, context) => {
     }
 
     const ai = new GoogleGenAI({ apiKey });
+    
+    // Detectar se é uma requisição de plano formal (contém "generate a comprehensive Reconciliation Action Plan")
+    const isPlanRequest = message.includes('generate a comprehensive Reconciliation Action Plan') || 
+                         message.includes('Reconciliation Action Plan in JSON format');
+    
+    if (isPlanRequest && (!history || history.length === 0)) {
+      // Requisição de plano formal - usar schema JSON
+      const planSchema = {
+        type: 'object',
+        properties: {
+          diagnosis: { type: 'string', description: "A clear, analytical diagnosis of what caused the distance or breakup in simple human terms." },
+          steps: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                stepNumber: { type: 'integer' },
+                title: { type: 'string' },
+                description: { type: 'string', description: "Clear instructions with psychological justification." },
+                duration: { type: 'string', description: "Specific timing (e.g., '3 days', '5-7 days')" }
+              },
+              required: ["stepNumber", "title", "description", "duration"]
+            }
+          },
+          messageTemplates: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                situation: { type: 'string', description: "When to use this message" },
+                text: { type: 'string', description: "The exact text content, personalized to the user." },
+                timing: { type: 'string', description: "When to send it" }
+              },
+              required: ["situation", "text", "timing"]
+            }
+          },
+          dos: {
+            type: 'array',
+            items: { type: 'string' },
+            description: "List of things the user MUST do to build value and emotional safety."
+          },
+          donts: {
+            type: 'array',
+            items: { type: 'string' },
+            description: "List of behaviors to avoid (pressure, lowering value)."
+          },
+          distancingStrategy: { type: 'string', description: "Explanation of Strategic Distancing vs No Contact, including exact timeframe." },
+          neurologicalTriggers: { type: 'string', description: "How to use triggers like Nostalgia, Safety, Curiosity, etc." }
+        },
+        required: ["diagnosis", "steps", "messageTemplates", "dos", "donts", "distancingStrategy", "neurologicalTriggers"]
+      };
+
+      const systemInstruction = `You are Orion AI, a specialized digital mentor for relationship reconciliation. 
+        
+        STRICT BEHAVIORAL PROTOCOL (Follow this order exactly):
+        
+        1. **PHASE 1: INVESTIGATION (The Interview)**
+           - When the user first describes their situation, DO NOT offer a solution or plan immediately.
+           - Instead, acknowledge their pain briefly and act as a diagnostician.
+           - ASK 3-4 strategic, high-impact questions to understand the context. Examples: "Who ended it?", "How long ago?", "Have you been chasing or begging?", "What was the specific reason given?".
+           - Wait for the user's answers.
+
+        2. **PHASE 2 & 3: DIAGNOSIS AND STRATEGY (The Pivot)**
+           - Once the user answers your questions, you MUST provide the Diagnosis AND the Action Plan in the SAME response.
+           - **Step 1: The Diagnosis**: First, provide a clear, analytical diagnosis of *why* the breakup happened psychologically (e.g., "Loss of attraction due to predictability," "Erosion of emotional safety").
+           - **Step 2: The Action Plan**: IMMEDIATELY after the diagnosis, provide the personalized strategy. DO NOT wait for the user to ask "What do I do?".
+        
+        TONE & LANGUAGE:
+        - **Language**: ALL OUTPUT MUST BE IN ENGLISH.
+        - **Tone**: Warm, Rational, Analytical, Practical. Like a supportive expert friend.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: message,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: planSchema,
+          systemInstruction,
+        }
+      });
+
+      const jsonText = response.text;
+      if (!jsonText) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'No data received from plan generation' }),
+        };
+      }
+
+      // Parse e validar JSON
+      let parsedPlan;
+      try {
+        parsedPlan = JSON.parse(jsonText);
+      } catch (parseError) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Invalid JSON response from AI' }),
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          response: jsonText, // Retornar JSON como string para compatibilidade
+        }),
+      };
+    }
+
+    // Requisição normal de chat
     const chat = ai.chats.create({
       model: 'gemini-2.5-flash',
       config: {

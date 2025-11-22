@@ -1,7 +1,8 @@
-import React from 'react';
-import { MessageSquare, FileText, BookOpen, Star, LogOut, User, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageSquare, FileText, BookOpen, Star, LogOut, User, Shield, Lock } from 'lucide-react';
 import { ViewState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import ChangePassword from './ChangePassword';
 
 interface SidebarProps {
   currentView: ViewState | 'admin';
@@ -10,6 +11,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
   const { user, logout, isAdmin } = useAuth();
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   return (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
@@ -103,6 +105,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           <p className="text-xs text-indigo-400 mt-1 font-semibold">— Orion Philosophy</p>
         </div>
         <button
+          onClick={() => setShowChangePassword(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all duration-200"
+        >
+          <Lock size={20} />
+          <span className="font-medium">Change Password</span>
+        </button>
+        <button
           onClick={logout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all duration-200"
         >
@@ -110,6 +119,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           <span className="font-medium">Sign Out</span>
         </button>
       </div>
+
+      {showChangePassword && (
+        <ChangePassword onClose={() => setShowChangePassword(false)} />
+      )}
     </div>
   );
 };

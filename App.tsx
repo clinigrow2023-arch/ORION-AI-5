@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
-import ChatInterface from './components/ChatInterface';
-import PlanDisplay from './components/PlanDisplay';
-import GuideView from './components/GuideView';
-import AdminDashboard from './components/AdminDashboard';
-import Auth from './components/Auth';
-import { useAuth } from './contexts/AuthContext';
-import { ViewState, Message, ActionPlan, Sender } from './types';
-import { Menu, X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import Sidebar from "./components/Sidebar";
+import ChatInterface from "./components/ChatInterface";
+import PlanDisplay from "./components/PlanDisplay";
+import GuideView from "./components/GuideView";
+import AdminDashboard from "./components/AdminDashboard";
+import Auth from "./components/Auth";
+import { useAuth } from "./contexts/AuthContext";
+import { ViewState, Message, ActionPlan, Sender } from "./types";
+import { Menu, X, Loader2 } from "lucide-react";
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewState | 'admin'>('chat');
+  const [currentView, setCurrentView] = useState<ViewState | "admin">("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,41 +21,55 @@ const App: React.FC = () => {
     if (user?.isBlocked) {
       // Se usuário está bloqueado, fazer logout e mostrar mensagem
       logout();
-      alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+      alert("Sua conta foi bloqueada. Entre em contato com um administrador.");
       window.location.reload();
       return;
     }
 
     // Verificar se usuário não está ativo (não liberado)
-    if (user && !user.isActive && user.role !== 'admin') {
+    if (user && !user.isActive && user.role !== "admin") {
       logout();
-      alert('Seu acesso ainda não foi liberado. Entre em contato com um administrador.');
+      alert(
+        "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
+      );
       window.location.reload();
       return;
     }
 
     // Verificar se acesso expirou
-    if (user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date() && user.role !== 'admin') {
+    if (
+      user?.accessExpiresAt &&
+      new Date(user.accessExpiresAt) < new Date() &&
+      user.role !== "admin"
+    ) {
       logout();
-      alert('Seu acesso expirou. Entre em contato com um administrador para renovar.');
+      alert(
+        "Seu acesso expirou. Entre em contato com um administrador para renovar."
+      );
       window.location.reload();
       return;
     }
-  }, [user?.isBlocked, user?.isActive, user?.accessExpiresAt, user?.role, logout]);
+  }, [
+    user?.isBlocked,
+    user?.isActive,
+    user?.accessExpiresAt,
+    user?.role,
+    logout,
+  ]);
 
   const addMessage = (msg: Message) => {
-    setMessages(prev => [...prev, msg]);
+    setMessages((prev) => [...prev, msg]);
   };
 
   const renderContent = () => {
     switch (currentView) {
-      case 'admin':
+      case "admin":
         return <AdminDashboard />;
-      case 'chat':
+      case "chat":
         return <ChatInterface messages={messages} addMessage={addMessage} />;
-      case 'plan':
+      case "plan":
         return <PlanDisplay plan={plan} setPlan={setPlan} />;
-      case 'guide':
+      case "guide":
         return <GuideView />;
       default:
         return <ChatInterface messages={messages} addMessage={addMessage} />;
@@ -67,7 +81,10 @@ const App: React.FC = () => {
     return (
       <div className="flex h-screen bg-slate-950 items-center justify-center">
         <div className="text-center">
-          <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={48} />
+          <Loader2
+            className="animate-spin text-indigo-500 mx-auto mb-4"
+            size={48}
+          />
           <p className="text-slate-400">Loading...</p>
         </div>
       </div>
@@ -83,7 +100,7 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-slate-950 overflow-hidden">
       {/* Mobile Menu Toggle */}
       <div className="md:hidden fixed top-4 left-4 z-50">
-        <button 
+        <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 bg-slate-800 text-white rounded-lg shadow-lg border border-slate-700"
         >
@@ -92,24 +109,27 @@ const App: React.FC = () => {
       </div>
 
       {/* Sidebar - Hidden on mobile unless toggled */}
-      <div className={`
+      <div
+        className={`
         fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <Sidebar currentView={currentView} setView={(view) => {
-          setCurrentView(view);
-          setIsMobileMenuOpen(false);
-        }} />
+        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+      `}
+      >
+        <Sidebar
+          currentView={currentView}
+          setView={(view) => {
+            setCurrentView(view);
+            setIsMobileMenuOpen(false);
+          }}
+        />
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 h-full relative w-full">
-        {renderContent()}
-      </main>
+      <main className="flex-1 h-full relative w-full">{renderContent()}</main>
 
       {/* Overlay for mobile menu */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />

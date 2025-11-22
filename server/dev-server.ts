@@ -36,6 +36,7 @@ import { handler as authVerifyHandler } from '../netlify/functions/auth-verify';
 import { handler as conversationsHandler } from '../netlify/functions/conversations';
 import { handler as adminUsersHandler } from '../netlify/functions/admin-users';
 import { handler as geminiHandler } from '../netlify/functions/gemini';
+import { handler as changePasswordHandler } from '../netlify/functions/change-password';
 
 const app = express();
 const PORT = 8888;
@@ -129,6 +130,11 @@ app.put('/.netlify/functions/admin-users', async (req, res) => {
 app.post('/.netlify/functions/gemini', async (req, res) => {
   const event = createNetlifyEvent(req);
   await sendNetlifyResponse(res, geminiHandler, event);
+});
+
+app.put('/.netlify/functions/change-password', async (req, res) => {
+  const event = createNetlifyEvent(req);
+  await sendNetlifyResponse(res, changePasswordHandler, event);
 });
 
 app.listen(PORT, () => {

@@ -162,5 +162,44 @@ export const authService = {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      const response = await fetch(`${API_BASE}/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(text);
+        } catch {
+          throw new Error(response.status === 404 
+            ? 'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+            : `Password change failed: ${response.status} ${response.statusText}`);
+        }
+        throw new Error(errorData.error || 'Password change failed');
+      }
+
+      const data = await response.json();
+      return;
+    } catch (error: any) {
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('404') || error.message?.includes('Authentication service not available')) {
+        throw new Error('Authentication service not available. Please use "netlify dev" to run locally or deploy to production.');
+      }
+      throw error;
+    }
+  },
 };
 

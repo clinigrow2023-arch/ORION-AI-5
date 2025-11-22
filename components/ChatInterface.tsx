@@ -212,12 +212,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
           {user?.accessExpiresAt && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg border border-slate-700">
-              <Key
-                size={18}
-                className="text-indigo-400"
-              />
+              <Key size={18} className="text-indigo-400" />
               <span className="text-sm font-medium text-slate-300">
-                Access until {new Date(user.accessExpiresAt).toLocaleDateString()}
+                Access until{" "}
+                {new Date(user.accessExpiresAt).toLocaleDateString()}
               </span>
             </div>
           )}
@@ -226,18 +224,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
             <AlertCircle size={16} />
             <span>
-              Your account access has not been granted. Please contact an administrator.
+              Your account access has not been granted. Please contact an
+              administrator.
             </span>
           </div>
         )}
-        {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date() && (
-          <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
-            <AlertCircle size={16} />
-            <span>
-              Your access has expired. Please contact an administrator to renew.
-            </span>
-          </div>
-        )}
+        {user?.accessExpiresAt &&
+          new Date(user.accessExpiresAt) < new Date() && (
+            <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle size={16} />
+              <span>
+                Your access has expired. Please contact an administrator to
+                renew.
+              </span>
+            </div>
+          )}
       </div>
 
       {/* Messages Area */}

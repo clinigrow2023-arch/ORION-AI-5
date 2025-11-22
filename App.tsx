@@ -71,12 +71,8 @@ const App: React.FC = () => {
   // Apenas usuários comuns precisam de ativação e têm expiração de acesso
 
   // Mostrar tela de aguardando ativação se usuário não tiver acesso ativo (exceto admin)
-  // Também mostrar se usuário está bloqueado ou acesso expirou
+  // Não mostrar para usuários bloqueados (eles serão deslogados automaticamente)
   if (user && user.role !== "admin") {
-    // Usuário bloqueado - mostrar tela de espera
-    if (user.isBlocked) {
-      return <WaitingActivation />;
-    }
     // Usuário sem acesso ativo
     if (!user.isActive) {
       return <WaitingActivation />;

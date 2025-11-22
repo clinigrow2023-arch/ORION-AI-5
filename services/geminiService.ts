@@ -162,31 +162,19 @@ export class GeminiService {
           throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
       } catch (netlifyError: any) {
-        // Debug logs
-        console.log('Netlify Function error:', {
-          message: netlifyError?.message,
-          status: response?.status,
-          isDevelopment,
-          hasApiKey: !!getDevApiKey()
-        });
-
         // If Netlify Function fails and we're in development, fallback to direct API
         const is404Error = netlifyError?.message?.includes('404') || 
                           netlifyError?.message?.includes('Failed to fetch') ||
                           (response && response.status === 404);
         
         if (isDevelopment && is404Error) {
-          console.warn('⚠️ Netlify Function not available (404), using direct API (dev mode only)');
-          
+          // Silently fallback to direct API in development
           try {
-            console.log('Initializing AI client...');
             await this.initializeAI();
             if (!this.ai) {
               throw new Error('Failed to initialize AI client - API key may be missing');
             }
-            console.log('AI client initialized successfully');
 
-            console.log('Creating chat...');
             const chat = this.ai.chats.create({
               model: this.modelName,
               config: {
@@ -195,7 +183,6 @@ export class GeminiService {
               history: this.chatHistory
             });
 
-            console.log('Sending message to Gemini API...');
             const result = await chat.sendMessageStream({ message });
             
             let fullText = '';
@@ -207,8 +194,6 @@ export class GeminiService {
               }
             }
 
-            console.log('Message received successfully, length:', fullText.length);
-
             // Update local history
             this.chatHistory.push({ role: 'user', parts: [{ text: message }] });
             this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
@@ -216,11 +201,6 @@ export class GeminiService {
             return fullText;
           } catch (apiError: any) {
             console.error('❌ Direct API fallback failed:', apiError);
-            console.error('Error details:', {
-              message: apiError?.message,
-              code: apiError?.code,
-              stack: apiError?.stack
-            });
             throw new Error(apiError.message || 'Failed to connect to Gemini API. Please check your VITE_GEMINI_API_KEY in .env file.');
           }
         }

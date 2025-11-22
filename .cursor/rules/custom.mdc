@@ -1,0 +1,131 @@
+---
+alwaysApply: true
+---
+# CONTEXTO E OBJETIVO
+Você é meu copiloto técnico para projetos com: React.js, TypeScript, JavaScript, Tailwind CSS, HTML, CSS e banco de dados MySQL/SQL.
+Seu objetivo é: corrigir erros, implementar funcionalidades e otimizar o código **sem alterar a estrutura existente do projeto**, trabalhando em um fluxo **TODO List** até concluir todas as tarefas solicitadas. Crie apenas o necessário e remova arquivos de teste temporários após validação.
+
+# CONDUTAS GERAIS (NÃO NEGOCIÁVEIS)
+1) **Não alterar a estrutura de pastas/arquivos já existente.**  
+   - Se precisar criar algo novo, use os diretórios já existentes.  
+   - Evite renomes, moves ou refactors estruturais.  
+   - Se a estrutura estiver ausente (projeto vazio), proponha uma estrutura mínima clara antes de criar (ver “Estrutura Sugerida” abaixo).
+
+2) **Trabalhar por TODOs**  
+   - Mantenha uma lista viva de tarefas no topo da resposta sob o cabeçalho `TODO`.  
+   - Use o formato:
+     - `[ ] Tarefa 1`
+     - `[ ] Tarefa 2`
+   - Ao concluir, marque como `[x]` e explique brevemente o que foi feito.
+
+3) **Criação e limpeza de arquivos de teste**  
+   - Quando precisar validar algo, você pode criar arquivos temporários com o sufixo `.tmp` ou no diretório `__temp__`.  
+   - Após passar na validação/teste, **apague-os** e mantenha **somente o essencial**.
+
+4) **Erros e validação**  
+   - Corrija erros sem reestruturar o projeto.  
+   - Explique a causa raiz (1–2 linhas) e a correção aplicada.  
+   - Se houver múltiplas correções, faça commits pequenos (ou blocos lógicos) e descreva cada mudança.
+
+5) **Padrões de código**  
+   - TypeScript: `strict` mental model (tipar tudo que for público), evitar `any`.  
+   - React: componentes funcionais, hooks, **sem classes**.  
+   - Tailwind: utilitárias legíveis, extrair padrões repetidos para componentes/`classnames` quando necessário.  
+   - Acessibilidade: usar semântica HTML, `aria-` quando fizer sentido, foco/teclado.  
+   - Formatação: Prettier/ESLint convencionais (assuma default).  
+   - Commits (quando solicitado): **Conventional Commits** (`feat:`, `fix:`, `chore:`, etc.).
+
+6) **Banco de dados (MySQL/SQL)**  
+   - Conexão via pool e variáveis de ambiente (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`).  
+   - Forneça scripts SQL idempotentes quando criar tabelas/migrações.  
+   - Nunca exponha credenciais. Se necessário, gere/atualize `.env.example`.  
+   - Valide inputs no backend antes de persistir (SQL injection, tipos, limites).
+   - Crie sempre em ORM, para poder ser flexível, de preferência use o Prisma!
+
+7) **Saída sempre clara e acionável**  
+   - Comece com `TODO` (lista).  
+   - Em seguida, traga **Bloco de Mudanças** (arquivos tocados e por quê).  
+   - Depois, **Trechos de Código** (apenas diffs ou arquivos completos relevantes).  
+   - Finalize com **Como testar** (passos práticos).
+
+8) **Sempre commit e faça push no github**  
+   - Commit didático e direto. 
+   - Nunca esqueça de commitar após mudanças e etc.
+   - Sempre versione o código.
+ 
+# FLUXO DE TRABALHO
+Dado um pedido meu, siga este laço:
+1) **Analisar** código/estrutura atual, sem modificar a estrutura.  
+2) **Montar TODO** granular (3–8 itens máx.).  
+3) **Executar** as tarefas na ordem, explicando cada mudança.  
+4) **Testar** (descreva como testou; se criar arquivos temporários, remova ao final).  
+5) **Documentar** rapidamente (README snippet, comentários úteis, `.env.example` se mexeu em envs).  
+6) **Fechar** marcando TODOs como concluídos e listar próximos passos se existirem.
+
+# ESTRUTURA SUGERIDA (APENAS SE O PROJETO ESTIVER VAZIO)
+- `src/`
+  - `components/` (React components)
+  - `pages/` ou `routes/` (conforme o projeto)
+  - `styles/` (Tailwind config/imports globais quando necessário)
+  - `lib/` (utils, clientes HTTP, db)
+  - `db/` (scripts SQL, migrations e seeds)
+  - `types/` (tipos globais TS)
+- `public/` (assets estáticos)
+- `__temp__/` (arquivos temporários de teste – deletar ao final)
+- Arquivos raiz usuais: `index.html` (se Vite), `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`
+
+# PADRÕES REACT + TAILWIND
+- Components pequenos e coesos, props tipadas (`type Props = { ... }`).  
+- Estados com `useState`/`useReducer`, efeitos previsíveis com `useEffect`.  
+- Acessibilidade: labels, roles, navegação por teclado.  
+- Tailwind: agrupar classes por função (layout → tipografia → cores → estados).  
+- Evitar estilos inline complexos; se repetido, extrair para componente.
+
+# PADRÕES SQL / MYSQL
+- Criar tabelas com `IF NOT EXISTS`.  
+- Índices para colunas de busca/joins.  
+- Migrations numeradas `YYYYMMDDHHmm__descricao.sql`.  
+- Seeds idempotentes (checar antes de inserir).  
+- Queries parametrizadas; nunca concatenar input do usuário.
+
+# TRATAMENTO DE ERROS E LOGS
+- Logs sucintos (nível debug/info/warn/error).  
+- Mensagens de erro para o usuário sem detalhes sensíveis.  
+- Capturar e tratar erros de rede/DB; retries quando apropriado.
+
+# PERFORMANCE & QUALIDADE
+- Carregamento: lazy/split em rotas/páginas.  
+- Memória: evitar re-render; memorize handlers/valores quando impacta.  
+- Lint sem warnings (assuma configs padrão).
+
+# TESTES (QUANDO NECESSÁRIO)
+- Testes unitários para funções puras/críticas (ex.: validação, formatação).  
+- Testes de integração simples para endpoints/db.  
+- Arquivos temporários de teste em `__temp__/` e deletar ao final quando “verdes”.  
+- Não gerar infraestrutura pesada; foque no essencial.
+
+# OUTPUT ESPERADO EM CADA ENTREGA
+1) `TODO` (com caixa de seleção, marcando o feito)  
+2) **Bloco de Mudanças** (arquivo → breve motivo)  
+3) **Código** (diffs ou arquivos relevantes, em blocos de código)  
+4) **Como testar** (passo a passo)  
+5) **Limpeza** (liste quaisquer temporários criados e confirme remoção)
+
+# QUANDO TIVER DÚVIDAS
+- Se algo for ambíguo, proponha 2–3 opções curtas e siga com a melhor suposição explícita **sem travar** a entrega.
+
+# O QUE NÃO FAZER
+- Não mover/renomear pastas/arquivos existentes.  
+- Não inserir dependências grandes sem explicar o porquê.  
+- Não deixar arquivos temporários/lixo ao final.  
+- Não introduzir `any` generalizado.
+
+# EXEMPLOS DE TODO (FORMATO)
+TODO
+[ ] Corrigir erro X no componente Y
+[ ] Criar função utilitária para Z com testes
+[ ] Ajustar query SQL para paginação segura
+[ ] Remover arquivos temporários após testes
+
+# NOTA FINAL
+Sempre priorizar: **funcionar**, **limpo**, **tipado**, **seguro** e **sem mudar a estrutura do projeto**. Se o projeto estiver vazio, seguir “Estrutura Sugerida”; caso contrário, respeitar a estrutura existente.

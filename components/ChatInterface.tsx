@@ -154,7 +154,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Verificar se usuário tem acesso antes de enviar mensagem
+    // Verificar se usuário tem acesso ANTES de enviar mensagem (para não gastar prompts)
     if (!user) return;
 
     // Bloquear se usuário está bloqueado
@@ -171,18 +171,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Bloquear se acesso expirou (exceto admin)
-    if (
-      user.role !== "admin" &&
+    // Bloquear se acesso expirou (exceto admin) - VERIFICAR ANTES DE CHAMAR API
+    const isExpired = user.role !== "admin" &&
       user.accessExpiresAt &&
-      new Date(user.accessExpiresAt) < new Date()
-    ) {
+      new Date(user.accessExpiresAt) < new Date();
+    
+    if (isExpired) {
       alert(
         "Seu acesso expirou. Entre em contato com um administrador para renovar."
       );
       return;
     }
 
+    // Só adiciona mensagem e chama API se passou todas as validações
     const userMsg: Message = {
       id: generateUniqueId(),
       text: input,
@@ -271,10 +272,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </p>
           </div>
           {user?.accessExpiresAt && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg border border-slate-700">
-              <Key size={18} className="text-indigo-400" />
-              <span className="text-sm font-medium text-slate-300">
-                Access until{" "}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+              new Date(user.accessExpiresAt) < new Date()
+                ? "bg-red-500/10 border-red-500/20"
+                : "bg-slate-800 border-slate-700"
+            }`}>
+              <Key size={18} className={new Date(user.accessExpiresAt) < new Date() ? "text-red-400" : "text-indigo-400"} />
+              <span className={`text-sm font-medium ${
+                new Date(user.accessExpiresAt) < new Date()
+                  ? "text-red-400"
+                  : "text-slate-300"
+              }`}>
+                {new Date(user.accessExpiresAt) < new Date()
+                  ? "Access expired on "
+                  : "Access until "}
                 {new Date(user.accessExpiresAt).toLocaleDateString()}
               </span>
             </div>

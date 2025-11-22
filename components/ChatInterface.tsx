@@ -40,23 +40,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, streamedResponse]);
 
   // Verificar periodicamente se o acesso expirou (a cada 30 segundos)
+  // Atualiza o estado do usuário quando a data de expiração é atingida
   useEffect(() => {
     if (!user || user.role === "admin") return;
 
-    const checkExpiration = () => {
+    const checkExpiration = async () => {
       if (
         user.accessExpiresAt &&
         new Date(user.accessExpiresAt) < new Date() &&
         user.isActive
       ) {
-        // Atualizar estado do usuário para refletir expiração
-        refreshUser();
+        // Acesso expirou - atualizar estado do usuário para refletir expiração
+        await refreshUser();
       }
     };
 
-    const interval = setInterval(checkExpiration, 30000); // Verificar a cada 30 segundos
+    // Verificar imediatamente
+    checkExpiration();
+
+    // Verificar periodicamente (a cada 30 segundos)
+    const interval = setInterval(checkExpiration, 30000);
+
     return () => clearInterval(interval);
-  }, [user, refreshUser]);
+  }, [user?.accessExpiresAt, user?.isActive, user?.role, refreshUser]);
 
   // Carregar histórico ao montar (apenas uma vez)
   useEffect(() => {

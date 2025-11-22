@@ -281,6 +281,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
       );
 
+      // Limpar streamedResponse ANTES de adicionar a mensagem final
+      // Isso evita a duplicação visual (placeholder + mensagem final)
+      setStreamedResponse("");
+
       const botMsg: Message = {
         id: generateUniqueId(),
         text: fullResponse,

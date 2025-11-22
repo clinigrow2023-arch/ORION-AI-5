@@ -44,13 +44,19 @@ const App: React.FC = () => {
       case "admin":
         return <AdminDashboard />;
       case "chat":
-        return <ChatInterface messages={messages} addMessage={addMessage} onResetChat={resetChat} />;
+        return (
+          <ChatInterface
+            messages={messages}
+            addMessage={addMessage}
+            onResetChat={resetChat}
+          />
+        );
       case "plan":
         return <PlanDisplay plan={plan} setPlan={setPlan} />;
       case "guide":
         return <GuideView />;
       default:
-        return <ChatInterface messages={messages} addMessage={addMessage} />;
+        return <ChatInterface messages={messages} addMessage={addMessage} onResetChat={resetChat} />;
     }
   };
 

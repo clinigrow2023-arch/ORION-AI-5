@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, AlertCircle, Key } from "lucide-react";
+import { Send, Bot, User, Loader2, AlertCircle, Key, RotateCcw } from "lucide-react";
 import { Message, Sender } from "../types";
 import { geminiService } from "../services/geminiService";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 import ReactMarkdown from "react-markdown";
+import ResetChatModal from "./ResetChatModal";
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -24,6 +25,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [streamedResponse, setStreamedResponse] = useState("");
   const hasLoadedHistory = useRef(false);
   const messageIdCounter = useRef(0);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   // Função para gerar ID único
   const generateUniqueId = () => {
@@ -329,13 +331,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {/* Chat Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-200">
-              Consultation Session
-            </h2>
-            <p className="text-sm text-slate-400">
-              Provide details about your situation for analysis.
-            </p>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-200">
+                  Consultation Session
+                </h2>
+                <p className="text-sm text-slate-400">
+                  Provide details about your situation for analysis.
+                </p>
+              </div>
+              {messages.length > 0 && (
+                <button
+                  onClick={() => setShowResetModal(true)}
+                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                  title="Reset chat"
+                >
+                  <RotateCcw size={18} />
+                </button>
+              )}
+            </div>
           </div>
           {user?.accessExpiresAt && (
             <div
@@ -534,20 +549,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onResetChat();
             setShowResetModal(false);
             hasLoadedHistory.current = false; // Permitir recarregar histórico se necessário
-            
+
             // Deletar conversa do backend
             try {
               const token = authService.getToken();
               if (token) {
-                await fetch('/.netlify/functions/conversations', {
-                  method: 'DELETE',
+                await fetch("/.netlify/functions/conversations", {
+                  method: "DELETE",
                   headers: {
-                    'Authorization': `Bearer ${token}`,
+                    Authorization: `Bearer ${token}`,
                   },
                 });
               }
             } catch (error) {
-              console.error('Failed to delete conversation:', error);
+              console.error("Failed to delete conversation:", error);
             }
           }}
           onCancel={() => setShowResetModal(false)}

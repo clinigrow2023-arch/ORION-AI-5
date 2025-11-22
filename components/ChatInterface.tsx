@@ -200,7 +200,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (user.role !== "admin") {
       // Verificar se usuário está bloqueado (não deveria chegar aqui, mas verificar por segurança)
       if (user.isBlocked) {
-        alert("Sua conta foi bloqueada. Entre em contato com um administrador.");
+        alert(
+          "Sua conta foi bloqueada. Entre em contato com um administrador."
+        );
         authService.logout();
         window.location.reload();
         return;
@@ -227,12 +229,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     // Atualizar estado do usuário antes de enviar (garantir dados mais recentes)
     await refreshUser();
-    
+
     // Verificar novamente após refresh (caso acesso tenha sido revogado durante o uso)
     if (user.role !== "admin") {
-      if (user.isBlocked || !user.isActive || 
-          (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date())) {
-        alert("Seu acesso foi revogado ou expirou. Por favor, entre em contato com um administrador.");
+      if (
+        user.isBlocked ||
+        !user.isActive ||
+        (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date())
+      ) {
+        alert(
+          "Seu acesso foi revogado ou expirou. Por favor, entre em contato com um administrador."
+        );
         return;
       }
     }

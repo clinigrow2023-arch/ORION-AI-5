@@ -1,0 +1,155 @@
+import { Handler } from '@netlify/functions';
+import { prisma } from '../../lib/prisma';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+// Verificar se é admin
+const verifyAdmin = (authHeader: string | undefined): { userId: string; email: string } | null => {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  try {
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    return decoded;
+  } catch {
+    return null;
+  }
+};
+
+export const handler: Handler = async (event, context) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: '',
+    };
+  }
+
+  // Verificar autenticação e admin
+  const admin = verifyAdmin(event.headers.authorization || event.headers.Authorization);
+  if (!admin) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({ error: 'Unauthorized' }),
+    };
+  }
+
+  // Verificar se é admin
+  const user = await prisma.user.findUnique({
+    where: { id: admin.userId },
+    select: { role: true },
+  });
+
+  if (!user || user.role !== 'admin') {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: 'Forbidden: Admin access required' }),
+    };
+  }
+
+  try {
+    // GET - Listar todos os usuários
+    if (event.httpMethod === 'GET') {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isBlocked: true,
+          credits: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ users }),
+      };
+    }
+
+    // PUT - Atualizar usuário (bloquear/desbloquear, créditos)
+    if (event.httpMethod === 'PUT') {
+      const { userId, isBlocked, credits } = JSON.parse(event.body || '{}');
+
+      if (!userId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'userId is required' }),
+        };
+      }
+
+      const updateData: any = {};
+      if (typeof isBlocked === 'boolean') {
+        updateData.isBlocked = isBlocked;
+      }
+      if (typeof credits === 'number' && credits >= 0) {
+        updateData.credits = credits;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'No valid fields to update' }),
+        };
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isBlocked: true,
+          credits: true,
+          createdAt: true,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user: updatedUser }),
+      };
+    }
+
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  } catch (error: any) {
+    console.error('Admin users error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: error.message || 'Internal server error',
+      }),
+    };
+  }
+};
+

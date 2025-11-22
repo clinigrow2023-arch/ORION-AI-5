@@ -50,6 +50,9 @@ export const handler: Handler = async (event, context) => {
         id: true,
         name: true,
         email: true,
+        role: true,
+        isBlocked: true,
+        credits: true,
         createdAt: true,
       },
     });

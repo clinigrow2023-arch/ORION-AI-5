@@ -3,14 +3,15 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import PlanDisplay from './components/PlanDisplay';
 import GuideView from './components/GuideView';
+import AdminDashboard from './components/AdminDashboard';
 import Auth from './components/Auth';
 import { useAuth } from './contexts/AuthContext';
 import { ViewState, Message, ActionPlan, Sender } from './types';
 import { Menu, X, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
-  const { isAuthenticated, loading } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewState>('chat');
+  const { isAuthenticated, loading, isAdmin } = useAuth();
+  const [currentView, setCurrentView] = useState<ViewState | 'admin'>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,6 +22,8 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
+      case 'admin':
+        return <AdminDashboard />;
       case 'chat':
         return <ChatInterface messages={messages} addMessage={addMessage} />;
       case 'plan':

@@ -13,11 +13,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
 **Prerequisites:** Node.js
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Set up environment variables in `.env`:
+
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
@@ -26,11 +28,13 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    ```
 
 3. Generate Prisma Client:
+
    ```bash
    npm run db:generate
    ```
 
 4. Push database schema:
+
    ```bash
    npm run db:push
    ```
@@ -43,6 +47,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
 ## Authentication
 
 The app requires user authentication. Users must:
+
 - Register with name, email, and password
 - Sign in to access the chat interface
 - All routes are protected and require authentication
@@ -50,12 +55,15 @@ The app requires user authentication. Users must:
 ## Database
 
 - MongoDB with Prisma ORM
-- User model with name, email, and hashed password
+- User model with: name, email, password, role, isBlocked, credits
+- Conversation model for chat history
 - JWT-based authentication
+- Credit system: users start with 10 credits, each message costs 1 credit
 
 ## Deployment (Netlify)
 
 1. Set environment variables in Netlify:
+
    - `GEMINI_API_KEY` - Your Gemini API key
    - `DATABASE_URL` - MongoDB connection string (must include database name)
    - `JWT_SECRET` - Secret key for JWT tokens

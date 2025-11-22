@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Coins, AlertCircle } from 'lucide-react';
 import { Message, Sender } from '../types';
 import { geminiService } from '../services/geminiService';
+import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../lib/auth';
 import ReactMarkdown from 'react-markdown';
 
 interface ChatInterfaceProps {
@@ -10,10 +12,12 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) => {
+  const { user, refreshUser } = useAuth();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamedResponse, setStreamedResponse] = useState('');
+  const [credits, setCredits] = useState<number | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,8 +27,117 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
     scrollToBottom();
   }, [messages, streamedResponse]);
 
+  // Carregar histórico e créditos ao montar
+  useEffect(() => {
+    const loadConversation = async () => {
+      try {
+        const token = authService.getToken();
+        if (!token) return;
+
+        const response = await fetch('/.netlify/functions/conversations', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCredits(data.credits || 0);
+          
+          // Carregar última conversa se existir
+          if (data.conversations && data.conversations.length > 0) {
+            const lastConv = data.conversations[0];
+            if (lastConv.messages && Array.isArray(lastConv.messages)) {
+              // Converter mensagens do histórico para o formato do componente
+              const loadedMessages: Message[] = lastConv.messages.map((msg: any) => ({
+                id: msg.id || Date.now().toString(),
+                text: msg.text || '',
+                sender: msg.sender === 'user' ? Sender.User : Sender.Bot,
+                timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+              }));
+              
+              // Adicionar mensagens ao estado (sem duplicar)
+              if (loadedMessages.length > 0 && messages.length === 0) {
+                loadedMessages.forEach(msg => addMessage(msg));
+              }
+            }
+          }
+        } else if (response.status === 402) {
+          const data = await response.json();
+          setCredits(0);
+        }
+      } catch (error) {
+        console.error('Failed to load conversation:', error);
+      }
+    };
+
+    loadConversation();
+  }, []);
+
+  // Atualizar créditos quando user mudar
+  useEffect(() => {
+    if (user?.credits !== undefined) {
+      setCredits(user.credits);
+    }
+  }, [user]);
+
+  const saveConversation = async (allMessages: Message[]) => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const messagesToSave = allMessages.map(msg => ({
+        id: msg.id,
+        text: msg.text,
+        sender: msg.sender === Sender.User ? 'user' : 'bot',
+        timestamp: msg.timestamp.toISOString(),
+      }));
+
+      const response = await fetch('/.netlify/functions/conversations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ messages: messagesToSave }),
+      });
+
+      if (response.ok) {
+        // Atualizar créditos após salvar
+        await refreshUser();
+        const data = await response.json();
+        if (data.credits !== undefined) {
+          setCredits(data.credits);
+        }
+      } else if (response.status === 402) {
+        // Créditos insuficientes
+        const errorMsg: Message = {
+          id: Date.now().toString(),
+          text: '⚠️ **Insufficient Credits**\n\nYou have run out of credits. Please contact an administrator to add more credits.',
+          sender: Sender.Bot,
+          timestamp: new Date(),
+        };
+        addMessage(errorMsg);
+      }
+    } catch (error) {
+      console.error('Failed to save conversation:', error);
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+
+    // Verificar créditos antes de enviar
+    if (credits !== null && credits <= 0) {
+      const errorMsg: Message = {
+        id: Date.now().toString(),
+        text: '⚠️ **Insufficient Credits**\n\nYou have run out of credits. Please contact an administrator to add more credits.',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+      };
+      addMessage(errorMsg);
+      return;
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -33,6 +146,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
       timestamp: new Date()
     };
 
+    const currentMessages = [...messages, userMsg];
     addMessage(userMsg);
     setInput('');
     setIsLoading(true);
@@ -50,7 +164,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
         timestamp: new Date()
       };
       
+      const updatedMessages = [...currentMessages, botMsg];
       addMessage(botMsg);
+      
+      // Salvar conversa após resposta completa
+      await saveConversation(updatedMessages);
     } catch (error: any) {
       let errorText = "I encountered an error processing your strategy. Please try again.";
       
@@ -59,6 +177,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
         errorText = `🔒 **Erro de Segurança Detectado**\n\nSua chave API foi reportada como vazada pelo Google.\n\n**Para resolver:**\n1. Acesse [Google AI Studio](https://aistudio.google.com/apikey)\n2. Gere uma nova chave API\n3. Atualize o arquivo \`.env\` com a nova chave:\n   \`GEMINI_API_KEY=sua_nova_chave_aqui\`\n4. Reinicie o servidor (\`npm run dev\`)`;
       } else if (error?.message?.includes('API key is missing')) {
         errorText = `⚠️ **Chave API não encontrada**\n\nPor favor, adicione sua chave API do Gemini no arquivo \`.env\`:\n\`GEMINI_API_KEY=sua_chave_aqui\`\n\nDepois, reinicie o servidor.`;
+      } else if (error?.message?.includes('Insufficient credits') || error?.message?.includes('402')) {
+        errorText = '⚠️ **Insufficient Credits**\n\nYou have run out of credits. Please contact an administrator to add more credits.';
       }
       
       const errorMsg: Message = {
@@ -85,8 +205,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
     <div className="flex flex-col h-full bg-slate-950">
       {/* Chat Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <h2 className="text-lg font-semibold text-slate-200">Consultation Session</h2>
-        <p className="text-sm text-slate-400">Provide details about your situation for analysis.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-200">Consultation Session</h2>
+            <p className="text-sm text-slate-400">Provide details about your situation for analysis.</p>
+          </div>
+          {credits !== null && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg border border-slate-700">
+              <Coins size={18} className={`${credits > 0 ? 'text-yellow-400' : 'text-red-400'}`} />
+              <span className={`text-sm font-medium ${credits > 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {credits}
+              </span>
+            </div>
+          )}
+        </div>
+        {credits !== null && credits <= 0 && (
+          <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
+            <AlertCircle size={16} />
+            <span>You have no credits remaining. Contact an administrator.</span>
+          </div>
+        )}
       </div>
 
       {/* Messages Area */}
@@ -106,7 +244,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
             key={msg.id}
             className={`flex gap-4 ${msg.sender === Sender.User ? 'flex-row-reverse' : 'flex-row'}`}
           >
-            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+            <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
               msg.sender === Sender.User ? 'bg-indigo-600' : 'bg-slate-700'
             }`}>
               {msg.sender === Sender.User ? <User size={20} /> : <Bot size={20} className="text-indigo-300" />}

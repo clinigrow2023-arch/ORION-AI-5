@@ -1,15 +1,15 @@
 import React from 'react';
-import { MessageSquare, FileText, BookOpen, Star, LogOut, User } from 'lucide-react';
+import { MessageSquare, FileText, BookOpen, Star, LogOut, User, Shield } from 'lucide-react';
 import { ViewState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
-  currentView: ViewState;
-  setView: (view: ViewState) => void;
+  currentView: ViewState | 'admin';
+  setView: (view: ViewState | 'admin') => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
 
   return (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
@@ -30,6 +30,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{user.name}</p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
+              {user.credits !== undefined && (
+                <p className="text-xs text-yellow-400 mt-1">Credits: {user.credits}</p>
+              )}
             </div>
           </div>
         </div>
@@ -71,6 +74,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           <BookOpen size={20} />
           <span className="font-medium">Strategy Guide</span>
         </button>
+
+        {isAdmin && (
+          <button
+            onClick={() => setView('admin')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              currentView === 'admin'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+          >
+            <Shield size={20} />
+            <span className="font-medium">Admin Dashboard</span>
+          </button>
+        )}
       </nav>
 
       <div className="p-4 border-t border-slate-800 space-y-2">

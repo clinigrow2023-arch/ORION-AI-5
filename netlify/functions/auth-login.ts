@@ -40,12 +40,16 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
+    const emailLower = email.toLowerCase().trim();
+    console.log('Login attempt for email:', emailLower);
+
     // Buscar usuário
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: emailLower },
     });
 
     if (!user) {
+      console.log('User not found for email:', emailLower);
       return {
         statusCode: 401,
         headers,
@@ -53,8 +57,20 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
+    console.log('User found:', user.email, 'isBlocked:', user.isBlocked);
+
+    // Verificar se usuário está bloqueado
+    if (user.isBlocked) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Account is blocked. Please contact an administrator.' }),
+      };
+    }
+
     // Verificar senha
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log('Password valid:', isPasswordValid);
 
     if (!isPasswordValid) {
       return {

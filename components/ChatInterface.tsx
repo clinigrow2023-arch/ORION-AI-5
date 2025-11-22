@@ -153,17 +153,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       } else if (response.status === 403) {
         // Acesso revogado ou expirado (usuários bloqueados já foram deslogados antes)
         const errorData = await response.json().catch(() => ({}));
-        let errorText = "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
-        
-        if (errorData.error?.includes('blocked')) {
+        let errorText =
+          "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
+
+        if (errorData.error?.includes("blocked")) {
           // Se por algum motivo ainda chegou aqui bloqueado, fazer logout
-          errorText = "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.";
+          errorText =
+            "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.";
           setTimeout(() => {
             authService.logout();
             window.location.reload();
           }, 2000);
         }
-        
+
         const errorMsg: Message = {
           id: generateUniqueId(),
           text: errorText,
@@ -326,12 +328,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           )}
         </div>
-        {user && !user.isActive && (
+        {user && !user.isActive && !user.accessExpiresAt && (
           <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
             <AlertCircle size={16} />
             <span>
               Your account access has not been granted. Please contact an
               administrator.
+            </span>
+          </div>
+        )}
+        {user && !user.isActive && user.accessExpiresAt && (
+          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
+            <AlertCircle size={16} />
+            <span>
+              Your access has been revoked. Please contact an administrator to restore access.
             </span>
           </div>
         )}

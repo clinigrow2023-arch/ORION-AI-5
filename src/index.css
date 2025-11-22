@@ -1,11 +1,17 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-slate-850: #151b2e;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+  --color-indigo-450: #6366f1;
+  --font-family-sans: "Inter", sans-serif;
+}
 
 @layer base {
   body {
-    font-family: "Inter", sans-serif;
-    background-color: #020617;
+    font-family: var(--font-family-sans);
+    background-color: var(--color-slate-950);
     color: #e2e8f0;
   }
 }
@@ -16,7 +22,7 @@
     width: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: var(--color-slate-900);
   }
   ::-webkit-scrollbar-thumb {
     background: #334155;

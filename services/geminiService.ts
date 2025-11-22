@@ -155,38 +155,53 @@ export class GeminiService {
         if (response.status === 404 && isDevelopment) {
           throw new Error('404 - Netlify Function not available');
         }
+
+        // If response is not ok and not 404 in dev, throw error
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
       } catch (netlifyError: any) {
         // If Netlify Function fails and we're in development, fallback to direct API
-        if (isDevelopment && (netlifyError?.message?.includes('404') || netlifyError?.message?.includes('Failed to fetch'))) {
-          console.warn('Netlify Function not available, using direct API (dev mode only)');
+        const is404Error = netlifyError?.message?.includes('404') || 
+                          netlifyError?.message?.includes('Failed to fetch') ||
+                          (response && response.status === 404);
+        
+        if (isDevelopment && is404Error) {
+          console.warn('⚠️ Netlify Function not available (404), using direct API (dev mode only)');
           
-          await this.initializeAI();
-          if (!this.ai) throw new Error('Failed to initialize AI client');
+          try {
+            await this.initializeAI();
+            if (!this.ai) throw new Error('Failed to initialize AI client');
 
-          const chat = this.ai.chats.create({
-            model: this.modelName,
-            config: {
-              systemInstruction: this.getSystemInstruction(),
-            },
-            history: this.chatHistory
-          });
+            const chat = this.ai.chats.create({
+              model: this.modelName,
+              config: {
+                systemInstruction: this.getSystemInstruction(),
+              },
+              history: this.chatHistory
+            });
 
-          const result = await chat.sendMessageStream({ message });
-          
-          let fullText = '';
-          for await (const chunk of result) {
-            const text = chunk.text;
-            if (text) {
-              fullText += text;
-              onChunk(text);
+            const result = await chat.sendMessageStream({ message });
+            
+            let fullText = '';
+            for await (const chunk of result) {
+              const text = chunk.text;
+              if (text) {
+                fullText += text;
+                onChunk(text);
+              }
             }
+
+            // Update local history
+            this.chatHistory.push({ role: 'user', parts: [{ text: message }] });
+            this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
+
+            return fullText;
+          } catch (apiError: any) {
+            console.error('Direct API fallback failed:', apiError);
+            throw new Error(apiError.message || 'Failed to connect to Gemini API. Please check your VITE_GEMINI_API_KEY in .env file.');
           }
-
-          // Update local history
-          this.chatHistory.push({ role: 'user', parts: [{ text: message }] });
-          this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
-
-          return fullText;
         }
         
         // If we have a response but it's not ok, throw with error details
@@ -197,14 +212,6 @@ export class GeminiService {
         
         throw netlifyError;
       }
-
-      // This should never be reached, but just in case
-      if (response && !response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      throw new Error('Unexpected error: no response received');
     } catch (error: any) {
       console.error("Gemini Chat Error:", error);
       

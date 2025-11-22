@@ -86,7 +86,7 @@ const sendNetlifyResponse = async (res: express.Response, handler: any, event: a
 // OPTIONS for CORS - handle all function routes (must be before other routes)
 app.options('/.netlify/functions/:functionName', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.sendStatus(200);
 });
@@ -113,6 +113,11 @@ app.get('/.netlify/functions/conversations', async (req, res) => {
 });
 
 app.post('/.netlify/functions/conversations', async (req, res) => {
+  const event = createNetlifyEvent(req);
+  await sendNetlifyResponse(res, conversationsHandler, event);
+});
+
+app.delete('/.netlify/functions/conversations', async (req, res) => {
   const event = createNetlifyEvent(req);
   await sendNetlifyResponse(res, conversationsHandler, event);
 });

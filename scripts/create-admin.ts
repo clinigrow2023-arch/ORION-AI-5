@@ -1,6 +1,7 @@
 // Script para criar primeiro usuário admin
 // Execute: npx tsx scripts/create-admin.ts
 
+import 'dotenv/config';
 import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import * as readline from 'readline';

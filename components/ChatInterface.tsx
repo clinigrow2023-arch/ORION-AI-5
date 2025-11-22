@@ -21,6 +21,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamedResponse, setStreamedResponse] = useState("");
   const hasLoadedHistory = useRef(false);
+  const messageIdCounter = useRef(0);
+
+  // Função para gerar ID único
+  const generateUniqueId = () => {
+    messageIdCounter.current += 1;
+    return `${Date.now()}-${messageIdCounter.current}-${Math.random().toString(36).substr(2, 9)}`;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -65,8 +72,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ) {
               // Converter mensagens do histórico para o formato do componente
               const loadedMessages: Message[] = lastConv.messages.map(
-                (msg: any) => ({
-                  id: msg.id || `${Date.now()}-${Math.random()}`,
+                (msg: any, index: number) => ({
+                  id: msg.id || generateUniqueId(),
                   text: msg.text || "",
                   sender: msg.sender === "user" ? Sender.User : Sender.Bot,
                   timestamp: msg.timestamp
@@ -78,8 +85,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               // Adicionar mensagens ao estado apenas se ainda não foram carregadas
               if (loadedMessages.length > 0 && messages.length === 0) {
                 hasLoadedHistory.current = true;
+                // Verificar duplicação antes de adicionar
+                const existingIds = new Set(messages.map(m => m.id));
+                const uniqueMessages = loadedMessages.filter(msg => !existingIds.has(msg.id));
+                
                 // Adicionar todas as mensagens de uma vez
-                loadedMessages.forEach((msg) => addMessage(msg));
+                uniqueMessages.forEach((msg) => addMessage(msg));
               }
             }
           }
@@ -119,7 +130,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       } else if (response.status === 403) {
         // Conta bloqueada
         const errorMsg: Message = {
-          id: Date.now().toString(),
+          id: generateUniqueId(),
           text: "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.",
           sender: Sender.Bot,
           timestamp: new Date(),
@@ -140,7 +151,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!input.trim() || isLoading) return;
 
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       text: input,
       sender: Sender.User,
       timestamp: new Date(),
@@ -161,7 +172,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       );
 
       const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: generateUniqueId(),
         text: fullResponse,
         sender: Sender.Bot,
         timestamp: new Date(),
@@ -194,7 +205,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
 
       const errorMsg: Message = {
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         text: errorText,
         sender: Sender.Bot,
         timestamp: new Date(),

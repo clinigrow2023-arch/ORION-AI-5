@@ -29,7 +29,14 @@ const App: React.FC = () => {
   }, [user?.isBlocked, logout]);
 
   const addMessage = (msg: Message) => {
-    setMessages((prev) => [...prev, msg]);
+    setMessages((prev) => {
+      // Verificar se a mensagem já existe (evitar duplicação)
+      const exists = prev.some(m => m.id === msg.id);
+      if (exists) {
+        return prev;
+      }
+      return [...prev, msg];
+    });
   };
 
   const renderContent = () => {

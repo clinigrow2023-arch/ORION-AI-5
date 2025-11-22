@@ -82,10 +82,7 @@ const App: React.FC = () => {
       return <WaitingActivation />;
     }
     // Acesso expirado
-    if (
-      user.accessExpiresAt &&
-      new Date(user.accessExpiresAt) < new Date()
-    ) {
+    if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
       return <WaitingActivation />;
     }
   }

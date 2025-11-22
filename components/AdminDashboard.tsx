@@ -57,7 +57,7 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean; accessExpiresAt?: string }) => {
+  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean; accessExpiresAt?: string; updateExpirationDate?: boolean }) => {
     try {
       setUpdating(userId);
       setError(null);
@@ -232,7 +232,7 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => handleBlockToggle(user)}
                           disabled={updating === user.id}
@@ -251,17 +251,68 @@ const AdminDashboard: React.FC = () => {
                           )}
                         </button>
                         {user.isActive ? (
-                          <button
-                            onClick={() => handleRevokeAccess(user.id)}
-                            disabled={updating === user.id}
-                            className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
-                          >
-                            {updating === user.id ? (
-                              <Loader2 className="animate-spin" size={16} />
+                          <>
+                            <button
+                              onClick={() => handleRevokeAccess(user.id)}
+                              disabled={updating === user.id}
+                              className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                            >
+                              {updating === user.id ? (
+                                <Loader2 className="animate-spin" size={16} />
+                              ) : (
+                                'Revoke'
+                              )}
+                            </button>
+                            {showDatePicker === user.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={selectedDate || (user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '')}
+                                  onChange={(e) => setSelectedDate(e.target.value)}
+                                  min={new Date().toISOString().split('T')[0]}
+                                  className="px-2 py-1 bg-slate-800 text-slate-200 rounded text-sm border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (selectedDate) {
+                                      updateUser(user.id, { updateExpirationDate: true, accessExpiresAt: selectedDate });
+                                      setShowDatePicker(null);
+                                      setSelectedDate("");
+                                    }
+                                  }}
+                                  disabled={updating === user.id}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                >
+                                  {updating === user.id ? (
+                                    <Loader2 className="animate-spin" size={16} />
+                                  ) : (
+                                    'Save'
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowDatePicker(null);
+                                    setSelectedDate("");
+                                  }}
+                                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             ) : (
-                              'Revoke'
+                              <button
+                                onClick={() => {
+                                  setShowDatePicker(user.id);
+                                  setSelectedDate(user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '');
+                                }}
+                                disabled={updating === user.id}
+                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                title="Edit expiration date"
+                              >
+                                Edit Date
+                              </button>
                             )}
-                          </button>
+                          </>
                         ) : (
                           <div className="flex items-center gap-2">
                             {showDatePicker === user.id ? (

@@ -332,7 +332,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {/* Streaming message placeholder */}
         {isLoading && streamedResponse && (
           <div className="flex gap-4 flex-row">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-slate-700">
+            <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-slate-700">
               <Bot size={20} className="text-indigo-300" />
             </div>
             <div className="max-w-[80%] rounded-2xl p-4 bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700">

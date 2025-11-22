@@ -179,9 +179,14 @@ export class GeminiService {
           console.warn('⚠️ Netlify Function not available (404), using direct API (dev mode only)');
           
           try {
+            console.log('Initializing AI client...');
             await this.initializeAI();
-            if (!this.ai) throw new Error('Failed to initialize AI client');
+            if (!this.ai) {
+              throw new Error('Failed to initialize AI client - API key may be missing');
+            }
+            console.log('AI client initialized successfully');
 
+            console.log('Creating chat...');
             const chat = this.ai.chats.create({
               model: this.modelName,
               config: {
@@ -190,6 +195,7 @@ export class GeminiService {
               history: this.chatHistory
             });
 
+            console.log('Sending message to Gemini API...');
             const result = await chat.sendMessageStream({ message });
             
             let fullText = '';
@@ -201,13 +207,20 @@ export class GeminiService {
               }
             }
 
+            console.log('Message received successfully, length:', fullText.length);
+
             // Update local history
             this.chatHistory.push({ role: 'user', parts: [{ text: message }] });
             this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
 
             return fullText;
           } catch (apiError: any) {
-            console.error('Direct API fallback failed:', apiError);
+            console.error('❌ Direct API fallback failed:', apiError);
+            console.error('Error details:', {
+              message: apiError?.message,
+              code: apiError?.code,
+              stack: apiError?.stack
+            });
             throw new Error(apiError.message || 'Failed to connect to Gemini API. Please check your VITE_GEMINI_API_KEY in .env file.');
           }
         }

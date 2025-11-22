@@ -68,11 +68,21 @@ const WaitingActivation: React.FC = () => {
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-3">
-          Aguardando Ativação
+          {user?.isBlocked
+            ? "Conta Bloqueada"
+            : user?.accessExpiresAt &&
+              new Date(user.accessExpiresAt) < new Date()
+            ? "Acesso Expirado"
+            : "Aguardando Ativação"}
         </h1>
 
         <p className="text-slate-400 mb-6 leading-relaxed">
-          Sua conta foi criada com sucesso! No entanto, seu acesso ainda não foi liberado por um administrador.
+          {user?.isBlocked
+            ? "Sua conta foi bloqueada por um administrador. Entre em contato para mais informações."
+            : user?.accessExpiresAt &&
+              new Date(user.accessExpiresAt) < new Date()
+            ? "Seu acesso expirou. Entre em contato com um administrador para renovar seu acesso."
+            : "Sua conta foi criada com sucesso! No entanto, seu acesso ainda não foi liberado por um administrador."}
         </p>
 
         <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">

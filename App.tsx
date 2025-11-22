@@ -72,20 +72,21 @@ const App: React.FC = () => {
 
   // LÓGICA DE ACESSO:
   // - isBlocked: logout automático (não chega aqui)
-  // - isActive: false = acesso revogado (permanece logado, mostra WaitingActivation, não pode usar chat)
-  // - accessExpiresAt expirado = acesso expirado (permanece logado, mostra WaitingActivation, não pode usar chat)
+  // - isActive: false = acesso revogado (permanece logado, não pode usar chat)
+  // - accessExpiresAt expirado = acesso expirado (permanece logado, não pode usar chat)
+  // - WaitingActivation: APENAS para novos usuários que nunca foram aprovados (accessExpiresAt === null)
 
-  // Mostrar tela de aguardando ativação se usuário não tiver acesso ativo (exceto admin)
-  // Usuários bloqueados já foram deslogados antes de chegar aqui
+  // Mostrar tela de aguardando ativação APENAS se:
+  // 1. Usuário não tem acesso ativo (isActive: false)
+  // 2. E nunca foi aprovado antes (accessExpiresAt === null) = novo cadastro
+  // Se já foi aprovado uma vez, mesmo que acesso seja revogado, não mostra mais essa tela
   if (user && user.role !== "admin") {
-    // Usuário sem acesso ativo (acesso revogado)
-    if (!user.isActive) {
+    // Novo usuário aguardando primeira aprovação
+    if (!user.isActive && !user.accessExpiresAt) {
       return <WaitingActivation />;
     }
-    // Acesso expirado
-    if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-      return <WaitingActivation />;
-    }
+    // Acesso expirado ou revogado - não mostrar WaitingActivation (usuário já foi aprovado antes)
+    // Usuário pode ver interface mas não pode usar chat (já está bloqueado no ChatInterface)
   }
 
   return (

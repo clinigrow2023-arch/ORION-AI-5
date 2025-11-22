@@ -1,11 +1,15 @@
 import { Handler } from '@netlify/functions';
 import { GoogleGenAI } from '@google/genai';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../../lib/prisma';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export const handler: Handler = async (event, context) => {
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
@@ -28,6 +32,90 @@ export const handler: Handler = async (event, context) => {
   }
 
   try {
+    // Verificar autenticação e acesso ANTES de processar mensagem
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Authentication required' }),
+      };
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    let decoded: { userId: string; email: string };
+    
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    } catch (error) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Invalid or expired token' }),
+      };
+    }
+
+    // Buscar usuário e verificar acesso
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isBlocked: true,
+        isActive: true,
+        accessExpiresAt: true,
+      },
+    });
+
+    if (!user) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'User not found' }),
+      };
+    }
+
+    // IMPORTANTE: Admin sempre tem acesso ilimitado
+    // Não verifica isActive ou accessExpiresAt para admin
+    if (user.role !== 'admin') {
+      // Verificar se usuário está bloqueado
+      if (user.isBlocked) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Account blocked. Please contact an administrator.',
+            blocked: true,
+          }),
+        };
+      }
+
+      // Verificar se usuário tem acesso ativo
+      if (!user.isActive) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Account access not granted. Please contact an administrator.',
+            notActive: true,
+          }),
+        };
+      }
+
+      // Verificar se acesso expirou
+      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Your access has expired. Please contact an administrator to renew.',
+            expired: true,
+          }),
+        };
+      }
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     
     if (!apiKey) {

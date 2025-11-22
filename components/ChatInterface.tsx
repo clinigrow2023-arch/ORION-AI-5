@@ -188,31 +188,53 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Verificar se usuário tem acesso ANTES de enviar mensagem (para não gastar prompts)
+    // CRÍTICO: Verificar acesso ANTES de qualquer processamento (para não gastar tokens)
     // IMPORTANTE: Usuários bloqueados já foram deslogados, então não chegam aqui
-    if (!user) return;
-
-    // Bloquear se usuário não tem acesso ativo (exceto admin)
-    // isActive: false = acesso revogado (permanece logado mas não pode usar chat)
-    if (user.role !== "admin" && !user.isActive) {
-      alert(
-        "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
-      );
+    if (!user) {
+      alert("Por favor, faça login para usar o chat.");
       return;
     }
 
-    // Bloquear se acesso expirou (exceto admin) - VERIFICAR ANTES DE CHAMAR API
-    // accessExpiresAt expirado = acesso expirado (permanece logado mas não pode usar chat)
-    const isExpired =
-      user.role !== "admin" &&
-      user.accessExpiresAt &&
-      new Date(user.accessExpiresAt) < new Date();
+    // Verificar acesso ANTES de chamar API - BLOQUEAR IMEDIATAMENTE se sem acesso
+    // Admin sempre tem acesso ilimitado
+    if (user.role !== "admin") {
+      // Verificar se usuário está bloqueado (não deveria chegar aqui, mas verificar por segurança)
+      if (user.isBlocked) {
+        alert("Sua conta foi bloqueada. Entre em contato com um administrador.");
+        authService.logout();
+        window.location.reload();
+        return;
+      }
 
-    if (isExpired) {
-      alert(
-        "Seu acesso expirou. Entre em contato com um administrador para renovar."
-      );
-      return;
+      // Bloquear se usuário não tem acesso ativo
+      // isActive: false = acesso revogado (permanece logado mas não pode usar chat)
+      if (!user.isActive) {
+        alert(
+          "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
+        );
+        return;
+      }
+
+      // Bloquear se acesso expirou - VERIFICAR ANTES DE CHAMAR API
+      // accessExpiresAt expirado = acesso expirado (permanece logado mas não pode usar chat)
+      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+        alert(
+          "Seu acesso expirou. Entre em contato com um administrador para renovar."
+        );
+        return;
+      }
+    }
+
+    // Atualizar estado do usuário antes de enviar (garantir dados mais recentes)
+    await refreshUser();
+    
+    // Verificar novamente após refresh (caso acesso tenha sido revogado durante o uso)
+    if (user.role !== "admin") {
+      if (user.isBlocked || !user.isActive || 
+          (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date())) {
+        alert("Seu acesso foi revogado ou expirou. Por favor, entre em contato com um administrador.");
+        return;
+      }
     }
 
     // Só adiciona mensagem e chama API se passou todas as validações

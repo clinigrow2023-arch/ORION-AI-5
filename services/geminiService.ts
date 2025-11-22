@@ -112,14 +112,24 @@ export class GeminiService {
 
   async sendMessageStream(message: string, onChunk: (text: string) => void): Promise<string> {
     try {
+      // Get auth token for authorization header
+      const token = typeof window !== 'undefined' && localStorage.getItem('auth_token');
+      
       // Try Netlify Function first
       let response: Response | null = null;
       try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Adicionar token de autenticação se disponível
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             message,
             history: this.chatHistory,

@@ -187,6 +187,24 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
+    // DELETE - Deletar todas as conversas do usuário
+    if (event.httpMethod === 'DELETE') {
+      await prisma.conversation.deleteMany({
+        where: { userId: auth.userId },
+      });
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          message: 'Conversation deleted successfully',
+        }),
+      };
+    }
+
     return {
       statusCode: 405,
       headers,

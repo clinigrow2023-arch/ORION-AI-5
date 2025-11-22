@@ -56,7 +56,13 @@ const App: React.FC = () => {
       case "guide":
         return <GuideView />;
       default:
-        return <ChatInterface messages={messages} addMessage={addMessage} onResetChat={resetChat} />;
+        return (
+          <ChatInterface
+            messages={messages}
+            addMessage={addMessage}
+            onResetChat={resetChat}
+          />
+        );
     }
   };
 

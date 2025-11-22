@@ -1,5 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, AlertCircle, Key, RotateCcw } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  AlertCircle,
+  Key,
+  RotateCcw,
+} from "lucide-react";
 import { Message, Sender } from "../types";
 import { geminiService } from "../services/geminiService";
 import { useAuth } from "../contexts/AuthContext";

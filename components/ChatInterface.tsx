@@ -51,10 +51,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, addMessage }) =
       };
       
       addMessage(botMsg);
-    } catch (error) {
+    } catch (error: any) {
+      let errorText = "I encountered an error processing your strategy. Please try again.";
+      
+      // Check for leaked API key error
+      if (error?.message?.includes('vazada') || error?.message?.includes('leaked') || error?.code === 403) {
+        errorText = `🔒 **Erro de Segurança Detectado**\n\nSua chave API foi reportada como vazada pelo Google.\n\n**Para resolver:**\n1. Acesse [Google AI Studio](https://aistudio.google.com/apikey)\n2. Gere uma nova chave API\n3. Atualize o arquivo \`.env\` com a nova chave:\n   \`GEMINI_API_KEY=sua_nova_chave_aqui\`\n4. Reinicie o servidor (\`npm run dev\`)`;
+      } else if (error?.message?.includes('API key is missing')) {
+        errorText = `⚠️ **Chave API não encontrada**\n\nPor favor, adicione sua chave API do Gemini no arquivo \`.env\`:\n\`GEMINI_API_KEY=sua_chave_aqui\`\n\nDepois, reinicie o servidor.`;
+      }
+      
       const errorMsg: Message = {
         id: Date.now().toString(),
-        text: "I encountered an error processing your strategy. Please try again.",
+        text: errorText,
         sender: Sender.Bot,
         timestamp: new Date()
       };

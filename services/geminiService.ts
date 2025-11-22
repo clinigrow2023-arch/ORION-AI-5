@@ -2,7 +2,20 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from '../types';
 
 // Safe access to process.env to prevent runtime crashes in pure browser environments
-const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
+const getApiKey = (): string => {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.GEMINI_API_KEY || '';
+  }
+  return '';
+};
+
+const apiKey = getApiKey();
+
+if (!apiKey || apiKey === 'your_api_key_here' || apiKey.trim() === '') {
+  console.error('⚠️ GEMINI_API_KEY não encontrada ou inválida no arquivo .env');
+  console.error('Por favor, adicione sua chave API do Gemini no arquivo .env:');
+  console.error('GEMINI_API_KEY=sua_chave_aqui');
+}
 
 // Schema for the JSON response
 const planSchema: Schema = {
@@ -57,6 +70,9 @@ export class GeminiService {
   private chatHistory: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
 
   constructor() {
+    if (!apiKey || apiKey === 'your_api_key_here' || apiKey.trim() === '') {
+      throw new Error('API key is missing. Please provide a valid GEMINI_API_KEY in your .env file.');
+    }
     this.ai = new GoogleGenAI({ apiKey });
   }
 
@@ -117,8 +133,18 @@ export class GeminiService {
       this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
 
       return fullText;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini Chat Error:", error);
+      
+      // Check for leaked API key error
+      if (error?.code === 403 || error?.message?.includes('leaked') || error?.message?.includes('PERMISSION_DENIED')) {
+        const leakedError = new Error(
+          'Sua chave API foi reportada como vazada. Por favor, gere uma nova chave API no Google AI Studio (https://aistudio.google.com/apikey) e atualize o arquivo .env com a nova chave.'
+        );
+        console.error('🔒 Erro de segurança detectado:', leakedError.message);
+        throw leakedError;
+      }
+      
       throw error;
     }
   }
@@ -155,8 +181,18 @@ export class GeminiService {
       
       return JSON.parse(jsonText) as ActionPlan;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini Plan Generation Error:", error);
+      
+      // Check for leaked API key error
+      if (error?.code === 403 || error?.message?.includes('leaked') || error?.message?.includes('PERMISSION_DENIED')) {
+        const leakedError = new Error(
+          'Sua chave API foi reportada como vazada. Por favor, gere uma nova chave API no Google AI Studio (https://aistudio.google.com/apikey) e atualize o arquivo .env com a nova chave.'
+        );
+        console.error('🔒 Erro de segurança detectado:', leakedError.message);
+        throw leakedError;
+      }
+      
       throw error;
     }
   }

@@ -10,11 +10,61 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+
+2. Set up environment variables in `.env`:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   DATABASE_URL=mongodb+srv://user:password@cluster.mongodb.net/orionai?appName=OrionIA
+   JWT_SECRET=your-secret-key-change-in-production
+   ```
+
+3. Generate Prisma Client:
+   ```bash
+   npm run db:generate
+   ```
+
+4. Push database schema:
+   ```bash
+   npm run db:push
+   ```
+
+5. Run the app:
+   ```bash
+   npm run dev
+   ```
+
+## Authentication
+
+The app requires user authentication. Users must:
+- Register with name, email, and password
+- Sign in to access the chat interface
+- All routes are protected and require authentication
+
+## Database
+
+- MongoDB with Prisma ORM
+- User model with name, email, and hashed password
+- JWT-based authentication
+
+## Deployment (Netlify)
+
+1. Set environment variables in Netlify:
+   - `GEMINI_API_KEY` - Your Gemini API key
+   - `DATABASE_URL` - MongoDB connection string (must include database name)
+   - `JWT_SECRET` - Secret key for JWT tokens
+
+2. The app will automatically deploy on push to main branch
+
+## Important Notes
+
+- **DATABASE_URL**: Must include the database name in the connection string
+  - Format: `mongodb+srv://user:pass@cluster.mongodb.net/database_name?appName=AppName`
+- **JWT_SECRET**: Use a strong, random secret in production
+- Authentication functions work in production (Netlify) and require `netlify dev` for local testing

@@ -151,19 +151,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         // Conversa salva com sucesso - não precisa atualizar usuário
         // Removido refreshUser() para evitar requisições desnecessárias
       } else if (response.status === 403) {
-        // Conta bloqueada
+        // Acesso revogado ou expirado (usuários bloqueados já foram deslogados antes)
+        const errorData = await response.json().catch(() => ({}));
+        let errorText = "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
+        
+        if (errorData.error?.includes('blocked')) {
+          // Se por algum motivo ainda chegou aqui bloqueado, fazer logout
+          errorText = "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.";
+          setTimeout(() => {
+            authService.logout();
+            window.location.reload();
+          }, 2000);
+        }
+        
         const errorMsg: Message = {
           id: generateUniqueId(),
-          text: "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.",
+          text: errorText,
           sender: Sender.Bot,
           timestamp: new Date(),
         };
         addMessage(errorMsg);
-        // Forçar logout e reload
-        setTimeout(() => {
-          authService.logout();
-          window.location.reload();
-        }, 2000);
       }
     } catch (error) {
       console.error("Failed to save conversation:", error);

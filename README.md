@@ -88,8 +88,8 @@ The app requires user authentication. Users must:
 - **DATABASE_URL**: Must include the database name in the connection string
   - Format: `mongodb+srv://user:pass@cluster.mongodb.net/database_name?appName=AppName`
 - **JWT_SECRET**: Use a strong, random secret in production
-- **Netlify CLI**: Required for local development with Functions
-  - Install: `npm install -g netlify-cli`
-  - Run: `netlify dev` (instead of `npm run dev`)
-  - This starts both Vite and Netlify Functions locally
-- Authentication functions work in production (Netlify) and require `netlify dev` for local testing
+- **Development**: The app includes a local Express server that simulates Netlify Functions
+  - Run `npm run dev` - starts both Express server (port 8888) and Vite (port 3000)
+  - All functions work locally without needing `netlify dev`
+  - In production, Netlify automatically uses the real Functions
+- **Netlify CLI** (Optional): You can also use `netlify dev` if preferred

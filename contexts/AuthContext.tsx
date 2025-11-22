@@ -50,8 +50,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
           if (response.ok) {
             const data = await response.json();
-            setUser({ ...currentUser, ...data.user });
+            const updatedUser = { ...currentUser, ...data.user };
+            setUser(updatedUser);
+            
+            // Se usuário foi bloqueado, fazer logout imediatamente
+            if (updatedUser.isBlocked) {
+              authService.logout();
+              setUser(null);
+              window.location.reload();
+            }
             return;
+          } else if (response.status === 403) {
+            // Usuário bloqueado
+            const data = await response.json().catch(() => ({}));
+            if (data.blocked) {
+              authService.logout();
+              setUser(null);
+              window.location.reload();
+              return;
+            }
           }
         }
       }
@@ -110,9 +127,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkAuth();
 
-    // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
+    // Verificar periodicamente se o usuário foi bloqueado (a cada 10 segundos)
     const interval = setInterval(async () => {
-      if (user) {
+      if (user && !user.isBlocked) {
         const token = authService.getToken();
         if (token) {
           try {
@@ -123,23 +140,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
             if (response.status === 403) {
               const data = await response.json().catch(() => ({}));
-              if (data.blocked) {
+              if (data.blocked || data.error?.includes('blocked')) {
                 authService.logout();
                 setUser(null);
+                alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 // Recarregar página para mostrar tela de login
                 window.location.reload();
               }
             } else if (response.ok) {
               const data = await response.json();
-              // Atualizar dados do usuário (incluindo créditos)
-              setUser(prev => prev ? { ...prev, ...data.user } : null);
+              const updatedUser = data.user;
+              // Se usuário foi bloqueado, fazer logout imediatamente
+              if (updatedUser?.isBlocked) {
+                authService.logout();
+                setUser(null);
+                alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+                window.location.reload();
+              } else {
+                // Atualizar dados do usuário (incluindo créditos)
+                setUser(prev => prev ? { ...prev, ...updatedUser } : null);
+              }
             }
           } catch (error) {
             // Ignorar erros de rede na verificação periódica
           }
         }
       }
-    }, 30000); // Verificar a cada 30 segundos
+    }, 10000); // Verificar a cada 10 segundos para resposta mais rápida
 
     return () => clearInterval(interval);
   }, [user]);

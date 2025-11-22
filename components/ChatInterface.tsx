@@ -125,6 +125,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           timestamp: new Date(),
         };
         addMessage(errorMsg);
+      } else if (response.status === 403) {
+        // Conta bloqueada
+        const errorMsg: Message = {
+          id: Date.now().toString(),
+          text: "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.",
+          sender: Sender.Bot,
+          timestamp: new Date(),
+        };
+        addMessage(errorMsg);
+        // Forçar logout e reload
+        setTimeout(() => {
+          authService.logout();
+          window.location.reload();
+        }, 2000);
       }
     } catch (error) {
       console.error("Failed to save conversation:", error);

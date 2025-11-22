@@ -5,6 +5,7 @@ import PlanDisplay from "./components/PlanDisplay";
 import GuideView from "./components/GuideView";
 import AdminDashboard from "./components/AdminDashboard";
 import Auth from "./components/Auth";
+import WaitingActivation from "./components/WaitingActivation";
 import { useAuth } from "./contexts/AuthContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
 import { Menu, X, Loader2 } from "lucide-react";
@@ -16,7 +17,7 @@ const App: React.FC = () => {
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Verificar se usuário foi bloqueado, não está ativo ou acesso expirou
+  // Verificar se usuário foi bloqueado (fazer logout imediatamente)
   useEffect(() => {
     if (user?.isBlocked) {
       // Se usuário está bloqueado, fazer logout e mostrar mensagem
@@ -25,37 +26,7 @@ const App: React.FC = () => {
       window.location.reload();
       return;
     }
-
-    // Verificar se usuário não está ativo (não liberado)
-    if (user && !user.isActive && user.role !== "admin") {
-      logout();
-      alert(
-        "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
-      );
-      window.location.reload();
-      return;
-    }
-
-    // Verificar se acesso expirou
-    if (
-      user?.accessExpiresAt &&
-      new Date(user.accessExpiresAt) < new Date() &&
-      user.role !== "admin"
-    ) {
-      logout();
-      alert(
-        "Seu acesso expirou. Entre em contato com um administrador para renovar."
-      );
-      window.location.reload();
-      return;
-    }
-  }, [
-    user?.isBlocked,
-    user?.isActive,
-    user?.accessExpiresAt,
-    user?.role,
-    logout,
-  ]);
+  }, [user?.isBlocked, logout]);
 
   const addMessage = (msg: Message) => {
     setMessages((prev) => [...prev, msg]);
@@ -94,6 +65,20 @@ const App: React.FC = () => {
   // Mostrar tela de autenticação se não estiver autenticado
   if (!isAuthenticated) {
     return <Auth />;
+  }
+
+  // Mostrar tela de aguardando ativação se usuário não tiver acesso ativo (exceto admin)
+  if (user && !user.isActive && user.role !== "admin") {
+    return <WaitingActivation />;
+  }
+
+  // Mostrar tela de acesso expirado se acesso expirou (exceto admin)
+  if (
+    user?.accessExpiresAt &&
+    new Date(user.accessExpiresAt) < new Date() &&
+    user.role !== "admin"
+  ) {
+    return <WaitingActivation />;
   }
 
   return (

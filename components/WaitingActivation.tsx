@@ -1,0 +1,81 @@
+import React, { useState } from 'react';
+import { Clock, Mail, LogOut, RefreshCw } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+const WaitingActivation: React.FC = () => {
+  const { user, logout, refreshUser } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshUser();
+    setRefreshing(false);
+  };
+
+  return (
+    <div className="flex h-screen bg-slate-950 items-center justify-center p-4">
+      <div className="max-w-md w-full bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
+        <div className="w-20 h-20 bg-indigo-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Clock className="w-10 h-10 text-indigo-400 animate-pulse" />
+        </div>
+
+        <h1 className="text-2xl font-bold text-white mb-3">
+          Aguardando Ativação
+        </h1>
+
+        <p className="text-slate-400 mb-6 leading-relaxed">
+          Sua conta foi criada com sucesso! No entanto, seu acesso ainda não foi liberado por um administrador.
+        </p>
+
+        <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">
+          <div className="flex items-start gap-3 text-left">
+            <Mail className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-slate-300 mb-1">
+                Email cadastrado:
+              </p>
+              <p className="text-sm text-slate-400 break-all">
+                {user?.email}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+          >
+            {refreshing ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>Verificando...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-5 h-5" />
+                <span>Verificar Ativação</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Sair</span>
+          </button>
+        </div>
+
+        <p className="text-xs text-slate-500 mt-6">
+          Você receberá acesso assim que um administrador liberar sua conta.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default WaitingActivation;
+

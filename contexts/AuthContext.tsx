@@ -62,12 +62,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
             return;
           } else if (response.status === 403) {
-            // Usuário bloqueado
+            // Verificar se é bloqueado ou sem acesso ativo
             const data = await response.json().catch(() => ({}));
             if (data.blocked) {
+              // Usuário bloqueado - fazer logout
               authService.logout();
               setUser(null);
               window.location.reload();
+              return;
+            } else if (data.notActive || data.expired) {
+              // Usuário sem acesso ativo ou expirado - manter logado mas atualizar status
+              const updatedUser = { ...currentUser, isActive: false, ...data };
+              setUser(updatedUser);
               return;
             }
           }
@@ -98,11 +104,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const data = await response.json();
                 setUser({ ...currentUser, ...data.user });
               } else if (response.status === 403) {
-                // Usuário bloqueado
+                // Verificar se é bloqueado ou sem acesso ativo
                 const data = await response.json().catch(() => ({}));
                 if (data.blocked) {
+                  // Usuário bloqueado - fazer logout
                   authService.logout();
                   setUser(null);
+                } else if (data.notActive || data.expired) {
+                  // Usuário sem acesso ativo ou expirado - manter logado mas mostrar tela de espera
+                  setUser({ ...currentUser, isActive: false, ...data });
                 } else {
                   setUser(currentUser);
                 }

@@ -12,6 +12,7 @@ import {
 import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import ChangePassword from "./ChangePassword";
+import LogoutModal from "./LogoutModal";
 
 interface SidebarProps {
   currentView: ViewState | "admin";
@@ -21,6 +22,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
   const { user, logout, isAdmin } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   return (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
@@ -142,7 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           <span className="font-medium">Change Password</span>
         </button>
         <button
-          onClick={logout}
+          onClick={() => setShowLogoutModal(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all duration-200"
         >
           <LogOut size={20} />
@@ -152,6 +154,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
 
       {showChangePassword && (
         <ChangePassword onClose={() => setShowChangePassword(false)} />
+      )}
+
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={() => {
+            setShowLogoutModal(false);
+            logout();
+          }}
+          onCancel={() => setShowLogoutModal(false)}
+        />
       )}
     </div>
   );

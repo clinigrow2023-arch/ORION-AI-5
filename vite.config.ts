@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, '.', '');
     return {
       server: {
         port: 3000,
@@ -17,6 +18,10 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      // Expose VITE_ prefixed vars for development fallback (not bundled in production)
+      define: {
+        'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(mode === 'development' ? env.GEMINI_API_KEY : ''),
       }
     };
 });

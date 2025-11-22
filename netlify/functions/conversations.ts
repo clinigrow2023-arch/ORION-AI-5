@@ -48,6 +48,7 @@ export const handler: Handler = async (event, context) => {
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
     select: { 
+      role: true,
       isBlocked: true, 
       isActive: true,
       accessExpiresAt: true,
@@ -62,29 +63,32 @@ export const handler: Handler = async (event, context) => {
     };
   }
 
-  if (user.isBlocked) {
-    return {
-      statusCode: 403,
-      headers,
-      body: JSON.stringify({ error: 'Account is blocked' }),
-    };
-  }
+  // Admin sempre tem acesso, pular verificações de bloqueio e acesso para admin
+  if (user.role !== 'admin') {
+    if (user.isBlocked) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Account is blocked' }),
+      };
+    }
 
-  if (!user.isActive) {
-    return {
-      statusCode: 403,
-      headers,
-      body: JSON.stringify({ error: 'Account access not granted. Please contact an administrator.' }),
-    };
-  }
+    if (!user.isActive) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Account access not granted. Please contact an administrator.' }),
+      };
+    }
 
-  // Verificar se acesso expirou
-  if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-    return {
-      statusCode: 403,
-      headers,
-      body: JSON.stringify({ error: 'Your access has expired. Please contact an administrator to renew.' }),
-    };
+    // Verificar se acesso expirou
+    if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Your access has expired. Please contact an administrator to renew.' }),
+      };
+    }
   }
 
   try {

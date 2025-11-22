@@ -46,6 +46,14 @@ export const handler: Handler = async (event, context) => {
     // Buscar usuário
     const user = await prisma.user.findUnique({
       where: { email: emailLower },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        password: true,
+        role: true,
+        isBlocked: true,
+      },
     });
 
     if (!user) {
@@ -100,6 +108,7 @@ export const handler: Handler = async (event, context) => {
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
         },
       }),
     };

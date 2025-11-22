@@ -1,7 +1,23 @@
 // Development server to simulate Netlify Functions locally
 import express from 'express';
 import cors from 'cors';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Verify DATABASE_URL is loaded
+if (!process.env.DATABASE_URL) {
+  console.error('❌ ERROR: DATABASE_URL not found in .env file');
+  console.error('Please make sure DATABASE_URL is set in your .env file');
+  process.exit(1);
+}
+
+if (!process.env.DATABASE_URL.startsWith('mongodb')) {
+  console.error('❌ ERROR: DATABASE_URL must start with "mongodb://" or "mongodb+srv://"');
+  console.error(`Current value starts with: ${process.env.DATABASE_URL.substring(0, 20)}...`);
+  process.exit(1);
+}
 
 // Import Netlify Functions
 import { handler as authRegisterHandler } from '../netlify/functions/auth-register';

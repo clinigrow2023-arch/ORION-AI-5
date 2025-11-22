@@ -40,17 +40,21 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    ```
 
 5. Run the app:
-   
+
    **Option 1: Development with Netlify Functions (Recommended)**
+
    ```bash
    netlify dev
    ```
+
    This will start both the Vite dev server and Netlify Functions locally.
-   
+
    **Option 2: Vite only (Functions won't work)**
+
    ```bash
    npm run dev
    ```
+
    Note: Authentication and other Netlify Functions won't work with this option. Use `netlify dev` instead.
 
 ## Authentication

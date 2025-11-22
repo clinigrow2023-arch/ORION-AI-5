@@ -45,7 +45,16 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     }
   };
 
-  if (!plan) {
+  // Validar se o plano está completo antes de renderizar
+  const isValidPlan = plan && 
+    plan.steps && 
+    Array.isArray(plan.steps) && 
+    plan.steps.length > 0 &&
+    plan.messageTemplates &&
+    Array.isArray(plan.messageTemplates) &&
+    plan.messageTemplates.length > 0;
+
+  if (!plan || !isValidPlan) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
         <div className="bg-slate-800/50 p-8 rounded-2xl border border-slate-700 max-w-lg">

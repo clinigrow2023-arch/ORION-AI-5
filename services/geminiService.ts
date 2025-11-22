@@ -281,7 +281,13 @@ export class GeminiService {
           const data = await response.json();
           const jsonMatch = (data.response || '').match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]) as ActionPlan;
+            const parsedPlan = JSON.parse(jsonMatch[0]) as ActionPlan;
+            // Validar que o plano tem todas as propriedades necessárias
+            if (this.validatePlan(parsedPlan)) {
+              return parsedPlan;
+            } else {
+              throw new Error("Generated plan is missing required properties");
+            }
           }
         }
       } catch (netlifyError) {
@@ -318,7 +324,13 @@ export class GeminiService {
           const jsonText = response.text;
           if (!jsonText) throw new Error("No data received from plan generation.");
           
-          return JSON.parse(jsonText) as ActionPlan;
+          const parsedPlan = JSON.parse(jsonText) as ActionPlan;
+          // Validar que o plano tem todas as propriedades necessárias
+          if (this.validatePlan(parsedPlan)) {
+            return parsedPlan;
+          } else {
+            throw new Error("Generated plan is missing required properties");
+          }
         }
         throw netlifyError;
       }
@@ -340,6 +352,23 @@ export class GeminiService {
     }
   }
     
+  private validatePlan(plan: any): plan is ActionPlan {
+    return (
+      plan &&
+      typeof plan.diagnosis === 'string' &&
+      Array.isArray(plan.steps) &&
+      plan.steps.length > 0 &&
+      Array.isArray(plan.messageTemplates) &&
+      plan.messageTemplates.length > 0 &&
+      Array.isArray(plan.dos) &&
+      plan.dos.length > 0 &&
+      Array.isArray(plan.donts) &&
+      plan.donts.length > 0 &&
+      typeof plan.distancingStrategy === 'string' &&
+      typeof plan.neurologicalTriggers === 'string'
+    );
+  }
+
   getHistoryAsString(): string {
     return this.chatHistory.map(h => `${h.role}: ${h.parts[0].text}`).join('\n');
   }

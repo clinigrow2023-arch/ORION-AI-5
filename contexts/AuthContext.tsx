@@ -106,22 +106,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         // Se já temos dados do usuário no localStorage, verificar se precisa fazer requisição
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-          try {
-            const tempUser = JSON.parse(userStr);
-            // Se usuário não tem acesso ativo (isActive: false ou undefined), não fazer verificação automática
-            // Apenas setar os dados do localStorage e mostrar tela de espera
-            // A verificação será feita apenas quando clicar em "Verificar Ativação"
-            if (tempUser && tempUser.isActive !== true) {
-              setUser({ ...tempUser, isActive: false });
-              setLoading(false);
-              return; // Não fazer requisição se já sabemos que não tem acesso
-            }
-          } catch {
-            // Ignorar erro de parse
-          }
-        }
+        // IMPORTANTE: Sempre fazer requisição para garantir que temos os dados mais recentes do servidor
+        // Não confiar apenas no localStorage, pois pode estar desatualizado
+        // A otimização de não fazer requisição quando isActive !== true só se aplica após a primeira verificação
 
         // Fazer apenas uma chamada direta para auth-verify
         const response = await fetch('/.netlify/functions/auth-verify', {

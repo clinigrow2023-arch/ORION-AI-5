@@ -20,6 +20,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamedResponse, setStreamedResponse] = useState("");
+  const hasLoadedHistory = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -29,12 +30,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, streamedResponse]);
 
-  // Carregar histórico ao montar
+  // Carregar histórico ao montar (apenas uma vez)
   useEffect(() => {
+    // Evitar carregar múltiplas vezes
+    if (hasLoadedHistory.current) return;
+    
     const loadConversation = async () => {
       try {
         const token = authService.getToken();
         if (!token) return;
+
+        // Se já tem mensagens, não carregar novamente
+        if (messages.length > 0) {
+          hasLoadedHistory.current = true;
+          return;
+        }
 
         const response = await fetch("/.netlify/functions/conversations", {
           headers: {
@@ -48,11 +58,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           // Carregar última conversa se existir
           if (data.conversations && data.conversations.length > 0) {
             const lastConv = data.conversations[0];
-            if (lastConv.messages && Array.isArray(lastConv.messages)) {
+            if (lastConv.messages && Array.isArray(lastConv.messages) && lastConv.messages.length > 0) {
               // Converter mensagens do histórico para o formato do componente
               const loadedMessages: Message[] = lastConv.messages.map(
                 (msg: any) => ({
-                  id: msg.id || Date.now().toString(),
+                  id: msg.id || `${Date.now()}-${Math.random()}`,
                   text: msg.text || "",
                   sender: msg.sender === "user" ? Sender.User : Sender.Bot,
                   timestamp: msg.timestamp
@@ -61,8 +71,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 })
               );
 
-              // Adicionar mensagens ao estado (sem duplicar)
+              // Adicionar mensagens ao estado apenas se ainda não foram carregadas
               if (loadedMessages.length > 0 && messages.length === 0) {
+                hasLoadedHistory.current = true;
+                // Adicionar todas as mensagens de uma vez
                 loadedMessages.forEach((msg) => addMessage(msg));
               }
             }
@@ -74,7 +86,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     loadConversation();
-  }, []);
+  }, [messages.length, addMessage]);
 
   const saveConversation = async (allMessages: Message[]) => {
     try {

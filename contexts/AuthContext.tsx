@@ -60,21 +60,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Isso garante que os dados persistam entre recarregamentos
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
-        
-        // Se usuário foi bloqueado, fazer logout imediatamente
-        if (updatedUser.isBlocked) {
-          authService.logout();
-          setUser(null);
-          window.location.reload();
-        }
+        // Não fazer logout se bloqueado - usuário permanece logado mas sem acesso ao chat
       } else if (response.status === 403) {
         // Verificar se é bloqueado ou sem acesso ativo
         const data = await response.json().catch(() => ({}));
         if (data.blocked) {
-          // Usuário bloqueado - fazer logout
-          authService.logout();
-          setUser(null);
-          window.location.reload();
+          // Usuário bloqueado - manter logado mas atualizar status
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const currentUser = JSON.parse(userStr);
+            setUser({ ...currentUser, isBlocked: true, ...data });
+          }
         } else if (data.notActive || data.expired) {
           // Usuário sem acesso ativo ou expirado - manter logado mas atualizar status
           const userStr = localStorage.getItem('user');
@@ -127,9 +123,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Verificar se é bloqueado ou sem acesso ativo
           const data = await response.json().catch(() => ({}));
           if (data.blocked) {
-            // Usuário bloqueado - fazer logout
-            authService.logout();
-            setUser(null);
+            // Usuário bloqueado - manter logado mas atualizar status
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              const currentUser = JSON.parse(userStr);
+              setUser({ ...currentUser, isBlocked: true, ...data });
+            } else {
+              setUser(null);
+            }
           } else if (data.notActive || data.expired) {
             // Usuário sem acesso ativo ou expirado - manter logado mas mostrar tela de espera
             const userStr = localStorage.getItem('user');
@@ -184,25 +185,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (response.status === 403) {
               const data = await response.json().catch(() => ({}));
               if (data.blocked || data.error?.includes('blocked')) {
-                authService.logout();
-                setUser(null);
-                alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
-                // Recarregar página para mostrar tela de login
-                window.location.reload();
+                // Usuário bloqueado - manter logado mas atualizar status
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                  const currentUser = JSON.parse(userStr);
+                  setUser({ ...currentUser, isBlocked: true, ...data });
+                }
               }
             } else if (response.ok) {
               const data = await response.json();
               const updatedUser = data.user;
-              // Se usuário foi bloqueado, fazer logout imediatamente
-              if (updatedUser?.isBlocked) {
-                authService.logout();
-                setUser(null);
-                alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
-                window.location.reload();
-              } else {
-                // Atualizar dados do usuário
-                setUser(prev => prev ? { ...prev, ...updatedUser } : null);
-              }
+              // Atualizar dados do usuário (não fazer logout se bloqueado)
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              setUser(prev => prev ? { ...prev, ...updatedUser } : null);
             }
           } catch (error) {
             // Ignorar erros de rede na verificação periódica

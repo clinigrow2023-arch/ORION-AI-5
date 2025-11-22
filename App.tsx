@@ -17,16 +17,8 @@ const App: React.FC = () => {
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Verificar se usuário foi bloqueado (fazer logout imediatamente)
-  useEffect(() => {
-    if (user?.isBlocked) {
-      // Se usuário está bloqueado, fazer logout e mostrar mensagem
-      logout();
-      alert("Sua conta foi bloqueada. Entre em contato com um administrador.");
-      window.location.reload();
-      return;
-    }
-  }, [user?.isBlocked, logout]);
+  // Não fazer logout automático se usuário estiver bloqueado ou expirado
+  // Usuário permanece logado mas sem acesso ao chat (já está bloqueado no ChatInterface)
 
   const addMessage = (msg: Message) => {
     setMessages((prev) => {

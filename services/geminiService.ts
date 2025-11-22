@@ -333,6 +333,10 @@ export class GeminiService {
   getHistoryAsString(): string {
     return this.chatHistory.map(h => `${h.role}: ${h.parts[0].text}`).join('\n');
   }
+
+  clearHistory(): void {
+    this.chatHistory = [];
+  }
 }
 
 export const geminiService = new GeminiService();

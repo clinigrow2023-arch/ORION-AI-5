@@ -9,11 +9,13 @@ import ReactMarkdown from "react-markdown";
 interface ChatInterfaceProps {
   messages: Message[];
   addMessage: (msg: Message) => void;
+  onResetChat: () => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
   addMessage,
+  onResetChat,
 }) => {
   const { user, refreshUser } = useAuth();
   const [input, setInput] = useState("");
@@ -523,6 +525,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Reset Chat Modal */}
+      {showResetModal && (
+        <ResetChatModal
+          onConfirm={async () => {
+            // Limpar mensagens localmente
+            onResetChat();
+            setShowResetModal(false);
+            hasLoadedHistory.current = false; // Permitir recarregar histórico se necessário
+            
+            // Deletar conversa do backend
+            try {
+              const token = authService.getToken();
+              if (token) {
+                await fetch('/.netlify/functions/conversations', {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                  },
+                });
+              }
+            } catch (error) {
+              console.error('Failed to delete conversation:', error);
+            }
+          }}
+          onCancel={() => setShowResetModal(false)}
+        />
+      )}
     </div>
   );
 };

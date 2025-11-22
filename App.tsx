@@ -9,6 +9,7 @@ import WaitingActivation from "./components/WaitingActivation";
 import { useAuth } from "./contexts/AuthContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
 import { Menu, X, Loader2 } from "lucide-react";
+import { geminiService } from "./services/geminiService";
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
@@ -31,12 +32,19 @@ const App: React.FC = () => {
     });
   };
 
+  const resetChat = () => {
+    setMessages([]);
+    setPlan(null);
+    // Limpar histórico do geminiService
+    geminiService.clearHistory();
+  };
+
   const renderContent = () => {
     switch (currentView) {
       case "admin":
         return <AdminDashboard />;
       case "chat":
-        return <ChatInterface messages={messages} addMessage={addMessage} />;
+        return <ChatInterface messages={messages} addMessage={addMessage} onResetChat={resetChat} />;
       case "plan":
         return <PlanDisplay plan={plan} setPlan={setPlan} />;
       case "guide":

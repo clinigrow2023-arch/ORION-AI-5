@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, Mail, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../lib/auth';
 
 const WaitingActivation: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();

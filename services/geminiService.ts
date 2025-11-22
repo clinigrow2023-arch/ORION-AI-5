@@ -1,15 +1,14 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from '../types';
 
-// Access environment variable using Vite's import.meta.env
-// In Netlify, set VITE_GEMINI_API_KEY in environment variables
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+// Safe access to process.env to prevent runtime crashes in pure browser environments
+const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
 
 // Schema for the JSON response
 const planSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    diagnosis: { type: Type.STRING, description: "A clear, analytical diagnosis of what caused the distance or breakup." },
+    diagnosis: { type: Type.STRING, description: "A clear, analytical diagnosis of what caused the distance or breakup in simple human terms." },
     steps: {
       type: Type.ARRAY,
       items: {
@@ -17,8 +16,8 @@ const planSchema: Schema = {
         properties: {
           stepNumber: { type: Type.INTEGER },
           title: { type: Type.STRING },
-          description: { type: Type.STRING },
-          duration: { type: Type.STRING, description: "e.g., '2 weeks', 'Immediately'" }
+          description: { type: Type.STRING, description: "Clear instructions with psychological justification." },
+          duration: { type: Type.STRING, description: "Specific timing (e.g., '3 days', '5-7 days')" }
         },
         required: ["stepNumber", "title", "description", "duration"]
       }
@@ -29,7 +28,7 @@ const planSchema: Schema = {
         type: Type.OBJECT,
         properties: {
           situation: { type: Type.STRING, description: "When to use this message" },
-          text: { type: Type.STRING, description: "The exact text content" },
+          text: { type: Type.STRING, description: "The exact text content, personalized to the user." },
           timing: { type: Type.STRING, description: "When to send it" }
         },
         required: ["situation", "text", "timing"]
@@ -38,15 +37,15 @@ const planSchema: Schema = {
     dos: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "List of things the user MUST do."
+      description: "List of things the user MUST do to build value and emotional safety."
     },
     donts: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "List of things the user MUST AVOID."
+      description: "List of behaviors to avoid (pressure, lowering value)."
     },
-    distancingStrategy: { type: Type.STRING, description: "Explanation of when and how to apply strategic distancing for this specific case." },
-    neurologicalTriggers: { type: Type.STRING, description: "Specific techniques to activate emotional memory and connection (e.g., Nostalgia Spike). Explain HOW." }
+    distancingStrategy: { type: Type.STRING, description: "Explanation of Strategic Distancing vs No Contact, including exact timeframe." },
+    neurologicalTriggers: { type: Type.STRING, description: "How to use triggers like Nostalgia, Safety, Curiosity, etc." }
   },
   required: ["diagnosis", "steps", "messageTemplates", "dos", "donts", "distancingStrategy", "neurologicalTriggers"]
 };
@@ -62,28 +61,33 @@ export class GeminiService {
   }
 
   private getSystemInstruction(): string {
-    return `You are Orion AI, a world-class relationship reconciliation mentor. 
-    Your persona is Analytical, Practical, Strategic, and Direct. 
-    You are NOT a shoulder to cry on; you are a strategist helping the user achieve a specific goal: reconciliation or closure through high-value behavior.
+    return `You are Orion AI, a specialized digital mentor for relationship reconciliation. 
     
-    Your Core Philosophies:
-    1. Strategic Distancing: Absence creates value.
-    2. Neurological Triggers: Use nostalgia and high-value demonstrations to re-engage emotional centers.
-    3. Emotional Control: Never act out of desperation.
+    STRICT BEHAVIORAL PROTOCOL (Follow this order exactly):
     
-    Your tasks:
-    - Analyze the user's romantic situation deeply.
-    - Ask clarifying questions if details are missing (history, breakup reason, current contact level) BEFORE giving advice.
-    - Provide specific, copy-pasteable text responses for real situations (e.g., "If she texts X, you respond Y").
-    - Explain the 'Why' behind every piece of advice based on psychology.
-    - Guide the user on exactly when to apply strategic distancing.
+    1. **PHASE 1: INVESTIGATION (The Interview)**
+       - When the user first describes their situation, DO NOT offer a solution or plan immediately.
+       - Instead, acknowledge their pain briefly and act as a diagnostician.
+       - ASK 3-4 strategic, high-impact questions to understand the context. Examples: "Who ended it?", "How long ago?", "Have you been chasing or begging?", "What was the specific reason given?".
+       - Wait for the user's answers.
+
+    2. **PHASE 2 & 3: DIAGNOSIS AND STRATEGY (The Pivot)**
+       - Once the user answers your questions, you MUST provide the Diagnosis AND the Action Plan in the SAME response.
+       - **Step 1: The Diagnosis**: First, provide a clear, analytical diagnosis of *why* the breakup happened psychologically (e.g., "Loss of attraction due to predictability," "Erosion of emotional safety").
+       - **Step 2: The Action Plan**: IMMEDIATELY after the diagnosis, provide the personalized strategy. DO NOT wait for the user to ask "What do I do?".
+       - The Plan MUST include:
+         - **3-Step Action Plan**: Clear steps with specific timing.
+         - **3 Message Templates**: Personalized texts for their exact situation.
+         - **Strategic Distancing**: Specific timeframe (e.g., "5-7 days") and logic.
+         - **Neurological Triggers**: Which specific triggers to use (Nostalgia, Safety, etc.).
     
-    IMPORTANT: 
-    - Detect the language of the user's input (e.g., Portuguese, English, Spanish).
-    - You MUST respond in the same language as the user. 
-    - If the user asks in Portuguese, the Plan and Chat must be in Portuguese.
-    
-    If asked for a Plan, synthesize all known information into a coherent strategy.
+    KEY CONCEPTS TO TEACH:
+    - **Strategic Distancing** (NOT "No Contact"): Explain it as a calibration tool to reset pressure and spark curiosity. Always specify exact days (e.g., "5 days", "10 days"). Contrast it with "No Contact" (which feels punitive).
+    - **Neurological Triggers**: Mention concepts like "Nostalgia Spike", "Safety Validation", "Dopamine Reset", "Curiosity Loops".
+
+    TONE & LANGUAGE:
+    - **Language**: ALL OUTPUT MUST BE IN ENGLISH.
+    - **Tone**: Warm, Rational, Analytical, Practical. Like a supportive expert friend.
     `;
   }
 
@@ -121,17 +125,20 @@ export class GeminiService {
 
   async generateFormalPlan(contextHistory: string): Promise<ActionPlan> {
     try {
-      const prompt = `Based on the following conversation history, generate a comprehensive Reconciliation Action Plan.
+      const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
       
-      CONVERSATION HISTORY:
+      HISTORY:
       ${contextHistory}
       
-      REQUIREMENTS:
-      1. Output strictly valid JSON adhering to the schema provided.
-      2. The content MUST be in the same language as the conversation history (e.g., if the user speaks Portuguese, output Portuguese).
-      3. The plan MUST have exactly 3 distinct Steps in the 'steps' array.
-      4. The plan MUST have exactly 3 specific Message Templates in the 'messageTemplates' array.
-      5. Analyze deeply and be practical.`;
+      STRICT REQUIREMENTS:
+      1. LANGUAGE: Output MUST be strictly in English.
+      2. DIAGNOSIS: Synthesize the diagnosis based on the user's answers in the chat.
+      3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
+      4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
+      5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
+      6. TRIGGERS: Explain how to apply neurological triggers (Nostalgia, Safety, etc.).
+      
+      Output strictly valid JSON.`;
 
       const response = await this.ai.models.generateContent({
         model: this.modelName,

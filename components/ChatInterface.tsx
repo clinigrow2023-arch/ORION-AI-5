@@ -229,17 +229,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     // Atualizar estado do usuário antes de enviar (garantir dados mais recentes)
     await refreshUser();
-    
+
     // Obter usuário atualizado após refresh
     const updatedUser = user; // refreshUser já atualiza o estado, mas vamos usar o user do contexto
-    
+
     // Verificar novamente após refresh (caso acesso tenha sido revogado durante o uso)
     // Nota: O backend também valida, mas esta verificação dupla garante que não gastamos tokens
     if (updatedUser && updatedUser.role !== "admin") {
       if (
         updatedUser.isBlocked ||
         !updatedUser.isActive ||
-        (updatedUser.accessExpiresAt && new Date(updatedUser.accessExpiresAt) < new Date())
+        (updatedUser.accessExpiresAt &&
+          new Date(updatedUser.accessExpiresAt) < new Date())
       ) {
         alert(
           "Seu acesso foi revogado ou expirou. Por favor, entre em contato com um administrador."

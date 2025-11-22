@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { authService, User } from '../lib/auth';
 
 export interface ExtendedUser extends User {
@@ -36,6 +36,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasCheckedAuth = useRef(false);
 
   const refreshUser = async () => {
     try {
@@ -90,8 +91,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    // Verificar autenticação ao carregar - fazer apenas uma chamada
+    // Verificar autenticação ao carregar - fazer apenas UMA vez
+    if (hasCheckedAuth.current) return;
+    
     const checkAuth = async () => {
+      hasCheckedAuth.current = true;
+      
       try {
         const token = authService.getToken();
         if (!token) {
@@ -217,7 +222,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, 30000); // Verificar a cada 30 segundos
 
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user?.isActive, user?.isBlocked]); // Apenas re-executar se isActive ou isBlocked mudar
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);

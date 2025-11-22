@@ -56,6 +56,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         const updatedUser = data.user;
+        // IMPORTANTE: Atualizar localStorage com dados atualizados do servidor
+        // Isso garante que os dados persistam entre recarregamentos
+        localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
         
         // Se usuário foi bloqueado, fazer logout imediatamente

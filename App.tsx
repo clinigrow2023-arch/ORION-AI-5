@@ -67,6 +67,10 @@ const App: React.FC = () => {
     return <Auth />;
   }
 
+  // IMPORTANTE: Admin sempre tem acesso ilimitado
+  // Não verifica isActive ou accessExpiresAt para admin
+  // Apenas usuários comuns precisam de ativação e têm expiração de acesso
+  
   // Mostrar tela de aguardando ativação se usuário não tiver acesso ativo (exceto admin)
   if (user && !user.isActive && user.role !== "admin") {
     return <WaitingActivation />;

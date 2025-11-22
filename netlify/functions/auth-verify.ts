@@ -78,9 +78,11 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // Admin sempre tem acesso, pular verificações de acesso para admin
+    // IMPORTANTE: Admin sempre tem acesso ilimitado
+    // Não verifica isActive ou accessExpiresAt para admin
+    // Apenas usuários comuns precisam de ativação e têm expiração de acesso
     if (user.role !== 'admin') {
-      // Verificar se usuário está ativo e acesso não expirou (apenas para usuários comuns)
+      // Verificar se usuário está ativo (apenas para usuários comuns)
       if (!user.isActive) {
         return {
           statusCode: 403,

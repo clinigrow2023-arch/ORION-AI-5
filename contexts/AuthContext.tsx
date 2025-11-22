@@ -39,98 +39,114 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshUser = async () => {
     try {
-      const currentUser = await authService.verify();
-      if (currentUser) {
-        // Buscar dados completos do usuário incluindo role e créditos
-        const token = authService.getToken();
-        if (token) {
-          const response = await fetch('/.netlify/functions/auth-verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const updatedUser = { ...currentUser, ...data.user };
-            setUser(updatedUser);
-            
-            // Se usuário foi bloqueado, fazer logout imediatamente
-            if (updatedUser.isBlocked) {
-              authService.logout();
-              setUser(null);
-              window.location.reload();
-            }
-            return;
-          } else if (response.status === 403) {
-            // Verificar se é bloqueado ou sem acesso ativo
-            const data = await response.json().catch(() => ({}));
-            if (data.blocked) {
-              // Usuário bloqueado - fazer logout
-              authService.logout();
-              setUser(null);
-              window.location.reload();
-              return;
-            } else if (data.notActive || data.expired) {
-              // Usuário sem acesso ativo ou expirado - manter logado mas atualizar status
-              const updatedUser = { ...currentUser, isActive: false, ...data };
-              setUser(updatedUser);
-              return;
-            }
+      const token = authService.getToken();
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      // Fazer apenas uma chamada direta para auth-verify
+      const response = await fetch('/.netlify/functions/auth-verify', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const updatedUser = data.user;
+        setUser(updatedUser);
+        
+        // Se usuário foi bloqueado, fazer logout imediatamente
+        if (updatedUser.isBlocked) {
+          authService.logout();
+          setUser(null);
+          window.location.reload();
+        }
+      } else if (response.status === 403) {
+        // Verificar se é bloqueado ou sem acesso ativo
+        const data = await response.json().catch(() => ({}));
+        if (data.blocked) {
+          // Usuário bloqueado - fazer logout
+          authService.logout();
+          setUser(null);
+          window.location.reload();
+        } else if (data.notActive || data.expired) {
+          // Usuário sem acesso ativo ou expirado - manter logado mas atualizar status
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const currentUser = JSON.parse(userStr);
+            setUser({ ...currentUser, isActive: false, ...data });
           }
         }
+      } else {
+        // Outros erros - fazer logout
+        authService.logout();
+        setUser(null);
       }
-      setUser(currentUser);
     } catch (error) {
       console.error('Refresh user failed:', error);
     }
   };
 
   useEffect(() => {
-    // Verificar autenticação ao carregar
+    // Verificar autenticação ao carregar - fazer apenas uma chamada
     const checkAuth = async () => {
       try {
-        const currentUser = await authService.verify();
-        if (currentUser) {
-          // Buscar dados completos do usuário
-          const token = authService.getToken();
-          if (token) {
-            try {
-              const response = await fetch('/.netlify/functions/auth-verify', {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              });
-              if (response.ok) {
-                const data = await response.json();
-                setUser({ ...currentUser, ...data.user });
-              } else if (response.status === 403) {
-                // Verificar se é bloqueado ou sem acesso ativo
-                const data = await response.json().catch(() => ({}));
-                if (data.blocked) {
-                  // Usuário bloqueado - fazer logout
-                  authService.logout();
-                  setUser(null);
-                } else if (data.notActive || data.expired) {
-                  // Usuário sem acesso ativo ou expirado - manter logado mas mostrar tela de espera
-                  setUser({ ...currentUser, isActive: false, ...data });
-                } else {
-                  setUser(currentUser);
-                }
-              } else {
-                setUser(currentUser);
-              }
-            } catch {
-              setUser(currentUser);
+        const token = authService.getToken();
+        if (!token) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        // Fazer apenas uma chamada direta para auth-verify
+        const response = await fetch('/.netlify/functions/auth-verify', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else if (response.status === 403) {
+          // Verificar se é bloqueado ou sem acesso ativo
+          const data = await response.json().catch(() => ({}));
+          if (data.blocked) {
+            // Usuário bloqueado - fazer logout
+            authService.logout();
+            setUser(null);
+          } else if (data.notActive || data.expired) {
+            // Usuário sem acesso ativo ou expirado - manter logado mas mostrar tela de espera
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              const currentUser = JSON.parse(userStr);
+              setUser({ ...currentUser, isActive: false, ...data });
+            } else {
+              setUser(null);
             }
           } else {
-            setUser(currentUser);
+            setUser(null);
           }
         } else {
+          // Outros erros - fazer logout
+          authService.logout();
           setUser(null);
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        setUser(null);
+        // Em caso de erro, tentar usar dados do localStorage
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          try {
+            setUser(JSON.parse(userStr));
+          } catch {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -138,7 +154,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkAuth();
 
-    // Verificar periodicamente se o usuário foi bloqueado (a cada 10 segundos)
+    // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
+    // Reduzido de 10s para 30s para evitar muitas requisições
     const interval = setInterval(async () => {
       if (user && !user.isBlocked) {
         const token = authService.getToken();
@@ -157,6 +174,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 // Recarregar página para mostrar tela de login
                 window.location.reload();
+              } else if (data.notActive || data.expired) {
+                // Atualizar status se acesso foi liberado ou expirou
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                  const currentUser = JSON.parse(userStr);
+                  setUser({ ...currentUser, isActive: false, ...data });
+                }
               }
             } else if (response.ok) {
               const data = await response.json();
@@ -168,7 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 window.location.reload();
               } else {
-                // Atualizar dados do usuário
+                // Atualizar dados do usuário (pode ter sido ativado)
                 setUser(prev => prev ? { ...prev, ...updatedUser } : null);
               }
             }
@@ -177,7 +201,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       }
-    }, 10000); // Verificar a cada 10 segundos para resposta mais rápida
+    }, 30000); // Verificar a cada 30 segundos (reduzido de 10s)
 
     return () => clearInterval(interval);
   }, [user]);

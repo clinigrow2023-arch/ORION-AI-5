@@ -100,14 +100,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // Se já temos dados do usuário no localStorage e não foi verificado ainda, usar temporariamente
+        // Se já temos dados do usuário no localStorage, verificar se precisa fazer requisição
         const userStr = localStorage.getItem('user');
-        if (userStr && !user) {
+        if (userStr) {
           try {
             const tempUser = JSON.parse(userStr);
-            // Se usuário não tem acesso ativo, não fazer verificação automática
+            // Se usuário não tem acesso ativo (isActive: false ou undefined), não fazer verificação automática
             // Apenas setar os dados do localStorage e mostrar tela de espera
-            if (tempUser && !tempUser.isActive) {
+            // A verificação será feita apenas quando clicar em "Verificar Ativação"
+            if (tempUser && tempUser.isActive !== true) {
               setUser({ ...tempUser, isActive: false });
               setLoading(false);
               return; // Não fazer requisição se já sabemos que não tem acesso

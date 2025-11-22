@@ -341,7 +341,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
             <AlertCircle size={16} />
             <span>
-              Your access has been revoked. Please contact an administrator to restore access.
+              Your access has been revoked. Please contact an administrator to
+              restore access.
             </span>
           </div>
         )}

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ActionPlan } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Target, Clock, MessageCircle, ShieldAlert, ShieldCheck, BrainCircuit, Loader2, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Target, Clock, MessageCircle, ShieldAlert, ShieldCheck, BrainCircuit, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
 
 interface PlanDisplayProps {
   plan: ActionPlan | null;
@@ -9,10 +10,23 @@ interface PlanDisplayProps {
 }
 
 const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
+  const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Verificar se usuário tem acesso ativo
+  const hasAccess = user && (
+    user.role === 'admin' || 
+    (user.isActive && (!user.accessExpiresAt || new Date(user.accessExpiresAt) >= new Date()))
+  );
+
   const generatePlan = async () => {
+    // Verificar acesso antes de gerar plano
+    if (!hasAccess) {
+      setError("Your account access has not been granted or has expired. Please contact an administrator.");
+      return;
+    }
+
     const history = geminiService.getHistoryAsString();
     if (!history) {
       setError("Please chat with Orion first to provide context about your situation.");
@@ -41,6 +55,19 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
             Orion will analyze your chat history to create a custom 3-step reconciliation plan, including specific texts and psychological triggers.
           </p>
           
+          {!hasAccess && (
+            <div className="mb-6 p-3 bg-orange-500/10 border border-orange-500/20 text-orange-300 rounded-lg flex items-center gap-2 text-sm text-left">
+              <AlertCircle size={16} />
+              <span>
+                {!user?.isActive 
+                  ? "Your account access has not been granted. Please contact an administrator."
+                  : user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
+                  ? "Your access has expired. Please contact an administrator to renew."
+                  : "Access required to generate action plans."}
+              </span>
+            </div>
+          )}
+          
           {error && (
              <div className="mb-6 p-3 bg-red-900/30 border border-red-800 text-red-300 rounded-lg flex items-center gap-2 text-sm text-left">
                 <AlertTriangle size={16} />
@@ -50,7 +77,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
 
           <button
             onClick={generatePlan}
-            disabled={isGenerating}
+            disabled={isGenerating || !hasAccess}
             className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isGenerating ? <Loader2 className="animate-spin" /> : <BrainCircuit />}

@@ -97,8 +97,8 @@ app.post('/.netlify/functions/gemini', async (req, res) => {
   await sendNetlifyResponse(res, geminiHandler, event);
 });
 
-// OPTIONS for CORS
-app.options('/.netlify/functions/*', (req, res) => {
+// OPTIONS for CORS - handle all function routes
+app.options('/.netlify/functions/:functionName', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');

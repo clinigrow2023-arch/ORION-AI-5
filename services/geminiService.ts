@@ -279,15 +279,35 @@ export class GeminiService {
 
         if (response.ok) {
           const data = await response.json();
-          const jsonMatch = (data.response || '').match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsedPlan = JSON.parse(jsonMatch[0]) as ActionPlan;
-            // Validar que o plano tem todas as propriedades necessárias
-            if (this.validatePlan(parsedPlan)) {
-              return parsedPlan;
-            } else {
-              throw new Error("Generated plan is missing required properties");
+          
+          // A Netlify Function agora retorna JSON estruturado diretamente em data.response
+          let parsedPlan: ActionPlan;
+          
+          if (typeof data.response === 'string') {
+            // Se response é string, tentar parsear como JSON
+            try {
+              parsedPlan = JSON.parse(data.response) as ActionPlan;
+            } catch {
+              // Se falhar, tentar extrair JSON com regex (fallback)
+              const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                parsedPlan = JSON.parse(jsonMatch[0]) as ActionPlan;
+              } else {
+                throw new Error("No valid JSON found in response");
+              }
             }
+          } else if (typeof data.response === 'object') {
+            // Se response já é um objeto, usar diretamente
+            parsedPlan = data.response as ActionPlan;
+          } else {
+            throw new Error("Invalid response format");
+          }
+          
+          // Validar que o plano tem todas as propriedades necessárias
+          if (this.validatePlan(parsedPlan)) {
+            return parsedPlan;
+          } else {
+            throw new Error("Generated plan is missing required properties");
           }
         }
       } catch (netlifyError) {

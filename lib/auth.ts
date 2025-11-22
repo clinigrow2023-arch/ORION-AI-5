@@ -129,9 +129,5 @@ export const authService = {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   },
-
-  getToken(): string | null {
-    return localStorage.getItem('auth_token');
-  },
 };
 

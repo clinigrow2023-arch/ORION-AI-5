@@ -5,7 +5,16 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import * as readline from 'readline';
 
-const prisma = new PrismaClient();
+// Usar o mesmo padrão do lib/prisma.ts
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ['error', 'warn'],
+  });
 
 const rl = readline.createInterface({
   input: process.stdin,

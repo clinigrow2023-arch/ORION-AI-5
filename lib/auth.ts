@@ -32,18 +32,29 @@ export const authService = {
         body: JSON.stringify({ name, email, password }),
       });
 
-      const data = await response.json();
-
+      // Verificar se a resposta é válida antes de fazer parse
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        const text = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(text);
+        } catch {
+          // Se não conseguir fazer parse, usar o texto da resposta
+          throw new Error(response.status === 404 
+            ? 'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+            : `Registration failed: ${response.status} ${response.statusText}`);
+        }
+        throw new Error(errorData.error || 'Registration failed');
       }
+
+      const data = await response.json();
 
       // Login automático após registro
       return this.login(email, password);
     } catch (error: any) {
       // Se falhar em dev (404), mostrar erro claro
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('404')) {
-        throw new Error('Authentication service not available. Please use Netlify dev or deploy to production.');
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('404') || error.message?.includes('Authentication service not available')) {
+        throw new Error('Authentication service not available. Please use "netlify dev" to run locally or deploy to production.');
       }
       throw error;
     }
@@ -59,11 +70,22 @@ export const authService = {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-
+      // Verificar se a resposta é válida antes de fazer parse
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        const text = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(text);
+        } catch {
+          // Se não conseguir fazer parse, usar o texto da resposta
+          throw new Error(response.status === 404 
+            ? 'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+            : `Login failed: ${response.status} ${response.statusText}`);
+        }
+        throw new Error(errorData.error || 'Login failed');
       }
+
+      const data = await response.json();
 
       // Salvar token no localStorage
       localStorage.setItem('auth_token', data.token);
@@ -75,8 +97,8 @@ export const authService = {
       };
     } catch (error: any) {
       // Se falhar em dev (404), mostrar erro claro
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('404')) {
-        throw new Error('Authentication service not available. Please use Netlify dev or deploy to production.');
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('404') || error.message?.includes('Authentication service not available')) {
+        throw new Error('Authentication service not available. Please use "netlify dev" to run locally or deploy to production.');
       }
       throw error;
     }
@@ -97,19 +119,30 @@ export const authService = {
         },
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        // Se for 404, usar dados do localStorage como fallback
+        if (response.status === 404) {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            return JSON.parse(userStr);
+          }
+        }
         this.logout();
         return null;
       }
 
+      const data = await response.json();
       return data.user;
     } catch (error) {
       // Em dev, se a function não estiver disponível, usar dados do localStorage
       const userStr = localStorage.getItem('user');
       if (userStr) {
-        return JSON.parse(userStr);
+        try {
+          return JSON.parse(userStr);
+        } catch {
+          this.logout();
+          return null;
+        }
       }
       this.logout();
       return null;

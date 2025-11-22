@@ -40,9 +40,18 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    ```
 
 5. Run the app:
+   
+   **Option 1: Development with Netlify Functions (Recommended)**
+   ```bash
+   netlify dev
+   ```
+   This will start both the Vite dev server and Netlify Functions locally.
+   
+   **Option 2: Vite only (Functions won't work)**
    ```bash
    npm run dev
    ```
+   Note: Authentication and other Netlify Functions won't work with this option. Use `netlify dev` instead.
 
 ## Authentication
 
@@ -75,4 +84,8 @@ The app requires user authentication. Users must:
 - **DATABASE_URL**: Must include the database name in the connection string
   - Format: `mongodb+srv://user:pass@cluster.mongodb.net/database_name?appName=AppName`
 - **JWT_SECRET**: Use a strong, random secret in production
+- **Netlify CLI**: Required for local development with Functions
+  - Install: `npm install -g netlify-cli`
+  - Run: `netlify dev` (instead of `npm run dev`)
+  - This starts both Vite and Netlify Functions locally
 - Authentication functions work in production (Netlify) and require `netlify dev` for local testing

@@ -154,6 +154,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    // Verificar se usuário tem acesso antes de enviar mensagem
+    if (!user) return;
+    
+    // Bloquear se usuário está bloqueado
+    if (user.isBlocked) {
+      alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+      return;
+    }
+
+    // Bloquear se usuário não tem acesso ativo (exceto admin)
+    if (user.role !== 'admin' && !user.isActive) {
+      alert('Seu acesso ainda não foi liberado. Entre em contato com um administrador.');
+      return;
+    }
+
+    // Bloquear se acesso expirou (exceto admin)
+    if (
+      user.role !== 'admin' &&
+      user.accessExpiresAt &&
+      new Date(user.accessExpiresAt) < new Date()
+    ) {
+      alert('Seu acesso expirou. Entre em contato com um administrador para renovar.');
+      return;
+    }
+
     const userMsg: Message = {
       id: generateUniqueId(),
       text: input,
@@ -362,12 +387,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe the situation (e.g., 'She broke up with me yesterday because I was too needy...')"
-            className="w-full bg-slate-800 text-slate-200 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 resize-none h-[60px] scrollbar-hide"
+            placeholder={
+              !user
+                ? "Please log in to use the chat"
+                : user.isBlocked
+                ? "Your account is blocked. Contact an administrator."
+                : user.role !== "admin" && !user.isActive
+                ? "Your access has not been granted. Contact an administrator."
+                : user.role !== "admin" &&
+                  user.accessExpiresAt &&
+                  new Date(user.accessExpiresAt) < new Date()
+                ? "Your access has expired. Contact an administrator to renew."
+                : "Describe the situation (e.g., 'She broke up with me yesterday because I was too needy...')"
+            }
+            disabled={
+              !user ||
+              user.isBlocked ||
+              (user.role !== "admin" && !user.isActive) ||
+              (user.role !== "admin" &&
+                user.accessExpiresAt &&
+                new Date(user.accessExpiresAt) < new Date())
+            }
+            className="w-full bg-slate-800 text-slate-200 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 resize-none h-[60px] scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={
+              !input.trim() ||
+              isLoading ||
+              !user ||
+              user.isBlocked ||
+              (user.role !== "admin" && !user.isActive) ||
+              (user.role !== "admin" &&
+                user.accessExpiresAt &&
+                new Date(user.accessExpiresAt) < new Date())
+            }
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
           >
             <Send size={18} />

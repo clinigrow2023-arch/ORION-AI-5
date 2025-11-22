@@ -87,7 +87,7 @@ export const handler: Handler = async (event, context) => {
 
     // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso)
     if (event.httpMethod === 'PUT') {
-      const { userId, isBlocked, grantAccess } = JSON.parse(event.body || '{}');
+      const { userId, isBlocked, grantAccess, accessExpiresAt } = JSON.parse(event.body || '{}');
 
       if (!userId) {
         return {
@@ -102,11 +102,26 @@ export const handler: Handler = async (event, context) => {
         updateData.isBlocked = isBlocked;
       }
       if (grantAccess === true) {
-        // Liberar acesso por 1 mês
-        const expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
+        // Liberar acesso
         updateData.isActive = true;
-        updateData.accessExpiresAt = expiresAt;
+        
+        // Se foi fornecida uma data customizada, usar ela
+        if (accessExpiresAt) {
+          const customDate = new Date(accessExpiresAt);
+          if (isNaN(customDate.getTime())) {
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({ error: 'Invalid date format for accessExpiresAt' }),
+            };
+          }
+          updateData.accessExpiresAt = customDate;
+        } else {
+          // Caso contrário, usar padrão: 1 mês
+          const expiresAt = new Date();
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+          updateData.accessExpiresAt = expiresAt;
+        }
       } else if (grantAccess === false) {
         // Revogar acesso
         updateData.isActive = false;

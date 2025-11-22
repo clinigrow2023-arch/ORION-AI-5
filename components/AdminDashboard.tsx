@@ -19,6 +19,8 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
   const fetchUsers = async () => {
     try {
@@ -55,7 +57,7 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean }) => {
+  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean; accessExpiresAt?: string }) => {
     try {
       setUpdating(userId);
       setError(null);
@@ -90,8 +92,8 @@ const AdminDashboard: React.FC = () => {
     updateUser(user.id, { isBlocked: !user.isBlocked });
   };
 
-  const handleGrantAccess = (userId: string) => {
-    updateUser(userId, { grantAccess: true });
+  const handleGrantAccess = (userId: string, customDate?: string) => {
+    updateUser(userId, { grantAccess: true, accessExpiresAt: customDate });
   };
 
   const handleRevokeAccess = (userId: string) => {
@@ -261,17 +263,81 @@ const AdminDashboard: React.FC = () => {
                             )}
                           </button>
                         ) : (
-                          <button
-                            onClick={() => handleGrantAccess(user.id)}
-                            disabled={updating === user.id}
-                            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
-                          >
-                            {updating === user.id ? (
-                              <Loader2 className="animate-spin" size={16} />
+                          <div className="flex items-center gap-2">
+                            {showDatePicker === user.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={selectedDate}
+                                  onChange={(e) => setSelectedDate(e.target.value)}
+                                  min={new Date().toISOString().split('T')[0]}
+                                  className="px-2 py-1 bg-slate-800 text-slate-200 rounded text-sm border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (selectedDate) {
+                                      handleGrantAccess(user.id, selectedDate);
+                                      setShowDatePicker(null);
+                                      setSelectedDate("");
+                                    } else {
+                                      // Se não selecionou data, usar padrão (1 mês)
+                                      handleGrantAccess(user.id);
+                                      setShowDatePicker(null);
+                                      setSelectedDate("");
+                                    }
+                                  }}
+                                  disabled={updating === user.id}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                >
+                                  {updating === user.id ? (
+                                    <Loader2 className="animate-spin" size={16} />
+                                  ) : (
+                                    'Confirm'
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowDatePicker(null);
+                                    setSelectedDate("");
+                                  }}
+                                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             ) : (
-                              'Grant Access'
+                              <>
+                                <button
+                                  onClick={() => {
+                                    // Data padrão: 1 mês
+                                    const defaultDate = new Date();
+                                    defaultDate.setMonth(defaultDate.getMonth() + 1);
+                                    handleGrantAccess(user.id, defaultDate.toISOString().split('T')[0]);
+                                  }}
+                                  disabled={updating === user.id}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                  title="Grant access for 1 month (default)"
+                                >
+                                  {updating === user.id ? (
+                                    <Loader2 className="animate-spin" size={16} />
+                                  ) : (
+                                    '1 Month'
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowDatePicker(user.id);
+                                    setSelectedDate("");
+                                  }}
+                                  disabled={updating === user.id}
+                                  className="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                                  title="Choose custom date"
+                                >
+                                  Custom
+                                </button>
+                              </>
                             )}
-                          </button>
+                          </div>
                         )}
                       </div>
                     </td>

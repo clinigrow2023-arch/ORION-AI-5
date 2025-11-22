@@ -79,6 +79,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               if (response.ok) {
                 const data = await response.json();
                 setUser({ ...currentUser, ...data.user });
+              } else if (response.status === 403) {
+                // Usuário bloqueado
+                const data = await response.json().catch(() => ({}));
+                if (data.blocked) {
+                  authService.logout();
+                  setUser(null);
+                } else {
+                  setUser(currentUser);
+                }
               } else {
                 setUser(currentUser);
               }
@@ -100,7 +109,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     checkAuth();
-  }, []);
+
+    // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
+    const interval = setInterval(async () => {
+      if (user) {
+        const token = authService.getToken();
+        if (token) {
+          try {
+            const response = await fetch('/.netlify/functions/auth-verify', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            if (response.status === 403) {
+              const data = await response.json().catch(() => ({}));
+              if (data.blocked) {
+                authService.logout();
+                setUser(null);
+                // Recarregar página para mostrar tela de login
+                window.location.reload();
+              }
+            } else if (response.ok) {
+              const data = await response.json();
+              // Atualizar dados do usuário (incluindo créditos)
+              setUser(prev => prev ? { ...prev, ...data.user } : null);
+            }
+          } catch (error) {
+            // Ignorar erros de rede na verificação periódica
+          }
+        }
+      }
+    }, 30000); // Verificar a cada 30 segundos
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);

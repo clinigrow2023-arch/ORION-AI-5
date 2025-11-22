@@ -65,6 +65,18 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
+    // Verificar se usuário está bloqueado
+    if (user.isBlocked) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Account is blocked',
+          blocked: true,
+        }),
+      };
+    }
+
     return {
       statusCode: 200,
       headers: {

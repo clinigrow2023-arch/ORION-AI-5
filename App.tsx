@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import PlanDisplay from './components/PlanDisplay';
@@ -10,11 +10,21 @@ import { ViewState, Message, ActionPlan, Sender } from './types';
 import { Menu, X, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
-  const { isAuthenticated, loading, isAdmin } = useAuth();
+  const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState | 'admin'>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Verificar se usuário foi bloqueado
+  useEffect(() => {
+    if (user?.isBlocked) {
+      // Se usuário está bloqueado, fazer logout e mostrar mensagem
+      logout();
+      alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+      window.location.reload();
+    }
+  }, [user?.isBlocked, logout]);
 
   const addMessage = (msg: Message) => {
     setMessages(prev => [...prev, msg]);

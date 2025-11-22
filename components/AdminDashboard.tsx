@@ -309,10 +309,8 @@ const AdminDashboard: React.FC = () => {
                               <>
                                 <button
                                   onClick={() => {
-                                    // Data padrão: 1 mês
-                                    const defaultDate = new Date();
-                                    defaultDate.setMonth(defaultDate.getMonth() + 1);
-                                    handleGrantAccess(user.id, defaultDate.toISOString().split('T')[0]);
+                                    // Data padrão: 1 mês (não passar data, deixar backend calcular)
+                                    handleGrantAccess(user.id);
                                   }}
                                   disabled={updating === user.id}
                                   className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"

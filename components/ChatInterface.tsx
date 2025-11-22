@@ -156,26 +156,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     // Verificar se usuário tem acesso antes de enviar mensagem
     if (!user) return;
-    
+
     // Bloquear se usuário está bloqueado
     if (user.isBlocked) {
-      alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+      alert("Sua conta foi bloqueada. Entre em contato com um administrador.");
       return;
     }
 
     // Bloquear se usuário não tem acesso ativo (exceto admin)
-    if (user.role !== 'admin' && !user.isActive) {
-      alert('Seu acesso ainda não foi liberado. Entre em contato com um administrador.');
+    if (user.role !== "admin" && !user.isActive) {
+      alert(
+        "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
+      );
       return;
     }
 
     // Bloquear se acesso expirou (exceto admin)
     if (
-      user.role !== 'admin' &&
+      user.role !== "admin" &&
       user.accessExpiresAt &&
       new Date(user.accessExpiresAt) < new Date()
     ) {
-      alert('Seu acesso expirou. Entre em contato com um administrador para renovar.');
+      alert(
+        "Seu acesso expirou. Entre em contato com um administrador para renovar."
+      );
       return;
     }
 

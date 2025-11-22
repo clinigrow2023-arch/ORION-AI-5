@@ -70,10 +70,15 @@ const App: React.FC = () => {
   // Não verifica isActive ou accessExpiresAt para admin
   // Apenas usuários comuns precisam de ativação e têm expiração de acesso
 
+  // LÓGICA DE ACESSO:
+  // - isBlocked: logout automático (não chega aqui)
+  // - isActive: false = acesso revogado (permanece logado, mostra WaitingActivation, não pode usar chat)
+  // - accessExpiresAt expirado = acesso expirado (permanece logado, mostra WaitingActivation, não pode usar chat)
+
   // Mostrar tela de aguardando ativação se usuário não tiver acesso ativo (exceto admin)
-  // Não mostrar para usuários bloqueados (eles serão deslogados automaticamente)
+  // Usuários bloqueados já foram deslogados antes de chegar aqui
   if (user && user.role !== "admin") {
-    // Usuário sem acesso ativo
+    // Usuário sem acesso ativo (acesso revogado)
     if (!user.isActive) {
       return <WaitingActivation />;
     }

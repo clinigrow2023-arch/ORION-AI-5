@@ -174,15 +174,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!input.trim() || isLoading) return;
 
     // Verificar se usuário tem acesso ANTES de enviar mensagem (para não gastar prompts)
+    // IMPORTANTE: Usuários bloqueados já foram deslogados, então não chegam aqui
     if (!user) return;
 
-    // Bloquear se usuário está bloqueado
-    if (user.isBlocked) {
-      alert("Sua conta foi bloqueada. Entre em contato com um administrador.");
-      return;
-    }
-
     // Bloquear se usuário não tem acesso ativo (exceto admin)
+    // isActive: false = acesso revogado (permanece logado mas não pode usar chat)
     if (user.role !== "admin" && !user.isActive) {
       alert(
         "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
@@ -191,10 +187,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     // Bloquear se acesso expirou (exceto admin) - VERIFICAR ANTES DE CHAMAR API
-    const isExpired = user.role !== "admin" &&
+    // accessExpiresAt expirado = acesso expirado (permanece logado mas não pode usar chat)
+    const isExpired =
+      user.role !== "admin" &&
       user.accessExpiresAt &&
       new Date(user.accessExpiresAt) < new Date();
-    
+
     if (isExpired) {
       alert(
         "Seu acesso expirou. Entre em contato com um administrador para renovar."
@@ -291,17 +289,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </p>
           </div>
           {user?.accessExpiresAt && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-              new Date(user.accessExpiresAt) < new Date()
-                ? "bg-red-500/10 border-red-500/20"
-                : "bg-slate-800 border-slate-700"
-            }`}>
-              <Key size={18} className={new Date(user.accessExpiresAt) < new Date() ? "text-red-400" : "text-indigo-400"} />
-              <span className={`text-sm font-medium ${
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
                 new Date(user.accessExpiresAt) < new Date()
-                  ? "text-red-400"
-                  : "text-slate-300"
-              }`}>
+                  ? "bg-red-500/10 border-red-500/20"
+                  : "bg-slate-800 border-slate-700"
+              }`}
+            >
+              <Key
+                size={18}
+                className={
+                  new Date(user.accessExpiresAt) < new Date()
+                    ? "text-red-400"
+                    : "text-indigo-400"
+                }
+              />
+              <span
+                className={`text-sm font-medium ${
+                  new Date(user.accessExpiresAt) < new Date()
+                    ? "text-red-400"
+                    : "text-slate-300"
+                }`}
+              >
                 {new Date(user.accessExpiresAt) < new Date()
                   ? "Access expired on "
                   : "Access until "}
@@ -424,8 +433,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             placeholder={
               !user
                 ? "Please log in to use the chat"
-                : user.isBlocked
-                ? "Your account is blocked. Contact an administrator."
                 : user.role !== "admin" && !user.isActive
                 ? "Your access has not been granted. Contact an administrator."
                 : user.role !== "admin" &&
@@ -436,7 +443,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             }
             disabled={
               !user ||
-              user.isBlocked ||
               (user.role !== "admin" && !user.isActive) ||
               (user.role !== "admin" &&
                 user.accessExpiresAt &&
@@ -450,7 +456,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               !input.trim() ||
               isLoading ||
               !user ||
-              user.isBlocked ||
               (user.role !== "admin" && !user.isActive) ||
               (user.role !== "admin" &&
                 user.accessExpiresAt &&

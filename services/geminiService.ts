@@ -113,8 +113,9 @@ export class GeminiService {
   async sendMessageStream(message: string, onChunk: (text: string) => void): Promise<string> {
     try {
       // Try Netlify Function first
+      let response: Response | null = null;
       try {
-        const response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
+        response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -149,9 +150,14 @@ export class GeminiService {
 
           return fullText;
         }
-      } catch (netlifyError) {
+
+        // If response is not ok, check if it's 404 and we're in development
+        if (response.status === 404 && isDevelopment) {
+          throw new Error('404 - Netlify Function not available');
+        }
+      } catch (netlifyError: any) {
         // If Netlify Function fails and we're in development, fallback to direct API
-        if (isDevelopment && (netlifyError as any)?.message?.includes('404') || (netlifyError as any)?.message?.includes('Failed to fetch')) {
+        if (isDevelopment && (netlifyError?.message?.includes('404') || netlifyError?.message?.includes('Failed to fetch'))) {
           console.warn('Netlify Function not available, using direct API (dev mode only)');
           
           await this.initializeAI();
@@ -182,12 +188,23 @@ export class GeminiService {
 
           return fullText;
         }
+        
+        // If we have a response but it's not ok, throw with error details
+        if (response && !response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+        
         throw netlifyError;
       }
 
-      // If we get here, Netlify Function returned an error
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      // This should never be reached, but just in case
+      if (response && !response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      throw new Error('Unexpected error: no response received');
     } catch (error: any) {
       console.error("Gemini Chat Error:", error);
       

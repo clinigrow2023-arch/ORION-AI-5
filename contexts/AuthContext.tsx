@@ -100,6 +100,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
+        // Se já temos dados do usuário no localStorage e não foi verificado ainda, usar temporariamente
+        const userStr = localStorage.getItem('user');
+        if (userStr && !user) {
+          try {
+            const tempUser = JSON.parse(userStr);
+            // Se usuário não tem acesso ativo, não fazer verificação automática
+            // Apenas setar os dados do localStorage e mostrar tela de espera
+            if (tempUser && !tempUser.isActive) {
+              setUser({ ...tempUser, isActive: false });
+              setLoading(false);
+              return; // Não fazer requisição se já sabemos que não tem acesso
+            }
+          } catch {
+            // Ignorar erro de parse
+          }
+        }
+
         // Fazer apenas uma chamada direta para auth-verify
         const response = await fetch('/.netlify/functions/auth-verify', {
           headers: {
@@ -203,12 +220,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);
-    await refreshUser();
+    // Após login, usar dados do localStorage e fazer verificação apenas se necessário
+    // Não chamar refreshUser() imediatamente para evitar requisições duplicadas
+    // O useEffect já vai verificar automaticamente
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const currentUser = JSON.parse(userStr);
+      // Verificar se precisa buscar dados completos (role, isActive, etc)
+      // Se o login já retornou role, usar os dados do login
+      if (response.user.role) {
+        setUser({ ...currentUser, ...response.user });
+      } else {
+        // Se não tem role, fazer refreshUser para buscar dados completos
+        await refreshUser();
+      }
+    }
   };
 
   const register = async (name: string, email: string, password: string) => {
     const response = await authService.register(name, email, password);
-    await refreshUser();
+    // Após registro, usuário não tem acesso ativo, então não precisa fazer refreshUser
+    // O useEffect já vai verificar e mostrar tela de espera
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const currentUser = JSON.parse(userStr);
+      // Usuário recém-criado não tem acesso ativo
+      setUser({ ...currentUser, isActive: false });
+    }
   };
 
   const logout = () => {

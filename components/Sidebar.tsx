@@ -1,6 +1,7 @@
 import React from 'react';
-import { MessageSquare, FileText, BookOpen, Star } from 'lucide-react';
+import { MessageSquare, FileText, BookOpen, Star, LogOut, User } from 'lucide-react';
 import { ViewState } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SidebarProps {
   currentView: ViewState;
@@ -8,6 +9,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
+  const { user, logout } = useAuth();
+
   return (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
       <div className="p-6 flex items-center gap-2 border-b border-slate-800">
@@ -16,6 +19,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </div>
         <h1 className="text-xl font-bold text-white tracking-tight">Orion AI</h1>
       </div>
+
+      {/* User Info */}
+      {user && (
+        <div className="p-4 border-b border-slate-800">
+          <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
+              <User size={20} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">{user.name}</p>
+              <p className="text-xs text-slate-400 truncate">{user.email}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="flex-1 p-4 space-y-2">
         <button
@@ -55,13 +73,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </button>
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-slate-800 space-y-2">
         <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
           <p className="text-xs text-slate-400 leading-relaxed">
             "Emotions are the fuel, but strategy is the engine."
           </p>
           <p className="text-xs text-indigo-400 mt-1 font-semibold">— Orion Philosophy</p>
         </div>
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all duration-200"
+        >
+          <LogOut size={20} />
+          <span className="font-medium">Sign Out</span>
+        </button>
       </div>
     </div>
   );

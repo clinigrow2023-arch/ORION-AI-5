@@ -3,10 +3,13 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import PlanDisplay from './components/PlanDisplay';
 import GuideView from './components/GuideView';
+import Auth from './components/Auth';
+import { useAuth } from './contexts/AuthContext';
 import { ViewState, Message, ActionPlan, Sender } from './types';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
+  const { isAuthenticated, loading } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
@@ -28,6 +31,23 @@ const App: React.FC = () => {
         return <ChatInterface messages={messages} addMessage={addMessage} />;
     }
   };
+
+  // Mostrar loading enquanto verifica autenticação
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-slate-950 items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={48} />
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar tela de autenticação se não estiver autenticado
+  if (!isAuthenticated) {
+    return <Auth />;
+  }
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden">

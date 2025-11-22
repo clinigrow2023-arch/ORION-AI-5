@@ -52,7 +52,8 @@ export const handler: Handler = async (event, context) => {
         email: true,
         role: true,
         isBlocked: true,
-        credits: true,
+        isActive: true,
+        accessExpiresAt: true,
         createdAt: true,
       },
     });
@@ -73,6 +74,30 @@ export const handler: Handler = async (event, context) => {
         body: JSON.stringify({ 
           error: 'Account is blocked',
           blocked: true,
+        }),
+      };
+    }
+
+    // Verificar se usuário está ativo e acesso não expirou
+    if (!user.isActive) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Account access not granted. Please contact an administrator.',
+          notActive: true,
+        }),
+      };
+    }
+
+    // Verificar se acesso expirou
+    if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Your access has expired. Please contact an administrator to renew.',
+          expired: true,
         }),
       };
     }

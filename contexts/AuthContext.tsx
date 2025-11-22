@@ -4,7 +4,8 @@ import { authService, User } from '../lib/auth';
 export interface ExtendedUser extends User {
   role?: string;
   isBlocked?: boolean;
-  credits?: number;
+  isActive?: boolean;
+  accessExpiresAt?: string | null;
 }
 
 interface AuthContextType {
@@ -157,7 +158,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
                 window.location.reload();
               } else {
-                // Atualizar dados do usuário (incluindo créditos)
+                // Atualizar dados do usuário
                 setUser(prev => prev ? { ...prev, ...updatedUser } : null);
               }
             }

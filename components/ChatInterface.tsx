@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, Coins, AlertCircle } from "lucide-react";
+import { Send, Bot, User, Loader2, AlertCircle, Key } from "lucide-react";
 import { Message, Sender } from "../types";
 import { geminiService } from "../services/geminiService";
 import { useAuth } from "../contexts/AuthContext";
@@ -20,7 +20,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamedResponse, setStreamedResponse] = useState("");
-  const [credits, setCredits] = useState<number | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,7 +29,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, streamedResponse]);
 
-  // Carregar histórico e créditos ao montar
+  // Carregar histórico ao montar
   useEffect(() => {
     const loadConversation = async () => {
       try {
@@ -45,7 +44,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         if (response.ok) {
           const data = await response.json();
-          setCredits(data.credits || 0);
 
           // Carregar última conversa se existir
           if (data.conversations && data.conversations.length > 0) {
@@ -69,9 +67,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               }
             }
           }
-        } else if (response.status === 402) {
-          const data = await response.json();
-          setCredits(0);
         }
       } catch (error) {
         console.error("Failed to load conversation:", error);
@@ -80,13 +75,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     loadConversation();
   }, []);
-
-  // Atualizar créditos quando user mudar
-  useEffect(() => {
-    if (user?.credits !== undefined) {
-      setCredits(user.credits);
-    }
-  }, [user]);
 
   const saveConversation = async (allMessages: Message[]) => {
     try {
@@ -110,21 +98,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       if (response.ok) {
-        // Atualizar créditos após salvar
+        // Atualizar dados do usuário após salvar
         await refreshUser();
-        const data = await response.json();
-        if (data.credits !== undefined) {
-          setCredits(data.credits);
-        }
-      } else if (response.status === 402) {
-        // Créditos insuficientes
-        const errorMsg: Message = {
-          id: Date.now().toString(),
-          text: "⚠️ **Insufficient Credits**\n\nYou have run out of credits. Please contact an administrator to add more credits.",
-          sender: Sender.Bot,
-          timestamp: new Date(),
-        };
-        addMessage(errorMsg);
       } else if (response.status === 403) {
         // Conta bloqueada
         const errorMsg: Message = {
@@ -147,18 +122,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
-
-    // Verificar créditos antes de enviar
-    if (credits !== null && credits <= 0) {
-      const errorMsg: Message = {
-        id: Date.now().toString(),
-        text: "⚠️ **Insufficient Credits**\n\nYou have run out of credits. Please contact an administrator to add more credits.",
-        sender: Sender.Bot,
-        timestamp: new Date(),
-      };
-      addMessage(errorMsg);
-      return;
-    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -207,11 +170,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       } else if (error?.message?.includes("API key is missing")) {
         errorText = `⚠️ **Chave API não encontrada**\n\nPor favor, adicione sua chave API do Gemini no arquivo \`.env\`:\n\`GEMINI_API_KEY=sua_chave_aqui\`\n\nDepois, reinicie o servidor.`;
       } else if (
-        error?.message?.includes("Insufficient credits") ||
-        error?.message?.includes("402")
+        error?.message?.includes("access not granted") ||
+        error?.message?.includes("access has expired")
       ) {
         errorText =
-          "⚠️ **Insufficient Credits**\n\nYou have run out of credits. Please contact an administrator to add more credits.";
+          "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
       }
 
       const errorMsg: Message = {
@@ -247,29 +210,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               Provide details about your situation for analysis.
             </p>
           </div>
-          {credits !== null && (
+          {user?.accessExpiresAt && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg border border-slate-700">
-              <Coins
+              <Key
                 size={18}
-                className={`${
-                  credits > 0 ? "text-yellow-400" : "text-red-400"
-                }`}
+                className="text-indigo-400"
               />
-              <span
-                className={`text-sm font-medium ${
-                  credits > 0 ? "text-yellow-400" : "text-red-400"
-                }`}
-              >
-                {credits}
+              <span className="text-sm font-medium text-slate-300">
+                Access until {new Date(user.accessExpiresAt).toLocaleDateString()}
               </span>
             </div>
           )}
         </div>
-        {credits !== null && credits <= 0 && (
+        {user && !user.isActive && (
+          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
+            <AlertCircle size={16} />
+            <span>
+              Your account access has not been granted. Please contact an administrator.
+            </span>
+          </div>
+        )}
+        {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date() && (
           <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
             <AlertCircle size={16} />
             <span>
-              You have no credits remaining. Contact an administrator.
+              Your access has expired. Please contact an administrator to renew.
             </span>
           </div>
         )}

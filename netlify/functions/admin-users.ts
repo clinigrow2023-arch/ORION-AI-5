@@ -68,7 +68,8 @@ export const handler: Handler = async (event, context) => {
           email: true,
           role: true,
           isBlocked: true,
-          credits: true,
+          isActive: true,
+          accessExpiresAt: true,
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
@@ -84,9 +85,9 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // PUT - Atualizar usuário (bloquear/desbloquear, créditos)
+    // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso)
     if (event.httpMethod === 'PUT') {
-      const { userId, isBlocked, credits } = JSON.parse(event.body || '{}');
+      const { userId, isBlocked, grantAccess } = JSON.parse(event.body || '{}');
 
       if (!userId) {
         return {
@@ -100,8 +101,16 @@ export const handler: Handler = async (event, context) => {
       if (typeof isBlocked === 'boolean') {
         updateData.isBlocked = isBlocked;
       }
-      if (typeof credits === 'number' && credits >= 0) {
-        updateData.credits = credits;
+      if (grantAccess === true) {
+        // Liberar acesso por 1 mês
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+        updateData.isActive = true;
+        updateData.accessExpiresAt = expiresAt;
+      } else if (grantAccess === false) {
+        // Revogar acesso
+        updateData.isActive = false;
+        updateData.accessExpiresAt = null;
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -121,7 +130,8 @@ export const handler: Handler = async (event, context) => {
           email: true,
           role: true,
           isBlocked: true,
-          credits: true,
+          isActive: true,
+          accessExpiresAt: true,
           createdAt: true,
         },
       });

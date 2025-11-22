@@ -16,15 +16,32 @@ const App: React.FC = () => {
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Verificar se usuário foi bloqueado
+  // Verificar se usuário foi bloqueado, não está ativo ou acesso expirou
   useEffect(() => {
     if (user?.isBlocked) {
       // Se usuário está bloqueado, fazer logout e mostrar mensagem
       logout();
       alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
       window.location.reload();
+      return;
     }
-  }, [user?.isBlocked, logout]);
+
+    // Verificar se usuário não está ativo (não liberado)
+    if (user && !user.isActive && user.role !== 'admin') {
+      logout();
+      alert('Seu acesso ainda não foi liberado. Entre em contato com um administrador.');
+      window.location.reload();
+      return;
+    }
+
+    // Verificar se acesso expirou
+    if (user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date() && user.role !== 'admin') {
+      logout();
+      alert('Seu acesso expirou. Entre em contato com um administrador para renovar.');
+      window.location.reload();
+      return;
+    }
+  }, [user?.isBlocked, user?.isActive, user?.accessExpiresAt, user?.role, logout]);
 
   const addMessage = (msg: Message) => {
     setMessages(prev => [...prev, msg]);

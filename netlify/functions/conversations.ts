@@ -44,10 +44,14 @@ export const handler: Handler = async (event, context) => {
     };
   }
 
-  // Verificar se usuário está bloqueado
+  // Verificar se usuário está bloqueado e tem acesso ativo
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
-    select: { isBlocked: true, credits: true },
+    select: { 
+      isBlocked: true, 
+      isActive: true,
+      accessExpiresAt: true,
+    },
   });
 
   if (!user) {
@@ -63,6 +67,23 @@ export const handler: Handler = async (event, context) => {
       statusCode: 403,
       headers,
       body: JSON.stringify({ error: 'Account is blocked' }),
+    };
+  }
+
+  if (!user.isActive) {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: 'Account access not granted. Please contact an administrator.' }),
+    };
+  }
+
+  // Verificar se acesso expirou
+  if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: 'Your access has expired. Please contact an administrator to renew.' }),
     };
   }
 
@@ -91,7 +112,7 @@ export const handler: Handler = async (event, context) => {
             ...conv,
             messages: JSON.parse(conv.messages || '[]'),
           })),
-          credits: user.credits,
+          accessExpiresAt: user.accessExpiresAt,
         }),
       };
     }
@@ -105,15 +126,6 @@ export const handler: Handler = async (event, context) => {
           statusCode: 400,
           headers,
           body: JSON.stringify({ error: 'messages must be an array' }),
-        };
-      }
-
-      // Verificar créditos antes de salvar
-      if (user.credits <= 0) {
-        return {
-          statusCode: 402,
-          headers,
-          body: JSON.stringify({ error: 'Insufficient credits' }),
         };
       }
 
@@ -153,16 +165,6 @@ export const handler: Handler = async (event, context) => {
           },
         });
       }
-
-      // Decrementar crédito
-      await prisma.user.update({
-        where: { id: auth.userId },
-        data: {
-          credits: {
-            decrement: 1,
-          },
-        },
-      });
 
       return {
         statusCode: 200,

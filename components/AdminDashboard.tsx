@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../lib/auth';
-import { Users, Ban, CheckCircle, Coins, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, Ban, CheckCircle, Key, Loader2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 
 interface User {
   id: string;
@@ -9,7 +9,8 @@ interface User {
   email: string;
   role: string;
   isBlocked: boolean;
-  credits: number;
+  isActive: boolean;
+  accessExpiresAt: string | null;
   createdAt: string;
 }
 
@@ -18,7 +19,6 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [creditInputs, setCreditInputs] = useState<{ [key: string]: string }>({});
 
   const fetchUsers = async () => {
     try {
@@ -55,7 +55,7 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = async (userId: string, updates: { isBlocked?: boolean; credits?: number }) => {
+  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean }) => {
     try {
       setUpdating(userId);
       setError(null);
@@ -79,7 +79,6 @@ const AdminDashboard: React.FC = () => {
       }
 
       await fetchUsers();
-      setCreditInputs({ ...creditInputs, [userId]: '' });
     } catch (err: any) {
       setError(err.message || 'Failed to update user');
     } finally {
@@ -91,13 +90,26 @@ const AdminDashboard: React.FC = () => {
     updateUser(user.id, { isBlocked: !user.isBlocked });
   };
 
-  const handleCreditUpdate = (userId: string) => {
-    const credits = parseInt(creditInputs[userId] || '0');
-    if (isNaN(credits) || credits < 0) {
-      setError('Please enter a valid number');
-      return;
-    }
-    updateUser(userId, { credits });
+  const handleGrantAccess = (userId: string) => {
+    updateUser(userId, { grantAccess: true });
+  };
+
+  const handleRevokeAccess = (userId: string) => {
+    updateUser(userId, { grantAccess: false });
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
+
+  const isAccessExpired = (dateString: string | null) => {
+    if (!dateString) return true;
+    return new Date(dateString) < new Date();
   };
 
   if (loading) {
@@ -117,7 +129,7 @@ const AdminDashboard: React.FC = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
-            <p className="text-slate-400">Manage users, blocks, and credits</p>
+            <p className="text-slate-400">Manage users, blocks, and access permissions</p>
           </div>
           <button
             onClick={fetchUsers}
@@ -143,8 +155,9 @@ const AdminDashboard: React.FC = () => {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">User</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Role</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Credits</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Blocked</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Access</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Expires</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Actions</th>
                 </tr>
               </thead>
@@ -188,10 +201,33 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Coins size={16} className="text-yellow-400" />
-                        <span className="text-white font-medium">{user.credits}</span>
-                      </div>
+                      {user.isActive ? (
+                        <span className="flex items-center gap-2 text-green-400">
+                          <Key size={16} />
+                          <span className="text-sm">Granted</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2 text-slate-500">
+                          <XCircle size={16} />
+                          <span className="text-sm">Not Granted</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.accessExpiresAt ? (
+                        <span className={`text-sm ${
+                          isAccessExpired(user.accessExpiresAt)
+                            ? 'text-red-400'
+                            : 'text-slate-300'
+                        }`}>
+                          {formatDate(user.accessExpiresAt)}
+                          {isAccessExpired(user.accessExpiresAt) && (
+                            <span className="ml-2 text-xs">(Expired)</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-slate-500">N/A</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -212,27 +248,31 @@ const AdminDashboard: React.FC = () => {
                             'Block'
                           )}
                         </button>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            value={creditInputs[user.id] || ''}
-                            onChange={(e) => setCreditInputs({ ...creditInputs, [user.id]: e.target.value })}
-                            placeholder="Credits"
-                            className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
+                        {user.isActive ? (
                           <button
-                            onClick={() => handleCreditUpdate(user.id)}
-                            disabled={updating === user.id || !creditInputs[user.id]}
+                            onClick={() => handleRevokeAccess(user.id)}
+                            disabled={updating === user.id}
+                            className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
+                          >
+                            {updating === user.id ? (
+                              <Loader2 className="animate-spin" size={16} />
+                            ) : (
+                              'Revoke'
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleGrantAccess(user.id)}
+                            disabled={updating === user.id}
                             className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
                           >
                             {updating === user.id ? (
                               <Loader2 className="animate-spin" size={16} />
                             ) : (
-                              'Set'
+                              'Grant Access'
                             )}
                           </button>
-                        </div>
+                        )}
                       </div>
                     </td>
                   </tr>

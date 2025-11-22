@@ -6,18 +6,28 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-// Verify DATABASE_URL is loaded
+// Verify DATABASE_URL is loaded and valid
 if (!process.env.DATABASE_URL) {
   console.error('❌ ERROR: DATABASE_URL not found in .env file');
   console.error('Please make sure DATABASE_URL is set in your .env file');
   process.exit(1);
 }
 
-if (!process.env.DATABASE_URL.startsWith('mongodb')) {
+// Clean DATABASE_URL if it has duplicate prefix
+let dbUrl = process.env.DATABASE_URL.trim();
+if (dbUrl.startsWith('DATABASE_URL=')) {
+  dbUrl = dbUrl.replace(/^DATABASE_URL=/, '');
+  process.env.DATABASE_URL = dbUrl;
+  console.log('⚠️  Fixed duplicate DATABASE_URL prefix');
+}
+
+if (!dbUrl.startsWith('mongodb://') && !dbUrl.startsWith('mongodb+srv://')) {
   console.error('❌ ERROR: DATABASE_URL must start with "mongodb://" or "mongodb+srv://"');
-  console.error(`Current value starts with: ${process.env.DATABASE_URL.substring(0, 20)}...`);
+  console.error(`Current value: ${dbUrl.substring(0, 50)}...`);
   process.exit(1);
 }
+
+console.log('✅ DATABASE_URL loaded successfully');
 
 // Import Netlify Functions
 import { handler as authRegisterHandler } from '../netlify/functions/auth-register';

@@ -44,10 +44,8 @@ const WaitingActivation: React.FC = () => {
       } else if (response.status === 403) {
         const data = await response.json().catch(() => ({}));
         if (data.blocked) {
-          // Usuário bloqueado
-          authService.logout();
-          alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
-          window.location.reload();
+          // Usuário bloqueado - manter logado mas atualizar status
+          await refreshUser();
         } else if (data.notActive || data.expired) {
           // Ainda sem acesso ativo - atualizar estado para refletir status atual
           await refreshUser();

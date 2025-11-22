@@ -157,9 +157,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
     // APENAS se o usuário estiver ativo (não verificar se está aguardando ativação)
     const interval = setInterval(async () => {
-      // Não verificar periodicamente se usuário não tem acesso ativo
+      // Não verificar periodicamente se usuário não tem acesso ativo ou está undefined
       // A verificação será feita apenas quando clicar em "Verificar Ativação"
-      if (user && !user.isBlocked && user.isActive !== false) {
+      if (user && !user.isBlocked && user.isActive === true) {
         const token = authService.getToken();
         if (token) {
           try {

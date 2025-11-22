@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const addMessage = (msg: Message) => {
     setMessages((prev) => {
       // Verificar se a mensagem já existe (evitar duplicação)
-      const exists = prev.some(m => m.id === msg.id);
+      const exists = prev.some((m) => m.id === msg.id);
       if (exists) {
         return prev;
       }

@@ -26,7 +26,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Função para gerar ID único
   const generateUniqueId = () => {
     messageIdCounter.current += 1;
-    return `${Date.now()}-${messageIdCounter.current}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${messageIdCounter.current}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
   };
 
   const scrollToBottom = () => {
@@ -86,9 +88,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               if (loadedMessages.length > 0 && messages.length === 0) {
                 hasLoadedHistory.current = true;
                 // Verificar duplicação antes de adicionar
-                const existingIds = new Set(messages.map(m => m.id));
-                const uniqueMessages = loadedMessages.filter(msg => !existingIds.has(msg.id));
-                
+                const existingIds = new Set(messages.map((m) => m.id));
+                const uniqueMessages = loadedMessages.filter(
+                  (msg) => !existingIds.has(msg.id)
+                );
+
                 // Adicionar todas as mensagens de uma vez
                 uniqueMessages.forEach((msg) => addMessage(msg));
               }
@@ -125,8 +129,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       if (response.ok) {
-        // Atualizar dados do usuário após salvar
-        await refreshUser();
+        // Conversa salva com sucesso - não precisa atualizar usuário
+        // Removido refreshUser() para evitar requisições desnecessárias
       } else if (response.status === 403) {
         // Conta bloqueada
         const errorMsg: Message = {

@@ -27,14 +27,18 @@ const WaitingActivation: React.FC = () => {
         const data = await response.json();
         const updatedUser = data.user;
         
-        // Se usuário foi ativado, atualizar estado
+        // Se usuário foi ativado, recarregar página
         if (updatedUser.isActive) {
-          await refreshUser();
           // Recarregar página para mostrar interface principal
           window.location.reload();
         } else {
-          // Ainda não foi ativado, apenas atualizar dados
-          await refreshUser();
+          // Ainda não foi ativado - apenas atualizar estado local
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const currentUser = JSON.parse(userStr);
+            // Atualizar apenas o estado local, sem fazer mais requisições
+            // O refreshUser será chamado automaticamente pelo contexto quando necessário
+          }
         }
       } else if (response.status === 403) {
         const data = await response.json().catch(() => ({}));
@@ -44,8 +48,8 @@ const WaitingActivation: React.FC = () => {
           alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
           window.location.reload();
         } else if (data.notActive || data.expired) {
-          // Ainda sem acesso ativo
-          await refreshUser();
+          // Ainda sem acesso ativo - não fazer nada, apenas mostrar mensagem
+          // Não chamar refreshUser() para evitar requisições desnecessárias
         }
       }
     } catch (error) {

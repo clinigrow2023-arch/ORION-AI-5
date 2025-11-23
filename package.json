@@ -12,9 +12,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "create-admin": "tsx scripts/create-admin.ts",
-    "create-user": "tsx scripts/create-test-user.ts",
-    "generate-jwt": "tsx scripts/generate-jwt.ts"
+    "create-admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

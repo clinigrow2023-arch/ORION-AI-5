@@ -51,7 +51,6 @@ async function createAdmin() {
         email: email.toLowerCase().trim(),
         password: hashedPassword,
         role: 'admin',
-        credits: 999999, // Créditos ilimitados para admin
         isBlocked: false,
       },
     });

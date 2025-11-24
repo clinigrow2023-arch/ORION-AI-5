@@ -185,26 +185,27 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
+    <div className="min-h-screen bg-slate-950 p-3 md:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
-            <p className="text-slate-400">Manage users, blocks, and access permissions</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">Admin Dashboard</h1>
+            <p className="text-sm md:text-base text-slate-400">Manage users, blocks, and access permissions</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <button
               onClick={() => setShowPromoteByEmail(!showPromoteByEmail)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm md:text-base"
             >
-              <Users size={20} />
-              Promote by Email
+              <Users size={18} className="md:w-5 md:h-5" />
+              <span className="hidden sm:inline">Promote by Email</span>
+              <span className="sm:hidden">Promote</span>
             </button>
             <button
               onClick={fetchUsers}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm md:text-base"
             >
-              <RefreshCw size={20} />
+              <RefreshCw size={18} className="md:w-5 md:h-5" />
               Refresh
             </button>
           </div>
@@ -212,15 +213,15 @@ const AdminDashboard: React.FC = () => {
 
         {/* Seção para promover por email */}
         {showPromoteByEmail && (
-          <div className="mb-6 p-4 bg-slate-900 rounded-xl border border-slate-800">
-            <h3 className="text-lg font-semibold text-white mb-3">Promote User to Admin by Email</h3>
-            <div className="flex items-center gap-3">
+          <div className="mb-4 md:mb-6 p-3 md:p-4 bg-slate-900 rounded-xl border border-slate-800">
+            <h3 className="text-base md:text-lg font-semibold text-white mb-3">Promote User to Admin by Email</h3>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <input
                 type="email"
                 value={promoteEmail}
                 onChange={(e) => setPromoteEmail(e.target.value)}
                 placeholder="Enter user email address"
-                className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="flex-1 px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm md:text-base"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handlePromoteByEmail();
@@ -230,12 +231,13 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={handlePromoteByEmail}
                 disabled={promoting || !promoteEmail.trim()}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
               >
                 {promoting ? (
                   <>
                     <Loader2 className="animate-spin" size={16} />
-                    Promoting...
+                    <span className="hidden sm:inline">Promoting...</span>
+                    <span className="sm:hidden">...</span>
                   </>
                 ) : (
                   'Promote'
@@ -246,7 +248,7 @@ const AdminDashboard: React.FC = () => {
                   setShowPromoteByEmail(false);
                   setPromoteEmail('');
                 }}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors text-sm md:text-base"
               >
                 Cancel
               </button>
@@ -255,24 +257,25 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">
-            <AlertCircle size={20} />
+          <div className="mb-4 md:mb-6 p-3 md:p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm md:text-base">
+            <AlertCircle size={18} className="md:w-5 md:h-5 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        {/* Desktop Table View */}
+        <div className="hidden lg:block bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-800 border-b border-slate-700">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">User</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Email</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Role</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Blocked</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Access</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Expires</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Actions</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">User</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Email</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Role</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Blocked</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Access</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Expires</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -369,19 +372,19 @@ const AdminDashboard: React.FC = () => {
                         <span className="text-sm text-slate-500">N/A</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => handleBlockToggle(user)}
                           disabled={updating === user.id}
-                          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                          className={`px-2 lg:px-3 py-1 rounded text-xs lg:text-sm font-medium transition-colors ${
                             user.isBlocked
                               ? 'bg-green-600 hover:bg-green-700 text-white'
                               : 'bg-red-600 hover:bg-red-700 text-white'
                           } disabled:opacity-50`}
                         >
                           {updating === user.id ? (
-                            <Loader2 className="animate-spin" size={16} />
+                            <Loader2 className="animate-spin" size={14} className="lg:w-4 lg:h-4" />
                           ) : user.isBlocked ? (
                             'Unblock'
                           ) : (
@@ -535,6 +538,254 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-4">
+          {users.map((user) => (
+            <div key={user.id} className="bg-slate-900 rounded-xl border border-slate-800 p-4">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Users size={20} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium truncate">{user.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    user.role === 'admin'
+                      ? 'bg-purple-500/20 text-purple-400'
+                      : 'bg-slate-700 text-slate-300'
+                  }`}>
+                    {user.role}
+                  </span>
+                  <button
+                    onClick={() => handleRoleChange(user)}
+                    disabled={updating === user.id || (user.role === 'admin' && user.id === currentUser?.id)}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      user.role === 'admin'
+                        ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                    }`}
+                  >
+                    {updating === user.id ? (
+                      <Loader2 className="animate-spin" size={12} />
+                    ) : user.role === 'admin' ? (
+                      'Demote'
+                    ) : (
+                      'Promote'
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  {user.isBlocked ? (
+                    <span className="flex items-center gap-1.5 text-red-400 text-xs">
+                      <Ban size={14} />
+                      <span>Blocked</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-green-400 text-xs">
+                      <CheckCircle size={14} />
+                      <span>Active</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {user.isActive ? (
+                    <span className="flex items-center gap-1.5 text-green-400 text-xs">
+                      <Key size={14} />
+                      <span>Granted</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-slate-500 text-xs">
+                      <XCircle size={14} />
+                      <span>Not Granted</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {user.accessExpiresAt && (
+                <div className="mb-4">
+                  <p className="text-xs text-slate-400 mb-1">Expires:</p>
+                  <p className={`text-sm ${
+                    isAccessExpired(user.accessExpiresAt)
+                      ? 'text-red-400'
+                      : 'text-slate-300'
+                  }`}>
+                    {formatDate(user.accessExpiresAt)}
+                    {isAccessExpired(user.accessExpiresAt) && (
+                      <span className="ml-2 text-xs">(Expired)</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-800">
+                <button
+                  onClick={() => handleBlockToggle(user)}
+                  disabled={updating === user.id}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-1 min-w-[80px] ${
+                    user.isBlocked
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  } disabled:opacity-50`}
+                >
+                  {updating === user.id ? (
+                    <Loader2 className="animate-spin mx-auto" size={14} />
+                  ) : user.isBlocked ? (
+                    'Unblock'
+                  ) : (
+                    'Block'
+                  )}
+                </button>
+                {user.isActive ? (
+                  <>
+                    <button
+                      onClick={() => handleRevokeAccess(user.id)}
+                      disabled={updating === user.id}
+                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
+                    >
+                      {updating === user.id ? (
+                        <Loader2 className="animate-spin mx-auto" size={14} />
+                      ) : (
+                        'Revoke'
+                      )}
+                    </button>
+                    {showDatePicker === user.id ? (
+                      <div className="w-full flex flex-col gap-2">
+                        <input
+                          type="date"
+                          value={selectedDate || (user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '')}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-2 py-1.5 bg-slate-800 text-slate-200 rounded text-xs border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (selectedDate) {
+                                updateUser(user.id, { updateExpirationDate: true, accessExpiresAt: selectedDate });
+                                setShowDatePicker(null);
+                                setSelectedDate("");
+                              }
+                            }}
+                            disabled={updating === user.id}
+                            className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors"
+                          >
+                            {updating === user.id ? (
+                              <Loader2 className="animate-spin mx-auto" size={14} />
+                            ) : (
+                              'Save'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowDatePicker(null);
+                              setSelectedDate("");
+                            }}
+                            className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-medium transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowDatePicker(user.id);
+                          setSelectedDate(user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '');
+                        }}
+                        disabled={updating === user.id}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
+                      >
+                        Edit Date
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {showDatePicker === user.id ? (
+                      <div className="w-full flex flex-col gap-2">
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-2 py-1.5 bg-slate-800 text-slate-200 rounded text-xs border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (selectedDate) {
+                                handleGrantAccess(user.id, selectedDate);
+                                setShowDatePicker(null);
+                                setSelectedDate("");
+                              } else {
+                                handleGrantAccess(user.id);
+                                setShowDatePicker(null);
+                                setSelectedDate("");
+                              }
+                            }}
+                            disabled={updating === user.id}
+                            className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors"
+                          >
+                            {updating === user.id ? (
+                              <Loader2 className="animate-spin mx-auto" size={14} />
+                            ) : (
+                              'Confirm'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowDatePicker(null);
+                              setSelectedDate("");
+                            }}
+                            className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-medium transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleGrantAccess(user.id)}
+                          disabled={updating === user.id}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
+                        >
+                          {updating === user.id ? (
+                            <Loader2 className="animate-spin mx-auto" size={14} />
+                          ) : (
+                            '1 Month'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDatePicker(user.id);
+                            setSelectedDate("");
+                          }}
+                          disabled={updating === user.id}
+                          className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
+                        >
+                          Custom
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
         {users.length === 0 && !loading && (
           <div className="text-center py-12">
             <Users size={48} className="text-slate-600 mx-auto mb-4" />
@@ -545,10 +796,10 @@ const AdminDashboard: React.FC = () => {
 
       {/* Modal de confirmação de mudança de role */}
       {roleChangeConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold text-white mb-4">Confirm Role Change</h3>
-            <p className="text-slate-300 mb-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
+            <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">Confirm Role Change</h3>
+            <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
               Are you sure you want to change <span className="font-semibold text-white">{roleChangeConfirm.userName}</span>'s role from{' '}
               <span className={`font-semibold ${roleChangeConfirm.newRole === 'admin' ? 'text-purple-400' : 'text-slate-400'}`}>
                 {roleChangeConfirm.newRole === 'admin' ? 'user' : 'admin'}
@@ -558,16 +809,17 @@ const AdminDashboard: React.FC = () => {
                 {roleChangeConfirm.newRole}
               </span>?
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={confirmRoleChange}
                 disabled={updating === roleChangeConfirm.userId}
-                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
               >
                 {updating === roleChangeConfirm.userId ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="animate-spin" size={16} />
-                    Updating...
+                    <span className="hidden sm:inline">Updating...</span>
+                    <span className="sm:hidden">...</span>
                   </span>
                 ) : (
                   'Confirm'
@@ -576,7 +828,7 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={cancelRoleChange}
                 disabled={updating === roleChangeConfirm.userId}
-                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
               >
                 Cancel
               </button>

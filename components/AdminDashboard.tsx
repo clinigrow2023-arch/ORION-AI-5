@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../lib/auth';
-import { Users, Ban, CheckCircle, Key, Loader2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
+import { Users, Ban, CheckCircle, Key, Loader2, AlertCircle, RefreshCw, XCircle, X } from 'lucide-react';
 
 interface User {
   id: string;
@@ -23,6 +23,8 @@ const AdminDashboard: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [roleChangeConfirm, setRoleChangeConfirm] = useState<{ userId: string; newRole: string; userName: string } | null>(null);
+  const [blockConfirm, setBlockConfirm] = useState<{ userId: string; userName: string; isBlocked: boolean } | null>(null);
+  const [revokeConfirm, setRevokeConfirm] = useState<{ userId: string; userName: string } | null>(null);
   const [showPromoteByEmail, setShowPromoteByEmail] = useState(false);
   const [promoteEmail, setPromoteEmail] = useState("");
   const [promoting, setPromoting] = useState(false);
@@ -94,15 +96,37 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleBlockToggle = (user: User) => {
-    updateUser(user.id, { isBlocked: !user.isBlocked });
+    setBlockConfirm({ userId: user.id, userName: user.name, isBlocked: user.isBlocked });
+  };
+
+  const confirmBlockToggle = () => {
+    if (blockConfirm) {
+      updateUser(blockConfirm.userId, { isBlocked: !blockConfirm.isBlocked });
+      setBlockConfirm(null);
+    }
+  };
+
+  const cancelBlockToggle = () => {
+    setBlockConfirm(null);
   };
 
   const handleGrantAccess = (userId: string, customDate?: string) => {
     updateUser(userId, { grantAccess: true, accessExpiresAt: customDate });
   };
 
-  const handleRevokeAccess = (userId: string) => {
-    updateUser(userId, { grantAccess: false });
+  const handleRevokeAccess = (userId: string, userName: string) => {
+    setRevokeConfirm({ userId, userName });
+  };
+
+  const confirmRevokeAccess = () => {
+    if (revokeConfirm) {
+      updateUser(revokeConfirm.userId, { grantAccess: false });
+      setRevokeConfirm(null);
+    }
+  };
+
+  const cancelRevokeAccess = () => {
+    setRevokeConfirm(null);
   };
 
   const handleRoleChange = (user: User) => {
@@ -396,7 +420,7 @@ const AdminDashboard: React.FC = () => {
                         {user.isActive ? (
                           <>
                             <button
-                              onClick={() => handleRevokeAccess(user.id)}
+                              onClick={() => handleRevokeAccess(user.id, user.name)}
                               disabled={updating === user.id}
                               className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
                             >
@@ -651,7 +675,7 @@ const AdminDashboard: React.FC = () => {
                 {user.isActive ? (
                   <>
                     <button
-                      onClick={() => handleRevokeAccess(user.id)}
+                      onClick={() => handleRevokeAccess(user.id, user.name)}
                       disabled={updating === user.id}
                       className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
                     >

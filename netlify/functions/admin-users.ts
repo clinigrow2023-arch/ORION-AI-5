@@ -59,6 +59,86 @@ export const handler: Handler = async (event, context) => {
   }
 
   try {
+    // POST - Promover usuário por email
+    if (event.httpMethod === 'POST') {
+      const { email, role } = JSON.parse(event.body || '{}');
+
+      if (!email) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Email is required' }),
+        };
+      }
+
+      if (role !== 'admin' && role !== 'user') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Invalid role. Must be "admin" or "user"' }),
+        };
+      }
+
+      // Buscar usuário por email
+      const targetUser = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true, email: true, name: true },
+      });
+
+      if (!targetUser) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'User not found with this email' }),
+        };
+      }
+
+      // Não permitir que admin altere seu próprio role
+      if (targetUser.id === admin.userId) {
+        if (role === 'user') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'You cannot change your own role to user' }),
+          };
+        }
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'You cannot change your own role' }),
+        };
+      }
+
+      // Atualizar role
+      const updatedUser = await prisma.user.update({
+        where: { id: targetUser.id },
+        data: { role },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isBlocked: true,
+          isActive: true,
+          accessExpiresAt: true,
+          createdAt: true,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          success: true,
+          message: `User ${updatedUser.email} role updated to ${role}`,
+          user: updatedUser 
+        }),
+      };
+    }
+
     // GET - Listar todos os usuários
     if (event.httpMethod === 'GET') {
       const users = await prisma.user.findMany({
@@ -111,8 +191,17 @@ export const handler: Handler = async (event, context) => {
         };
       }
 
-      // Não permitir que admin altere seu próprio role
+      // Não permitir que admin altere seu próprio role, especialmente para user
       if (targetUser.id === admin.userId && role) {
+        // Se está tentando alterar para user, bloquear completamente
+        if (role === 'user') {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'You cannot change your own role to user' }),
+          };
+        }
+        // Mesmo para admin, não permitir alterar próprio role
         return {
           statusCode: 400,
           headers,

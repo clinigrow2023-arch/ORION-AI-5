@@ -15,6 +15,7 @@ interface User {
 }
 
 const AdminDashboard: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -22,6 +23,9 @@ const AdminDashboard: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [roleChangeConfirm, setRoleChangeConfirm] = useState<{ userId: string; newRole: string; userName: string } | null>(null);
+  const [showPromoteByEmail, setShowPromoteByEmail] = useState(false);
+  const [promoteEmail, setPromoteEmail] = useState("");
+  const [promoting, setPromoting] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -117,6 +121,44 @@ const AdminDashboard: React.FC = () => {
     setRoleChangeConfirm(null);
   };
 
+  const handlePromoteByEmail = async () => {
+    if (!promoteEmail.trim()) {
+      setError('Please enter an email address');
+      return;
+    }
+
+    try {
+      setPromoting(true);
+      setError(null);
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      const response = await fetch('/.netlify/functions/admin-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: promoteEmail.trim(), role: 'admin' }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to promote user');
+      }
+
+      setPromoteEmail('');
+      setShowPromoteByEmail(false);
+      await fetchUsers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to promote user');
+    } finally {
+      setPromoting(false);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -208,13 +250,19 @@ const AdminDashboard: React.FC = () => {
                         </span>
                         <button
                           onClick={() => handleRoleChange(user)}
-                          disabled={updating === user.id}
-                          className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                          disabled={updating === user.id || (user.role === 'admin' && user.id === currentUser?.id)}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                             user.role === 'admin'
                               ? 'bg-orange-600 hover:bg-orange-700 text-white'
                               : 'bg-purple-600 hover:bg-purple-700 text-white'
                           }`}
-                          title={user.role === 'admin' ? 'Demote to user' : 'Promote to admin'}
+                          title={
+                            user.role === 'admin' && user.id === currentUser?.id
+                              ? 'You cannot demote yourself'
+                              : user.role === 'admin'
+                              ? 'Demote to user'
+                              : 'Promote to admin'
+                          }
                         >
                           {updating === user.id ? (
                             <Loader2 className="animate-spin" size={12} />

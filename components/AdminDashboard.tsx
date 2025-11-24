@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { authService } from '../lib/auth';
-import { Users, Ban, CheckCircle, Key, Loader2, AlertCircle, RefreshCw, XCircle, X, Trash2, KeyRound } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { authService } from "../lib/auth";
+import {
+  Users,
+  Ban,
+  CheckCircle,
+  Key,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  XCircle,
+  X,
+  Trash2,
+  KeyRound,
+} from "lucide-react";
 
 interface User {
   id: string;
@@ -23,11 +35,29 @@ const AdminDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [roleChangeConfirm, setRoleChangeConfirm] = useState<{ userId: string; newRole: string; userName: string } | null>(null);
-  const [blockConfirm, setBlockConfirm] = useState<{ userId: string; userName: string; isBlocked: boolean } | null>(null);
-  const [revokeConfirm, setRevokeConfirm] = useState<{ userId: string; userName: string } | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ userId: string; userName: string; userEmail: string } | null>(null);
-  const [resetPasswordConfirm, setResetPasswordConfirm] = useState<{ userId: string; userName: string } | null>(null);
+  const [roleChangeConfirm, setRoleChangeConfirm] = useState<{
+    userId: string;
+    newRole: string;
+    userName: string;
+  } | null>(null);
+  const [blockConfirm, setBlockConfirm] = useState<{
+    userId: string;
+    userName: string;
+    isBlocked: boolean;
+  } | null>(null);
+  const [revokeConfirm, setRevokeConfirm] = useState<{
+    userId: string;
+    userName: string;
+  } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    userId: string;
+    userName: string;
+    userEmail: string;
+  } | null>(null);
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState<{
+    userId: string;
+    userName: string;
+  } | null>(null);
   const [showPromoteByEmail, setShowPromoteByEmail] = useState(false);
   const [promoteEmail, setPromoteEmail] = useState("");
   const [promoting, setPromoting] = useState(false);
@@ -38,26 +68,26 @@ const AdminDashboard: React.FC = () => {
       setError(null);
       const token = authService.getToken();
       if (!token) {
-        throw new Error('No token found');
+        throw new Error("No token found");
       }
 
-      const response = await fetch('/.netlify/functions/admin-users', {
+      const response = await fetch("/.netlify/functions/admin-users", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
         if (response.status === 403) {
-          throw new Error('Access denied. Admin privileges required.');
+          throw new Error("Access denied. Admin privileges required.");
         }
-        throw new Error('Failed to fetch users');
+        throw new Error("Failed to fetch users");
       }
 
       const data = await response.json();
       setUsers(data.users || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load users');
+      setError(err.message || "Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -67,39 +97,52 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean; accessExpiresAt?: string; updateExpirationDate?: boolean; role?: string }) => {
+  const updateUser = async (
+    userId: string,
+    updates: {
+      isBlocked?: boolean;
+      grantAccess?: boolean;
+      accessExpiresAt?: string;
+      updateExpirationDate?: boolean;
+      role?: string;
+    }
+  ) => {
     try {
       setUpdating(userId);
       setError(null);
       const token = authService.getToken();
       if (!token) {
-        throw new Error('No token found');
+        throw new Error("No token found");
       }
 
-      const response = await fetch('/.netlify/functions/admin-users', {
-        method: 'PUT',
+      const response = await fetch("/.netlify/functions/admin-users", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ userId, ...updates }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to update user');
+        throw new Error(data.error || "Failed to update user");
       }
 
       await fetchUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to update user');
+      setError(err.message || "Failed to update user");
     } finally {
       setUpdating(null);
     }
   };
 
   const handleBlockToggle = (user: User) => {
-    setBlockConfirm({ userId: user.id, userName: user.name, isBlocked: user.isBlocked });
+    setBlockConfirm({
+      userId: user.id,
+      userName: user.name,
+      isBlocked: user.isBlocked,
+    });
   };
 
   const confirmBlockToggle = () => {
@@ -133,7 +176,11 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleDeleteUser = (user: User) => {
-    setDeleteConfirm({ userId: user.id, userName: user.name, userEmail: user.email });
+    setDeleteConfirm({
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+    });
   };
 
   const confirmDeleteUser = async () => {
@@ -143,27 +190,27 @@ const AdminDashboard: React.FC = () => {
         setError(null);
         const token = authService.getToken();
         if (!token) {
-          throw new Error('No token found');
+          throw new Error("No token found");
         }
 
-        const response = await fetch('/.netlify/functions/admin-users', {
-          method: 'DELETE',
+        const response = await fetch("/.netlify/functions/admin-users", {
+          method: "DELETE",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ userId: deleteConfirm.userId }),
         });
 
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.error || 'Failed to delete user');
+          throw new Error(data.error || "Failed to delete user");
         }
 
         setDeleteConfirm(null);
         await fetchUsers();
       } catch (err: any) {
-        setError(err.message || 'Failed to delete user');
+        setError(err.message || "Failed to delete user");
       } finally {
         setUpdating(null);
       }
@@ -185,27 +232,30 @@ const AdminDashboard: React.FC = () => {
         setError(null);
         const token = authService.getToken();
         if (!token) {
-          throw new Error('No token found');
+          throw new Error("No token found");
         }
 
-        const response = await fetch('/.netlify/functions/admin-users', {
-          method: 'PUT',
+        const response = await fetch("/.netlify/functions/admin-users", {
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ userId: resetPasswordConfirm.userId, resetPassword: true }),
+          body: JSON.stringify({
+            userId: resetPasswordConfirm.userId,
+            resetPassword: true,
+          }),
         });
 
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.error || 'Failed to reset password');
+          throw new Error(data.error || "Failed to reset password");
         }
 
         setResetPasswordConfirm(null);
         await fetchUsers();
       } catch (err: any) {
-        setError(err.message || 'Failed to reset password');
+        setError(err.message || "Failed to reset password");
       } finally {
         setUpdating(null);
       }
@@ -217,7 +267,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleRoleChange = (user: User) => {
-    const newRole = user.role === 'admin' ? 'user' : 'admin';
+    const newRole = user.role === "admin" ? "user" : "admin";
     setRoleChangeConfirm({ userId: user.id, newRole, userName: user.name });
   };
 
@@ -234,7 +284,7 @@ const AdminDashboard: React.FC = () => {
 
   const handlePromoteByEmail = async () => {
     if (!promoteEmail.trim()) {
-      setError('Please enter an email address');
+      setError("Please enter an email address");
       return;
     }
 
@@ -243,39 +293,39 @@ const AdminDashboard: React.FC = () => {
       setError(null);
       const token = authService.getToken();
       if (!token) {
-        throw new Error('No token found');
+        throw new Error("No token found");
       }
 
-      const response = await fetch('/.netlify/functions/admin-users', {
-        method: 'POST',
+      const response = await fetch("/.netlify/functions/admin-users", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ email: promoteEmail.trim(), role: 'admin' }),
+        body: JSON.stringify({ email: promoteEmail.trim(), role: "admin" }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to promote user');
+        throw new Error(data.error || "Failed to promote user");
       }
 
-      setPromoteEmail('');
+      setPromoteEmail("");
       setShowPromoteByEmail(false);
       await fetchUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to promote user');
+      setError(err.message || "Failed to promote user");
     } finally {
       setPromoting(false);
     }
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     });
   };
 
@@ -288,7 +338,10 @@ const AdminDashboard: React.FC = () => {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
-          <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={48} />
+          <Loader2
+            className="animate-spin text-indigo-500 mx-auto mb-4"
+            size={48}
+          />
           <p className="text-slate-400">Loading users...</p>
         </div>
       </div>
@@ -300,8 +353,12 @@ const AdminDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">Admin Dashboard</h1>
-            <p className="text-sm md:text-base text-slate-400">Manage users, blocks, and access permissions</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">
+              Admin Dashboard
+            </h1>
+            <p className="text-sm md:text-base text-slate-400">
+              Manage users, blocks, and access permissions
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <button
@@ -325,7 +382,9 @@ const AdminDashboard: React.FC = () => {
         {/* Seção para promover por email */}
         {showPromoteByEmail && (
           <div className="mb-4 md:mb-6 p-3 md:p-4 bg-slate-900 rounded-xl border border-slate-800">
-            <h3 className="text-base md:text-lg font-semibold text-white mb-3">Promote User to Admin by Email</h3>
+            <h3 className="text-base md:text-lg font-semibold text-white mb-3">
+              Promote User to Admin by Email
+            </h3>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <input
                 type="email"
@@ -334,7 +393,7 @@ const AdminDashboard: React.FC = () => {
                 placeholder="Enter user email address"
                 className="flex-1 px-3 md:px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm md:text-base"
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     handlePromoteByEmail();
                   }
                 }}
@@ -351,13 +410,13 @@ const AdminDashboard: React.FC = () => {
                     <span className="sm:hidden">...</span>
                   </>
                 ) : (
-                  'Promote'
+                  "Promote"
                 )}
               </button>
               <button
                 onClick={() => {
                   setShowPromoteByEmail(false);
-                  setPromoteEmail('');
+                  setPromoteEmail("");
                 }}
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors text-sm md:text-base"
               >
@@ -380,25 +439,47 @@ const AdminDashboard: React.FC = () => {
             <table className="w-full">
               <thead className="bg-slate-800 border-b border-slate-700">
                 <tr>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">User</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Email</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Role</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Blocked</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Access</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Expires</th>
-                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">Actions</th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    User
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Email
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Role
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Blocked
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Access
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Expires
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
+                  <tr
+                    key={user.id}
+                    className="hover:bg-slate-800/50 transition-colors"
+                  >
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center gap-2 lg:gap-3">
                         <div className="w-8 h-8 lg:w-10 lg:h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Users size={16} className="lg:w-5 lg:h-5 text-white" />
+                          <Users
+                            size={16}
+                            className="lg:w-5 lg:h-5 text-white"
+                          />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-white font-medium text-sm lg:text-base truncate">{user.name}</p>
+                          <p className="text-white font-medium text-sm lg:text-base truncate">
+                            {user.name}
+                          </p>
                           <p className="text-xs text-slate-400">
                             {new Date(user.createdAt).toLocaleDateString()}
                           </p>
@@ -406,39 +487,47 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4 text-slate-300 text-sm lg:text-base">
-                      <span className="truncate block max-w-[200px] lg:max-w-none">{user.email}</span>
+                      <span className="truncate block max-w-[200px] lg:max-w-none">
+                        {user.email}
+                      </span>
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          user.role === 'admin'
-                            ? 'bg-purple-500/20 text-purple-400'
-                            : 'bg-slate-700 text-slate-300'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            user.role === "admin"
+                              ? "bg-purple-500/20 text-purple-400"
+                              : "bg-slate-700 text-slate-300"
+                          }`}
+                        >
                           {user.role}
                         </span>
                         <button
                           onClick={() => handleRoleChange(user)}
-                          disabled={updating === user.id || (user.role === 'admin' && user.id === currentUser?.id)}
+                          disabled={
+                            updating === user.id ||
+                            (user.role === "admin" &&
+                              user.id === currentUser?.id)
+                          }
                           className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                            user.role === 'admin'
-                              ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                              : 'bg-purple-600 hover:bg-purple-700 text-white'
+                            user.role === "admin"
+                              ? "bg-orange-600 hover:bg-orange-700 text-white"
+                              : "bg-purple-600 hover:bg-purple-700 text-white"
                           }`}
                           title={
-                            user.role === 'admin' && user.id === currentUser?.id
-                              ? 'You cannot demote yourself'
-                              : user.role === 'admin'
-                              ? 'Demote to user'
-                              : 'Promote to admin'
+                            user.role === "admin" && user.id === currentUser?.id
+                              ? "You cannot demote yourself"
+                              : user.role === "admin"
+                              ? "Demote to user"
+                              : "Promote to admin"
                           }
                         >
                           {updating === user.id ? (
                             <Loader2 className="animate-spin" size={12} />
-                          ) : user.role === 'admin' ? (
-                            'Demote'
+                          ) : user.role === "admin" ? (
+                            "Demote"
                           ) : (
-                            'Promote'
+                            "Promote"
                           )}
                         </button>
                       </div>
@@ -465,24 +554,32 @@ const AdminDashboard: React.FC = () => {
                       ) : (
                         <span className="flex items-center gap-1.5 lg:gap-2 text-slate-500">
                           <XCircle size={14} className="lg:w-4 lg:h-4" />
-                          <span className="text-xs lg:text-sm">Not Granted</span>
+                          <span className="text-xs lg:text-sm">
+                            Not Granted
+                          </span>
                         </span>
                       )}
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
                       {user.accessExpiresAt ? (
-                        <span className={`text-xs lg:text-sm ${
-                          isAccessExpired(user.accessExpiresAt)
-                            ? 'text-red-400'
-                            : 'text-slate-300'
-                        }`}>
+                        <span
+                          className={`text-xs lg:text-sm ${
+                            isAccessExpired(user.accessExpiresAt)
+                              ? "text-red-400"
+                              : "text-slate-300"
+                          }`}
+                        >
                           {formatDate(user.accessExpiresAt)}
                           {isAccessExpired(user.accessExpiresAt) && (
-                            <span className="ml-1 lg:ml-2 text-xs">(Expired)</span>
+                            <span className="ml-1 lg:ml-2 text-xs">
+                              (Expired)
+                            </span>
                           )}
                         </span>
                       ) : (
-                        <span className="text-xs lg:text-sm text-slate-500">N/A</span>
+                        <span className="text-xs lg:text-sm text-slate-500">
+                          N/A
+                        </span>
                       )}
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
@@ -492,44 +589,61 @@ const AdminDashboard: React.FC = () => {
                           disabled={updating === user.id}
                           className={`px-2 lg:px-3 py-1 rounded text-xs lg:text-sm font-medium transition-colors ${
                             user.isBlocked
-                              ? 'bg-green-600 hover:bg-green-700 text-white'
-                              : 'bg-red-600 hover:bg-red-700 text-white'
+                              ? "bg-green-600 hover:bg-green-700 text-white"
+                              : "bg-red-600 hover:bg-red-700 text-white"
                           } disabled:opacity-50`}
                         >
                           {updating === user.id ? (
-                            <Loader2 className="animate-spin lg:w-4 lg:h-4" size={14} />
+                            <Loader2
+                              className="animate-spin lg:w-4 lg:h-4"
+                              size={14}
+                            />
                           ) : user.isBlocked ? (
-                            'Unblock'
+                            "Unblock"
                           ) : (
-                            'Block'
+                            "Block"
                           )}
                         </button>
                         {user.isActive ? (
                           <>
                             <button
-                              onClick={() => handleRevokeAccess(user.id, user.name)}
+                              onClick={() =>
+                                handleRevokeAccess(user.id, user.name)
+                              }
                               disabled={updating === user.id}
                               className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
                             >
                               {updating === user.id ? (
                                 <Loader2 className="animate-spin" size={16} />
                               ) : (
-                                'Revoke'
+                                "Revoke"
                               )}
                             </button>
                             {showDatePicker === user.id ? (
                               <div className="flex items-center gap-2">
                                 <input
                                   type="date"
-                                  value={selectedDate || (user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '')}
-                                  onChange={(e) => setSelectedDate(e.target.value)}
-                                  min={new Date().toISOString().split('T')[0]}
+                                  value={
+                                    selectedDate ||
+                                    (user.accessExpiresAt
+                                      ? new Date(user.accessExpiresAt)
+                                          .toISOString()
+                                          .split("T")[0]
+                                      : "")
+                                  }
+                                  onChange={(e) =>
+                                    setSelectedDate(e.target.value)
+                                  }
+                                  min={new Date().toISOString().split("T")[0]}
                                   className="px-2 py-1 bg-slate-800 text-slate-200 rounded text-sm border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 />
                                 <button
                                   onClick={() => {
                                     if (selectedDate) {
-                                      updateUser(user.id, { updateExpirationDate: true, accessExpiresAt: selectedDate });
+                                      updateUser(user.id, {
+                                        updateExpirationDate: true,
+                                        accessExpiresAt: selectedDate,
+                                      });
                                       setShowDatePicker(null);
                                       setSelectedDate("");
                                     }
@@ -538,9 +652,12 @@ const AdminDashboard: React.FC = () => {
                                   className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
                                 >
                                   {updating === user.id ? (
-                                    <Loader2 className="animate-spin" size={16} />
+                                    <Loader2
+                                      className="animate-spin"
+                                      size={16}
+                                    />
                                   ) : (
-                                    'Save'
+                                    "Save"
                                   )}
                                 </button>
                                 <button
@@ -557,7 +674,13 @@ const AdminDashboard: React.FC = () => {
                               <button
                                 onClick={() => {
                                   setShowDatePicker(user.id);
-                                  setSelectedDate(user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '');
+                                  setSelectedDate(
+                                    user.accessExpiresAt
+                                      ? new Date(user.accessExpiresAt)
+                                          .toISOString()
+                                          .split("T")[0]
+                                      : ""
+                                  );
                                 }}
                                 disabled={updating === user.id}
                                 className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
@@ -574,8 +697,10 @@ const AdminDashboard: React.FC = () => {
                                 <input
                                   type="date"
                                   value={selectedDate}
-                                  onChange={(e) => setSelectedDate(e.target.value)}
-                                  min={new Date().toISOString().split('T')[0]}
+                                  onChange={(e) =>
+                                    setSelectedDate(e.target.value)
+                                  }
+                                  min={new Date().toISOString().split("T")[0]}
                                   className="px-2 py-1 bg-slate-800 text-slate-200 rounded text-sm border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 />
                                 <button
@@ -595,9 +720,12 @@ const AdminDashboard: React.FC = () => {
                                   className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm font-medium disabled:opacity-50 transition-colors"
                                 >
                                   {updating === user.id ? (
-                                    <Loader2 className="animate-spin" size={16} />
+                                    <Loader2
+                                      className="animate-spin"
+                                      size={16}
+                                    />
                                   ) : (
-                                    'Confirm'
+                                    "Confirm"
                                   )}
                                 </button>
                                 <button
@@ -622,9 +750,12 @@ const AdminDashboard: React.FC = () => {
                                   title="Grant access for 1 month (default)"
                                 >
                                   {updating === user.id ? (
-                                    <Loader2 className="animate-spin" size={16} />
+                                    <Loader2
+                                      className="animate-spin"
+                                      size={16}
+                                    />
                                   ) : (
-                                    '1 Month'
+                                    "1 Month"
                                   )}
                                 </button>
                                 <button
@@ -649,7 +780,10 @@ const AdminDashboard: React.FC = () => {
                           title="Reset password - user will need to set new password on next login"
                         >
                           {updating === user.id ? (
-                            <Loader2 className="animate-spin lg:w-4 lg:h-4" size={14} />
+                            <Loader2
+                              className="animate-spin lg:w-4 lg:h-4"
+                              size={14}
+                            />
                           ) : (
                             <span className="flex items-center gap-1">
                               <KeyRound size={12} className="lg:w-3 lg:h-3" />
@@ -660,12 +794,21 @@ const AdminDashboard: React.FC = () => {
                         </button>
                         <button
                           onClick={() => handleDeleteUser(user)}
-                          disabled={updating === user.id || user.id === currentUser?.id}
+                          disabled={
+                            updating === user.id || user.id === currentUser?.id
+                          }
                           className="px-2 lg:px-3 py-1 bg-red-700 hover:bg-red-800 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          title={user.id === currentUser?.id ? 'You cannot delete your own account' : 'Delete user account'}
+                          title={
+                            user.id === currentUser?.id
+                              ? "You cannot delete your own account"
+                              : "Delete user account"
+                          }
                         >
                           {updating === user.id ? (
-                            <Loader2 className="animate-spin lg:w-4 lg:h-4" size={14} />
+                            <Loader2
+                              className="animate-spin lg:w-4 lg:h-4"
+                              size={14}
+                            />
                           ) : (
                             <span className="flex items-center gap-1">
                               <Trash2 size={12} className="lg:w-3 lg:h-3" />
@@ -686,43 +829,55 @@ const AdminDashboard: React.FC = () => {
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
           {users.map((user) => (
-            <div key={user.id} className="bg-slate-900 rounded-xl border border-slate-800 p-4">
+            <div
+              key={user.id}
+              className="bg-slate-900 rounded-xl border border-slate-800 p-4"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <Users size={20} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium truncate">{user.name}</p>
-                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                    <p className="text-white font-medium truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {user.email}
+                    </p>
                     <p className="text-xs text-slate-500 mt-1">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    user.role === 'admin'
-                      ? 'bg-purple-500/20 text-purple-400'
-                      : 'bg-slate-700 text-slate-300'
-                  }`}>
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      user.role === "admin"
+                        ? "bg-purple-500/20 text-purple-400"
+                        : "bg-slate-700 text-slate-300"
+                    }`}
+                  >
                     {user.role}
                   </span>
                   <button
                     onClick={() => handleRoleChange(user)}
-                    disabled={updating === user.id || (user.role === 'admin' && user.id === currentUser?.id)}
+                    disabled={
+                      updating === user.id ||
+                      (user.role === "admin" && user.id === currentUser?.id)
+                    }
                     className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      user.role === 'admin'
-                        ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      user.role === "admin"
+                        ? "bg-orange-600 hover:bg-orange-700 text-white"
+                        : "bg-purple-600 hover:bg-purple-700 text-white"
                     }`}
                   >
                     {updating === user.id ? (
                       <Loader2 className="animate-spin" size={12} />
-                    ) : user.role === 'admin' ? (
-                      'Demote'
+                    ) : user.role === "admin" ? (
+                      "Demote"
                     ) : (
-                      'Promote'
+                      "Promote"
                     )}
                   </button>
                 </div>
@@ -760,11 +915,13 @@ const AdminDashboard: React.FC = () => {
               {user.accessExpiresAt && (
                 <div className="mb-4">
                   <p className="text-xs text-slate-400 mb-1">Expires:</p>
-                  <p className={`text-sm ${
-                    isAccessExpired(user.accessExpiresAt)
-                      ? 'text-red-400'
-                      : 'text-slate-300'
-                  }`}>
+                  <p
+                    className={`text-sm ${
+                      isAccessExpired(user.accessExpiresAt)
+                        ? "text-red-400"
+                        : "text-slate-300"
+                    }`}
+                  >
                     {formatDate(user.accessExpiresAt)}
                     {isAccessExpired(user.accessExpiresAt) && (
                       <span className="ml-2 text-xs">(Expired)</span>
@@ -779,16 +936,16 @@ const AdminDashboard: React.FC = () => {
                   disabled={updating === user.id}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-1 min-w-[80px] ${
                     user.isBlocked
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-red-600 hover:bg-red-700 text-white'
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-red-600 hover:bg-red-700 text-white"
                   } disabled:opacity-50`}
                 >
                   {updating === user.id ? (
                     <Loader2 className="animate-spin mx-auto" size={14} />
                   ) : user.isBlocked ? (
-                    'Unblock'
+                    "Unblock"
                   ) : (
-                    'Block'
+                    "Block"
                   )}
                 </button>
                 {user.isActive ? (
@@ -801,23 +958,33 @@ const AdminDashboard: React.FC = () => {
                       {updating === user.id ? (
                         <Loader2 className="animate-spin mx-auto" size={14} />
                       ) : (
-                        'Revoke'
+                        "Revoke"
                       )}
                     </button>
                     {showDatePicker === user.id ? (
                       <div className="w-full flex flex-col gap-2">
                         <input
                           type="date"
-                          value={selectedDate || (user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '')}
+                          value={
+                            selectedDate ||
+                            (user.accessExpiresAt
+                              ? new Date(user.accessExpiresAt)
+                                  .toISOString()
+                                  .split("T")[0]
+                              : "")
+                          }
                           onChange={(e) => setSelectedDate(e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
+                          min={new Date().toISOString().split("T")[0]}
                           className="w-full px-2 py-1.5 bg-slate-800 text-slate-200 rounded text-xs border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
                               if (selectedDate) {
-                                updateUser(user.id, { updateExpirationDate: true, accessExpiresAt: selectedDate });
+                                updateUser(user.id, {
+                                  updateExpirationDate: true,
+                                  accessExpiresAt: selectedDate,
+                                });
                                 setShowDatePicker(null);
                                 setSelectedDate("");
                               }
@@ -826,9 +993,12 @@ const AdminDashboard: React.FC = () => {
                             className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors"
                           >
                             {updating === user.id ? (
-                              <Loader2 className="animate-spin mx-auto" size={14} />
+                              <Loader2
+                                className="animate-spin mx-auto"
+                                size={14}
+                              />
                             ) : (
-                              'Save'
+                              "Save"
                             )}
                           </button>
                           <button
@@ -846,7 +1016,13 @@ const AdminDashboard: React.FC = () => {
                       <button
                         onClick={() => {
                           setShowDatePicker(user.id);
-                          setSelectedDate(user.accessExpiresAt ? new Date(user.accessExpiresAt).toISOString().split('T')[0] : '');
+                          setSelectedDate(
+                            user.accessExpiresAt
+                              ? new Date(user.accessExpiresAt)
+                                  .toISOString()
+                                  .split("T")[0]
+                              : ""
+                          );
                         }}
                         disabled={updating === user.id}
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
@@ -863,7 +1039,7 @@ const AdminDashboard: React.FC = () => {
                           type="date"
                           value={selectedDate}
                           onChange={(e) => setSelectedDate(e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
+                          min={new Date().toISOString().split("T")[0]}
                           className="w-full px-2 py-1.5 bg-slate-800 text-slate-200 rounded text-xs border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                         <div className="flex gap-2">
@@ -883,9 +1059,12 @@ const AdminDashboard: React.FC = () => {
                             className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors"
                           >
                             {updating === user.id ? (
-                              <Loader2 className="animate-spin mx-auto" size={14} />
+                              <Loader2
+                                className="animate-spin mx-auto"
+                                size={14}
+                              />
                             ) : (
-                              'Confirm'
+                              "Confirm"
                             )}
                           </button>
                           <button
@@ -907,9 +1086,12 @@ const AdminDashboard: React.FC = () => {
                           className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px]"
                         >
                           {updating === user.id ? (
-                            <Loader2 className="animate-spin mx-auto" size={14} />
+                            <Loader2
+                              className="animate-spin mx-auto"
+                              size={14}
+                            />
                           ) : (
-                            '1 Month'
+                            "1 Month"
                           )}
                         </button>
                         <button
@@ -971,16 +1153,35 @@ const AdminDashboard: React.FC = () => {
       {roleChangeConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
-            <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">Confirm Role Change</h3>
+            <h3 className="text-lg md:text-xl font-bold text-white mb-3 md:mb-4">
+              Confirm Role Change
+            </h3>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to change <span className="font-semibold text-white">{roleChangeConfirm.userName}</span>'s role from{' '}
-              <span className={`font-semibold ${roleChangeConfirm.newRole === 'admin' ? 'text-purple-400' : 'text-slate-400'}`}>
-                {roleChangeConfirm.newRole === 'admin' ? 'user' : 'admin'}
-              </span>{' '}
-              to{' '}
-              <span className={`font-semibold ${roleChangeConfirm.newRole === 'admin' ? 'text-purple-400' : 'text-slate-400'}`}>
+              Are you sure you want to change{" "}
+              <span className="font-semibold text-white">
+                {roleChangeConfirm.userName}
+              </span>
+              's role from{" "}
+              <span
+                className={`font-semibold ${
+                  roleChangeConfirm.newRole === "admin"
+                    ? "text-purple-400"
+                    : "text-slate-400"
+                }`}
+              >
+                {roleChangeConfirm.newRole === "admin" ? "user" : "admin"}
+              </span>{" "}
+              to{" "}
+              <span
+                className={`font-semibold ${
+                  roleChangeConfirm.newRole === "admin"
+                    ? "text-purple-400"
+                    : "text-slate-400"
+                }`}
+              >
                 {roleChangeConfirm.newRole}
-              </span>?
+              </span>
+              ?
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
@@ -995,7 +1196,7 @@ const AdminDashboard: React.FC = () => {
                     <span className="sm:hidden">...</span>
                   </span>
                 ) : (
-                  'Confirm'
+                  "Confirm"
                 )}
               </button>
               <button
@@ -1015,23 +1216,34 @@ const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
             <div className="flex items-center gap-3 mb-4">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center border flex-shrink-0 ${
-                blockConfirm.isBlocked 
-                  ? 'bg-green-500/20 border-green-500/30' 
-                  : 'bg-red-500/20 border-red-500/30'
-              }`}>
-                <Ban size={24} className={blockConfirm.isBlocked ? 'text-green-400' : 'text-red-400'} />
+              <div
+                className={`w-12 h-12 rounded-lg flex items-center justify-center border flex-shrink-0 ${
+                  blockConfirm.isBlocked
+                    ? "bg-green-500/20 border-green-500/30"
+                    : "bg-red-500/20 border-red-500/30"
+                }`}
+              >
+                <Ban
+                  size={24}
+                  className={
+                    blockConfirm.isBlocked ? "text-green-400" : "text-red-400"
+                  }
+                />
               </div>
               <div>
                 <h3 className="text-lg md:text-xl font-bold text-white">
-                  {blockConfirm.isBlocked ? 'Unblock User' : 'Block User'}
+                  {blockConfirm.isBlocked ? "Unblock User" : "Block User"}
                 </h3>
                 <p className="text-sm text-slate-400">Confirm action</p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to {blockConfirm.isBlocked ? 'unblock' : 'block'}{' '}
-              <span className="font-semibold text-white">{blockConfirm.userName}</span>?
+              Are you sure you want to{" "}
+              {blockConfirm.isBlocked ? "unblock" : "block"}{" "}
+              <span className="font-semibold text-white">
+                {blockConfirm.userName}
+              </span>
+              ?
               {!blockConfirm.isBlocked && (
                 <span className="block mt-2 text-red-400 text-xs md:text-sm">
                   This will prevent the user from accessing the platform.
@@ -1051,8 +1263,8 @@ const AdminDashboard: React.FC = () => {
                 disabled={updating === blockConfirm.userId}
                 className={`flex-1 px-4 py-2 rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base ${
                   blockConfirm.isBlocked
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-red-600 hover:bg-red-700 text-white'
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-red-600 hover:bg-red-700 text-white"
                 }`}
               >
                 {updating === blockConfirm.userId ? (
@@ -1061,8 +1273,10 @@ const AdminDashboard: React.FC = () => {
                     <span className="hidden sm:inline">Updating...</span>
                     <span className="sm:hidden">...</span>
                   </span>
+                ) : blockConfirm.isBlocked ? (
+                  "Unblock"
                 ) : (
-                  blockConfirm.isBlocked ? 'Unblock' : 'Block'
+                  "Block"
                 )}
               </button>
             </div>
@@ -1079,15 +1293,21 @@ const AdminDashboard: React.FC = () => {
                 <Key size={24} className="text-orange-400" />
               </div>
               <div>
-                <h3 className="text-lg md:text-xl font-bold text-white">Revoke Access</h3>
+                <h3 className="text-lg md:text-xl font-bold text-white">
+                  Revoke Access
+                </h3>
                 <p className="text-sm text-slate-400">Confirm action</p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to revoke access for{' '}
-              <span className="font-semibold text-white">{revokeConfirm.userName}</span>?
+              Are you sure you want to revoke access for{" "}
+              <span className="font-semibold text-white">
+                {revokeConfirm.userName}
+              </span>
+              ?
               <span className="block mt-2 text-orange-400 text-xs md:text-sm">
-                This will remove the user's access to the platform. They will need to be granted access again to use the service.
+                This will remove the user's access to the platform. They will
+                need to be granted access again to use the service.
               </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -1110,7 +1330,7 @@ const AdminDashboard: React.FC = () => {
                     <span className="sm:hidden">...</span>
                   </span>
                 ) : (
-                  'Revoke Access'
+                  "Revoke Access"
                 )}
               </button>
             </div>
@@ -1127,15 +1347,21 @@ const AdminDashboard: React.FC = () => {
                 <Trash2 size={24} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg md:text-xl font-bold text-white">Delete User Account</h3>
+                <h3 className="text-lg md:text-xl font-bold text-white">
+                  Delete User Account
+                </h3>
                 <p className="text-sm text-slate-400">Confirm action</p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to permanently delete the account for{' '}
-              <span className="font-semibold text-white">{deleteConfirm.userName}</span> ({deleteConfirm.userEmail})?
+              Are you sure you want to permanently delete the account for{" "}
+              <span className="font-semibold text-white">
+                {deleteConfirm.userName}
+              </span>{" "}
+              ({deleteConfirm.userEmail})?
               <span className="block mt-2 text-red-400 text-xs md:text-sm font-semibold">
-                ⚠️ This action cannot be undone. All user data and conversations will be permanently deleted.
+                ⚠️ This action cannot be undone. All user data and conversations
+                will be permanently deleted.
               </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -1158,7 +1384,7 @@ const AdminDashboard: React.FC = () => {
                     <span className="sm:hidden">...</span>
                   </span>
                 ) : (
-                  'Delete Account'
+                  "Delete Account"
                 )}
               </button>
             </div>
@@ -1175,15 +1401,21 @@ const AdminDashboard: React.FC = () => {
                 <KeyRound size={24} className="text-yellow-400" />
               </div>
               <div>
-                <h3 className="text-lg md:text-xl font-bold text-white">Reset Password</h3>
+                <h3 className="text-lg md:text-xl font-bold text-white">
+                  Reset Password
+                </h3>
                 <p className="text-sm text-slate-400">Confirm action</p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to reset the password for{' '}
-              <span className="font-semibold text-white">{resetPasswordConfirm.userName}</span>?
+              Are you sure you want to reset the password for{" "}
+              <span className="font-semibold text-white">
+                {resetPasswordConfirm.userName}
+              </span>
+              ?
               <span className="block mt-2 text-yellow-400 text-xs md:text-sm">
-                The user will be required to set a new password on their next login attempt.
+                The user will be required to set a new password on their next
+                login attempt.
               </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -1206,7 +1438,7 @@ const AdminDashboard: React.FC = () => {
                     <span className="sm:hidden">...</span>
                   </span>
                 ) : (
-                  'Reset Password'
+                  "Reset Password"
                 )}
               </button>
             </div>
@@ -1218,4 +1450,3 @@ const AdminDashboard: React.FC = () => {
 };
 
 export default AdminDashboard;
-

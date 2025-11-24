@@ -39,6 +39,7 @@ import { handler as conversationsHandler } from "../netlify/functions/conversati
 import { handler as adminUsersHandler } from "../netlify/functions/admin-users";
 import { handler as geminiHandler } from "../netlify/functions/gemini";
 import { handler as changePasswordHandler } from "../netlify/functions/change-password";
+import { handler as setNewPasswordHandler } from "../netlify/functions/set-new-password";
 
 const app = express();
 const PORT = 8888;

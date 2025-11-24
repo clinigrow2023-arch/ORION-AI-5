@@ -386,7 +386,7 @@ const AdminDashboard: React.FC = () => {
                           } disabled:opacity-50`}
                         >
                           {updating === user.id ? (
-                            <Loader2 className="animate-spin" size={14} className="lg:w-4 lg:h-4" />
+                            <Loader2 className="animate-spin lg:w-4 lg:h-4" size={14} />
                           ) : user.isBlocked ? (
                             'Unblock'
                           ) : (

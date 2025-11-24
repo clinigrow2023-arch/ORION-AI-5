@@ -336,6 +336,16 @@ const AdminDashboard: React.FC = () => {
     return new Date(dateString) < new Date();
   };
 
+  // Filtrar usuários baseado na busca
+  const filteredUsers = users.filter((user) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase().trim();
+    return (
+      user.email.toLowerCase().includes(query) ||
+      user.name.toLowerCase().includes(query)
+    );
+  });
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">

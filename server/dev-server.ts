@@ -133,6 +133,11 @@ app.get("/.netlify/functions/admin-users", async (req, res) => {
   await sendNetlifyResponse(res, adminUsersHandler, event);
 });
 
+app.post("/.netlify/functions/admin-users", async (req, res) => {
+  const event = createNetlifyEvent(req);
+  await sendNetlifyResponse(res, adminUsersHandler, event);
+});
+
 app.put("/.netlify/functions/admin-users", async (req, res) => {
   const event = createNetlifyEvent(req);
   await sendNetlifyResponse(res, adminUsersHandler, event);

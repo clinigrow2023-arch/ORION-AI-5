@@ -192,14 +192,67 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
             <p className="text-slate-400">Manage users, blocks, and access permissions</p>
           </div>
-          <button
-            onClick={fetchUsers}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-          >
-            <RefreshCw size={20} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowPromoteByEmail(!showPromoteByEmail)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              <Users size={20} />
+              Promote by Email
+            </button>
+            <button
+              onClick={fetchUsers}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+            >
+              <RefreshCw size={20} />
+              Refresh
+            </button>
+          </div>
         </div>
+
+        {/* Seção para promover por email */}
+        {showPromoteByEmail && (
+          <div className="mb-6 p-4 bg-slate-900 rounded-xl border border-slate-800">
+            <h3 className="text-lg font-semibold text-white mb-3">Promote User to Admin by Email</h3>
+            <div className="flex items-center gap-3">
+              <input
+                type="email"
+                value={promoteEmail}
+                onChange={(e) => setPromoteEmail(e.target.value)}
+                placeholder="Enter user email address"
+                className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handlePromoteByEmail();
+                  }
+                }}
+              />
+              <button
+                onClick={handlePromoteByEmail}
+                disabled={promoting || !promoteEmail.trim()}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {promoting ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Promoting...
+                  </>
+                ) : (
+                  'Promote'
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowPromoteByEmail(false);
+                  setPromoteEmail('');
+                }}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">

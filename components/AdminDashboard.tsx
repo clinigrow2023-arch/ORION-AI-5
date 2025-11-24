@@ -281,21 +281,23 @@ const AdminDashboard: React.FC = () => {
               <tbody className="divide-y divide-slate-800">
                 {users.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
-                          <Users size={20} className="text-white" />
+                    <td className="px-4 lg:px-6 py-3 lg:py-4">
+                      <div className="flex items-center gap-2 lg:gap-3">
+                        <div className="w-8 h-8 lg:w-10 lg:h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Users size={16} className="lg:w-5 lg:h-5 text-white" />
                         </div>
-                        <div>
-                          <p className="text-white font-medium">{user.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-white font-medium text-sm lg:text-base truncate">{user.name}</p>
                           <p className="text-xs text-slate-400">
                             {new Date(user.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-300">{user.email}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-slate-300 text-sm lg:text-base">
+                      <span className="truncate block max-w-[200px] lg:max-w-none">{user.email}</span>
+                    </td>
+                    <td className="px-4 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                           user.role === 'admin'
@@ -330,46 +332,46 @@ const AdminDashboard: React.FC = () => {
                         </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4">
                       {user.isBlocked ? (
-                        <span className="flex items-center gap-2 text-red-400">
-                          <Ban size={16} />
-                          <span className="text-sm">Blocked</span>
+                        <span className="flex items-center gap-1.5 lg:gap-2 text-red-400">
+                          <Ban size={14} className="lg:w-4 lg:h-4" />
+                          <span className="text-xs lg:text-sm">Blocked</span>
                         </span>
                       ) : (
-                        <span className="flex items-center gap-2 text-green-400">
-                          <CheckCircle size={16} />
-                          <span className="text-sm">Active</span>
+                        <span className="flex items-center gap-1.5 lg:gap-2 text-green-400">
+                          <CheckCircle size={14} className="lg:w-4 lg:h-4" />
+                          <span className="text-xs lg:text-sm">Active</span>
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4">
                       {user.isActive ? (
-                        <span className="flex items-center gap-2 text-green-400">
-                          <Key size={16} />
-                          <span className="text-sm">Granted</span>
+                        <span className="flex items-center gap-1.5 lg:gap-2 text-green-400">
+                          <Key size={14} className="lg:w-4 lg:h-4" />
+                          <span className="text-xs lg:text-sm">Granted</span>
                         </span>
                       ) : (
-                        <span className="flex items-center gap-2 text-slate-500">
-                          <XCircle size={16} />
-                          <span className="text-sm">Not Granted</span>
+                        <span className="flex items-center gap-1.5 lg:gap-2 text-slate-500">
+                          <XCircle size={14} className="lg:w-4 lg:h-4" />
+                          <span className="text-xs lg:text-sm">Not Granted</span>
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 lg:px-6 py-3 lg:py-4">
                       {user.accessExpiresAt ? (
-                        <span className={`text-sm ${
+                        <span className={`text-xs lg:text-sm ${
                           isAccessExpired(user.accessExpiresAt)
                             ? 'text-red-400'
                             : 'text-slate-300'
                         }`}>
                           {formatDate(user.accessExpiresAt)}
                           {isAccessExpired(user.accessExpiresAt) && (
-                            <span className="ml-2 text-xs">(Expired)</span>
+                            <span className="ml-1 lg:ml-2 text-xs">(Expired)</span>
                           )}
                         </span>
                       ) : (
-                        <span className="text-sm text-slate-500">N/A</span>
+                        <span className="text-xs lg:text-sm text-slate-500">N/A</span>
                       )}
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4">

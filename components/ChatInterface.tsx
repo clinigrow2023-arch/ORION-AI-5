@@ -364,36 +364,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               )}
             </div>
           </div>
-          {user?.accessExpiresAt && (
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-                new Date(user.accessExpiresAt) < new Date()
-                  ? "bg-red-500/10 border-red-500/20"
-                  : "bg-slate-800 border-slate-700"
-              }`}
-            >
-              <Key
-                size={18}
-                className={
-                  new Date(user.accessExpiresAt) < new Date()
-                    ? "text-red-400"
-                    : "text-indigo-400"
-                }
-              />
-              <span
-                className={`text-sm font-medium ${
-                  new Date(user.accessExpiresAt) < new Date()
-                    ? "text-red-400"
-                    : "text-slate-300"
-                }`}
-              >
-                {new Date(user.accessExpiresAt) < new Date()
-                  ? "Access expired on "
-                  : "Access until "}
-                {new Date(user.accessExpiresAt).toLocaleDateString()}
-              </span>
-            </div>
-          )}
         </div>
         {user && !user.isActive && !user.accessExpiresAt && (
           <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">

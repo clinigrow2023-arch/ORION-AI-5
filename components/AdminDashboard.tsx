@@ -21,6 +21,7 @@ const AdminDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [roleChangeConfirm, setRoleChangeConfirm] = useState<{ userId: string; newRole: string; userName: string } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -57,7 +58,7 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   }, []);
 
-  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean; accessExpiresAt?: string; updateExpirationDate?: boolean }) => {
+  const updateUser = async (userId: string, updates: { isBlocked?: boolean; grantAccess?: boolean; accessExpiresAt?: string; updateExpirationDate?: boolean; role?: string }) => {
     try {
       setUpdating(userId);
       setError(null);
@@ -98,6 +99,22 @@ const AdminDashboard: React.FC = () => {
 
   const handleRevokeAccess = (userId: string) => {
     updateUser(userId, { grantAccess: false });
+  };
+
+  const handleRoleChange = (user: User) => {
+    const newRole = user.role === 'admin' ? 'user' : 'admin';
+    setRoleChangeConfirm({ userId: user.id, newRole, userName: user.name });
+  };
+
+  const confirmRoleChange = () => {
+    if (roleChangeConfirm) {
+      updateUser(roleChangeConfirm.userId, { role: roleChangeConfirm.newRole });
+      setRoleChangeConfirm(null);
+    }
+  };
+
+  const cancelRoleChange = () => {
+    setRoleChangeConfirm(null);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -181,13 +198,33 @@ const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-slate-300">{user.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        user.role === 'admin'
-                          ? 'bg-purple-500/20 text-purple-400'
-                          : 'bg-slate-700 text-slate-300'
-                      }`}>
-                        {user.role}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          user.role === 'admin'
+                            ? 'bg-purple-500/20 text-purple-400'
+                            : 'bg-slate-700 text-slate-300'
+                        }`}>
+                          {user.role}
+                        </span>
+                        <button
+                          onClick={() => handleRoleChange(user)}
+                          disabled={updating === user.id}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                            user.role === 'admin'
+                              ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                              : 'bg-purple-600 hover:bg-purple-700 text-white'
+                          }`}
+                          title={user.role === 'admin' ? 'Demote to user' : 'Promote to admin'}
+                        >
+                          {updating === user.id ? (
+                            <Loader2 className="animate-spin" size={12} />
+                          ) : user.role === 'admin' ? (
+                            'Demote'
+                          ) : (
+                            'Promote'
+                          )}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       {user.isBlocked ? (
@@ -404,6 +441,48 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmação de mudança de role */}
+      {roleChangeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">Confirm Role Change</h3>
+            <p className="text-slate-300 mb-6">
+              Are you sure you want to change <span className="font-semibold text-white">{roleChangeConfirm.userName}</span>'s role from{' '}
+              <span className={`font-semibold ${roleChangeConfirm.newRole === 'admin' ? 'text-purple-400' : 'text-slate-400'}`}>
+                {roleChangeConfirm.newRole === 'admin' ? 'user' : 'admin'}
+              </span>{' '}
+              to{' '}
+              <span className={`font-semibold ${roleChangeConfirm.newRole === 'admin' ? 'text-purple-400' : 'text-slate-400'}`}>
+                {roleChangeConfirm.newRole}
+              </span>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmRoleChange}
+                disabled={updating === roleChangeConfirm.userId}
+                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+              >
+                {updating === roleChangeConfirm.userId ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    Updating...
+                  </span>
+                ) : (
+                  'Confirm'
+                )}
+              </button>
+              <button
+                onClick={cancelRoleChange}
+                disabled={updating === roleChangeConfirm.userId}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

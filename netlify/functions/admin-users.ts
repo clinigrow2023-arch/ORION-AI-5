@@ -85,9 +85,9 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso, editar data)
+    // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso, editar data, alterar role)
     if (event.httpMethod === 'PUT') {
-      const { userId, isBlocked, grantAccess, accessExpiresAt, updateExpirationDate } = JSON.parse(event.body || '{}');
+      const { userId, isBlocked, grantAccess, accessExpiresAt, updateExpirationDate, role } = JSON.parse(event.body || '{}');
 
       if (!userId) {
         return {
@@ -97,9 +97,37 @@ export const handler: Handler = async (event, context) => {
         };
       }
 
+      // Verificar se está tentando alterar o próprio role (não permitir)
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+
+      if (!targetUser) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'User not found' }),
+        };
+      }
+
+      // Não permitir que admin altere seu próprio role
+      if (targetUser.id === admin.userId && role) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'You cannot change your own role' }),
+        };
+      }
+
       const updateData: any = {};
       if (typeof isBlocked === 'boolean') {
         updateData.isBlocked = isBlocked;
+      }
+      
+      // Atualizar role (admin ou user)
+      if (role === 'admin' || role === 'user') {
+        updateData.role = role;
       }
       
       // Editar apenas a data de expiração (sem alterar isActive)

@@ -13,6 +13,7 @@ import {
   X,
   Trash2,
   KeyRound,
+  Search,
 } from "lucide-react";
 
 interface User {
@@ -61,6 +62,7 @@ const AdminDashboard: React.FC = () => {
   const [showPromoteByEmail, setShowPromoteByEmail] = useState(false);
   const [promoteEmail, setPromoteEmail] = useState("");
   const [promoting, setPromoting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchUsers = async () => {
     try {
@@ -463,7 +465,7 @@ const AdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr
                     key={user.id}
                     className="hover:bg-slate-800/50 transition-colors"
@@ -828,7 +830,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <div
               key={user.id}
               className="bg-slate-900 rounded-xl border border-slate-800 p-4"
@@ -1141,10 +1143,20 @@ const AdminDashboard: React.FC = () => {
           ))}
         </div>
 
-        {users.length === 0 && !loading && (
+        {filteredUsers.length === 0 && !loading && (
           <div className="text-center py-12">
             <Users size={48} className="text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400">No users found</p>
+            <p className="text-slate-400">
+              {searchQuery ? "No users found matching your search" : "No users found"}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         )}
       </div>

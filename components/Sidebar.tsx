@@ -9,6 +9,7 @@ import {
   Shield,
   Lock,
   Mail,
+  X,
 } from "lucide-react";
 import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,22 +19,41 @@ import LogoutModal from "./LogoutModal";
 interface SidebarProps {
   currentView: ViewState | "admin";
   setView: (view: ViewState | "admin") => void;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onClose }) => {
   const { user, logout, isAdmin } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  const handleViewChange = (view: ViewState | "admin") => {
+    setView(view);
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
-      <div className="p-6 flex items-center gap-2 border-b border-slate-800">
-        <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30">
-          <Star className="w-5 h-5 text-white fill-white" />
+      <div className="p-4 md:p-6 flex items-center justify-between border-b border-slate-800">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30 flex-shrink-0">
+            <Star className="w-5 h-5 text-white fill-white" />
+          </div>
+          <h1 className="text-xl font-bold text-white tracking-tight truncate">
+            Orion AI
+          </h1>
         </div>
-        <h1 className="text-xl font-bold text-white tracking-tight">
-          Orion AI
-        </h1>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0 ml-2"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* User Info */}
@@ -76,9 +96,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </div>
       )}
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         <button
-          onClick={() => setView("chat")}
+          onClick={() => handleViewChange("chat")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
             currentView === "chat"
               ? "bg-indigo-600 text-white shadow-md"
@@ -90,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </button>
 
         <button
-          onClick={() => setView("plan")}
+          onClick={() => handleViewChange("plan")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
             currentView === "plan"
               ? "bg-indigo-600 text-white shadow-md"
@@ -102,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </button>
 
         <button
-          onClick={() => setView("guide")}
+          onClick={() => handleViewChange("guide")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
             currentView === "guide"
               ? "bg-indigo-600 text-white shadow-md"
@@ -114,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </button>
 
         <button
-          onClick={() => setView("support")}
+          onClick={() => handleViewChange("support")}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
             currentView === "support"
               ? "bg-indigo-600 text-white shadow-md"
@@ -127,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
 
         {isAdmin && (
           <button
-            onClick={() => setView("admin")}
+            onClick={() => handleViewChange("admin")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
               currentView === "admin"
                 ? "bg-purple-600 text-white shadow-md"

@@ -17,7 +17,7 @@ const SupportView: React.FC = () => {
       `Email: ${user?.email || 'Not provided'}`
     );
     
-    window.location.href = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+    window.open(`mailto:${supportEmail}?subject=${subject}&body=${body}`, '_blank');
   };
 
   return (

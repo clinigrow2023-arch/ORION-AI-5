@@ -344,7 +344,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-200">
                   Consultation Session
@@ -356,7 +356,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               {messages.length > 0 && (
                 <button
                   onClick={() => setShowResetModal(true)}
-                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors "
                   title="Reset chat"
                 >
                   <RotateCcw size={18} />

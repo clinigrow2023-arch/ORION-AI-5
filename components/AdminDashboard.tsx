@@ -862,6 +862,114 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmação de Block/Unblock */}
+      {blockConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center border flex-shrink-0 ${
+                blockConfirm.isBlocked 
+                  ? 'bg-green-500/20 border-green-500/30' 
+                  : 'bg-red-500/20 border-red-500/30'
+              }`}>
+                <Ban size={24} className={blockConfirm.isBlocked ? 'text-green-400' : 'text-red-400'} />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-white">
+                  {blockConfirm.isBlocked ? 'Unblock User' : 'Block User'}
+                </h3>
+                <p className="text-sm text-slate-400">Confirm action</p>
+              </div>
+            </div>
+            <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
+              Are you sure you want to {blockConfirm.isBlocked ? 'unblock' : 'block'}{' '}
+              <span className="font-semibold text-white">{blockConfirm.userName}</span>?
+              {!blockConfirm.isBlocked && (
+                <span className="block mt-2 text-red-400 text-xs md:text-sm">
+                  This will prevent the user from accessing the platform.
+                </span>
+              )}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                onClick={cancelBlockToggle}
+                disabled={updating === blockConfirm.userId}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBlockToggle}
+                disabled={updating === blockConfirm.userId}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base ${
+                  blockConfirm.isBlocked
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }`}
+              >
+                {updating === blockConfirm.userId ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span className="hidden sm:inline">Updating...</span>
+                    <span className="sm:hidden">...</span>
+                  </span>
+                ) : (
+                  blockConfirm.isBlocked ? 'Unblock' : 'Block'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação de Revoke Access */}
+      {revokeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center border border-orange-500/30 flex-shrink-0">
+                <Key size={24} className="text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-white">Revoke Access</h3>
+                <p className="text-sm text-slate-400">Confirm action</p>
+              </div>
+            </div>
+            <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
+              Are you sure you want to revoke access for{' '}
+              <span className="font-semibold text-white">{revokeConfirm.userName}</span>?
+              <span className="block mt-2 text-orange-400 text-xs md:text-sm">
+                This will remove the user's access to the platform. They will need to be granted access again to use the service.
+              </span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                onClick={cancelRevokeAccess}
+                disabled={updating === revokeConfirm.userId}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRevokeAccess}
+                disabled={updating === revokeConfirm.userId}
+                className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                {updating === revokeConfirm.userId ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span className="hidden sm:inline">Revoking...</span>
+                    <span className="sm:hidden">...</span>
+                  </span>
+                ) : (
+                  'Revoke Access'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -118,7 +118,8 @@ const App: React.FC = () => {
       <div className="md:hidden fixed top-4 left-4 z-50">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 bg-slate-800 text-white rounded-lg shadow-lg border border-slate-700"
+          className="p-2 bg-slate-800 text-white rounded-lg shadow-lg border border-slate-700 hover:bg-slate-700 transition-colors"
+          aria-label="Toggle menu"
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -141,7 +142,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 h-full relative w-full">{renderContent()}</main>
+      <main className="flex-1 h-full relative w-full pt-16 md:pt-0">{renderContent()}</main>
 
       {/* Overlay for mobile menu */}
       {isMobileMenuOpen && (

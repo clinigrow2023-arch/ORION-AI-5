@@ -33,4 +33,4 @@ export interface ActionPlan {
   neurologicalTriggers: string;
 }
 
-export type ViewState = 'chat' | 'plan' | 'guide';
+export type ViewState = 'chat' | 'plan' | 'guide' | 'support';

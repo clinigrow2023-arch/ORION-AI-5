@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import ChatInterface from "./components/ChatInterface";
 import PlanDisplay from "./components/PlanDisplay";
 import GuideView from "./components/GuideView";
+import SupportView from "./components/SupportView";
 import AdminDashboard from "./components/AdminDashboard";
 import Auth from "./components/Auth";
 import WaitingActivation from "./components/WaitingActivation";
@@ -55,6 +56,8 @@ const App: React.FC = () => {
         return <PlanDisplay plan={plan} setPlan={setPlan} />;
       case "guide":
         return <GuideView />;
+      case "support":
+        return <SupportView />;
       default:
         return (
           <ChatInterface

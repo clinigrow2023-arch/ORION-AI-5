@@ -8,6 +8,7 @@ import {
   User,
   Shield,
   Lock,
+  Mail,
 } from "lucide-react";
 import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
@@ -110,6 +111,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         >
           <BookOpen size={20} />
           <span className="font-medium">Strategy Guide</span>
+        </button>
+
+        <button
+          onClick={() => setView("support")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+            currentView === "support"
+              ? "bg-indigo-600 text-white shadow-md"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+          }`}
+        >
+          <Mail size={20} />
+          <span className="font-medium">Support</span>
         </button>
 
         {isAdmin && (

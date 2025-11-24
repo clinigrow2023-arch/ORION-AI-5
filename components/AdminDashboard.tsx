@@ -11,6 +11,7 @@ interface User {
   isBlocked: boolean;
   isActive: boolean;
   accessExpiresAt: string | null;
+  passwordResetRequired?: boolean;
   createdAt: string;
 }
 

@@ -138,7 +138,6 @@ const App: React.FC = () => {
             setCurrentView(view);
             setIsMobileMenuOpen(false);
           }}
-          onClose={() => setIsMobileMenuOpen(false)}
         />
       </div>
 

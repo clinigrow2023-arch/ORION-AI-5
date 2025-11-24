@@ -150,6 +150,7 @@ export const handler: Handler = async (event, context) => {
           isBlocked: true,
           isActive: true,
           accessExpiresAt: true,
+          passwordResetRequired: true,
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },

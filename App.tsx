@@ -7,6 +7,7 @@ import SupportView from "./components/SupportView";
 import AdminDashboard from "./components/AdminDashboard";
 import Auth from "./components/Auth";
 import WaitingActivation from "./components/WaitingActivation";
+import SetNewPassword from "./components/SetNewPassword";
 import { useAuth } from "./contexts/AuthContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
 import { Menu, X, Loader2 } from "lucide-react";
@@ -87,6 +88,11 @@ const App: React.FC = () => {
   // Mostrar tela de autenticação se não estiver autenticado
   if (!isAuthenticated) {
     return <Auth />;
+  }
+
+  // Verificar se precisa definir nova senha após reset
+  if (user && user.passwordResetRequired) {
+    return <SetNewPassword onComplete={() => {}} />;
   }
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado

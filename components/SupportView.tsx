@@ -1,23 +1,26 @@
-import React from 'react';
-import { Mail } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import React from "react";
+import { Mail } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 const SupportView: React.FC = () => {
   const { user } = useAuth();
-  const supportEmail = 'gmrelationship@gmail.com';
+  const supportEmail = "gmrelationship@gmail.com";
 
   const handleContactSupport = () => {
-    const subject = encodeURIComponent('Orion AI Support Request');
+    const subject = encodeURIComponent("Orion AI Support Request");
     const body = encodeURIComponent(
       `Hello,\n\n` +
-      `I need assistance with:\n\n` +
-      `[Please describe your issue or question here]\n\n` +
-      `---\n` +
-      `User: ${user?.name || 'Unknown'}\n` +
-      `Email: ${user?.email || 'Not provided'}`
+        `I need assistance with:\n\n` +
+        `[Please describe your issue or question here]\n\n` +
+        `---\n` +
+        `User: ${user?.name || "Unknown"}\n` +
+        `Email: ${user?.email || "Not provided"}`
     );
-    
-    window.open(`mailto:${supportEmail}?subject=${subject}&body=${body}`, '_blank');
+
+    window.open(
+      `mailto:${supportEmail}?subject=${subject}&body=${body}`,
+      "_blank"
+    );
   };
 
   return (
@@ -27,18 +30,19 @@ const SupportView: React.FC = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
             <Mail className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2">Contact Support</h2>
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Contact Support
+          </h2>
           <p className="text-slate-400">
-            We're here to help! Click the button below to open your email client and send us a message.
+            We're here to help! Click the button below to open your email client
+            and send us a message.
           </p>
         </div>
 
         <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 p-8">
           <div className="text-center space-y-6">
             <div className="space-y-2">
-              <p className="text-slate-300 text-lg">
-                Send us an email at:
-              </p>
+              <p className="text-slate-300 text-lg">Send us an email at:</p>
               <a
                 href={`mailto:${supportEmail}`}
                 className="text-indigo-400 hover:text-indigo-300 text-xl font-medium transition-colors"
@@ -59,8 +63,8 @@ const SupportView: React.FC = () => {
 
         <div className="mt-8 p-4 bg-slate-900/50 border border-slate-800 rounded-lg">
           <p className="text-xs text-slate-400 text-center">
-            Clicking the button will open your default email client with a pre-filled message. 
-            We typically respond within 24-48 hours.
+            Clicking the button will open your default email client with a
+            pre-filled message. We typically respond within 24-48 hours.
           </p>
         </div>
       </div>

@@ -23,7 +23,7 @@ export const handler: Handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -165,9 +165,62 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso, editar data, alterar role)
+    // DELETE - Deletar usuário
+    if (event.httpMethod === 'DELETE') {
+      const { userId } = JSON.parse(event.body || '{}');
+
+      if (!userId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'userId is required' }),
+        };
+      }
+
+      // Não permitir que admin delete sua própria conta
+      if (userId === admin.userId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'You cannot delete your own account' }),
+        };
+      }
+
+      // Verificar se usuário existe
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true },
+      });
+
+      if (!targetUser) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'User not found' }),
+        };
+      }
+
+      // Deletar usuário (conversations serão deletadas automaticamente devido ao onDelete: Cascade)
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          success: true,
+          message: `User ${targetUser.email} deleted successfully`,
+        }),
+      };
+    }
+
+    // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso, editar data, alterar role, reset password)
     if (event.httpMethod === 'PUT') {
-      const { userId, isBlocked, grantAccess, accessExpiresAt, updateExpirationDate, role } = JSON.parse(event.body || '{}');
+      const { userId, isBlocked, grantAccess, accessExpiresAt, updateExpirationDate, role, resetPassword } = JSON.parse(event.body || '{}');
 
       if (!userId) {
         return {
@@ -217,6 +270,11 @@ export const handler: Handler = async (event, context) => {
       // Atualizar role (admin ou user)
       if (role === 'admin' || role === 'user') {
         updateData.role = role;
+      }
+
+      // Resetar senha (define passwordResetRequired = true)
+      if (resetPassword === true) {
+        updateData.passwordResetRequired = true;
       }
       
       // Editar apenas a data de expiração (sem alterar isActive)

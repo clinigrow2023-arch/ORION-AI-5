@@ -143,6 +143,11 @@ app.put("/.netlify/functions/admin-users", async (req, res) => {
   await sendNetlifyResponse(res, adminUsersHandler, event);
 });
 
+app.delete("/.netlify/functions/admin-users", async (req, res) => {
+  const event = createNetlifyEvent(req);
+  await sendNetlifyResponse(res, adminUsersHandler, event);
+});
+
 app.post("/.netlify/functions/gemini", async (req, res) => {
   const event = createNetlifyEvent(req);
   await sendNetlifyResponse(res, geminiHandler, event);
@@ -151,6 +156,11 @@ app.post("/.netlify/functions/gemini", async (req, res) => {
 app.put("/.netlify/functions/change-password", async (req, res) => {
   const event = createNetlifyEvent(req);
   await sendNetlifyResponse(res, changePasswordHandler, event);
+});
+
+app.post("/.netlify/functions/set-new-password", async (req, res) => {
+  const event = createNetlifyEvent(req);
+  await sendNetlifyResponse(res, setNewPasswordHandler, event);
 });
 
 app.listen(PORT, () => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../lib/auth';
-import { Users, Ban, CheckCircle, Key, Loader2, AlertCircle, RefreshCw, XCircle, X } from 'lucide-react';
+import { Users, Ban, CheckCircle, Key, Loader2, AlertCircle, RefreshCw, XCircle, X, Trash2, KeyRound } from 'lucide-react';
 
 interface User {
   id: string;
@@ -25,6 +25,8 @@ const AdminDashboard: React.FC = () => {
   const [roleChangeConfirm, setRoleChangeConfirm] = useState<{ userId: string; newRole: string; userName: string } | null>(null);
   const [blockConfirm, setBlockConfirm] = useState<{ userId: string; userName: string; isBlocked: boolean } | null>(null);
   const [revokeConfirm, setRevokeConfirm] = useState<{ userId: string; userName: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ userId: string; userName: string; userEmail: string } | null>(null);
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState<{ userId: string; userName: string } | null>(null);
   const [showPromoteByEmail, setShowPromoteByEmail] = useState(false);
   const [promoteEmail, setPromoteEmail] = useState("");
   const [promoting, setPromoting] = useState(false);
@@ -127,6 +129,90 @@ const AdminDashboard: React.FC = () => {
 
   const cancelRevokeAccess = () => {
     setRevokeConfirm(null);
+  };
+
+  const handleDeleteUser = (user: User) => {
+    setDeleteConfirm({ userId: user.id, userName: user.name, userEmail: user.email });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (deleteConfirm) {
+      try {
+        setUpdating(deleteConfirm.userId);
+        setError(null);
+        const token = authService.getToken();
+        if (!token) {
+          throw new Error('No token found');
+        }
+
+        const response = await fetch('/.netlify/functions/admin-users', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ userId: deleteConfirm.userId }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to delete user');
+        }
+
+        setDeleteConfirm(null);
+        await fetchUsers();
+      } catch (err: any) {
+        setError(err.message || 'Failed to delete user');
+      } finally {
+        setUpdating(null);
+      }
+    }
+  };
+
+  const cancelDeleteUser = () => {
+    setDeleteConfirm(null);
+  };
+
+  const handleResetPassword = (user: User) => {
+    setResetPasswordConfirm({ userId: user.id, userName: user.name });
+  };
+
+  const confirmResetPassword = async () => {
+    if (resetPasswordConfirm) {
+      try {
+        setUpdating(resetPasswordConfirm.userId);
+        setError(null);
+        const token = authService.getToken();
+        if (!token) {
+          throw new Error('No token found');
+        }
+
+        const response = await fetch('/.netlify/functions/admin-users', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ userId: resetPasswordConfirm.userId, resetPassword: true }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to reset password');
+        }
+
+        setResetPasswordConfirm(null);
+        await fetchUsers();
+      } catch (err: any) {
+        setError(err.message || 'Failed to reset password');
+      } finally {
+        setUpdating(null);
+      }
+    }
+  };
+
+  const cancelResetPassword = () => {
+    setResetPasswordConfirm(null);
   };
 
   const handleRoleChange = (user: User) => {
@@ -555,6 +641,38 @@ const AdminDashboard: React.FC = () => {
                             )}
                           </div>
                         )}
+                        <button
+                          onClick={() => handleResetPassword(user)}
+                          disabled={updating === user.id}
+                          className="px-2 lg:px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 transition-colors"
+                          title="Reset password - user will need to set new password on next login"
+                        >
+                          {updating === user.id ? (
+                            <Loader2 className="animate-spin lg:w-4 lg:h-4" size={14} />
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <KeyRound size={12} className="lg:w-3 lg:h-3" />
+                              <span className="hidden lg:inline">Reset PW</span>
+                              <span className="lg:hidden">Reset</span>
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={updating === user.id || user.id === currentUser?.id}
+                          className="px-2 lg:px-3 py-1 bg-red-700 hover:bg-red-800 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title={user.id === currentUser?.id ? 'You cannot delete your own account' : 'Delete user account'}
+                        >
+                          {updating === user.id ? (
+                            <Loader2 className="animate-spin lg:w-4 lg:h-4" size={14} />
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Trash2 size={12} className="lg:w-3 lg:h-3" />
+                              <span className="hidden lg:inline">Delete</span>
+                              <span className="lg:hidden">Del</span>
+                            </span>
+                          )}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -807,6 +925,34 @@ const AdminDashboard: React.FC = () => {
                     )}
                   </>
                 )}
+                <button
+                  onClick={() => handleResetPassword(user)}
+                  disabled={updating === user.id}
+                  className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                >
+                  {updating === user.id ? (
+                    <Loader2 className="animate-spin mx-auto" size={14} />
+                  ) : (
+                    <>
+                      <KeyRound size={12} />
+                      <span>Reset PW</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleDeleteUser(user)}
+                  disabled={updating === user.id || user.id === currentUser?.id}
+                  className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                >
+                  {updating === user.id ? (
+                    <Loader2 className="animate-spin mx-auto" size={14} />
+                  ) : (
+                    <>
+                      <Trash2 size={12} />
+                      <span>Delete</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           ))}
@@ -964,6 +1110,102 @@ const AdminDashboard: React.FC = () => {
                   </span>
                 ) : (
                   'Revoke Access'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação de Delete User */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center border border-red-500/30 flex-shrink-0">
+                <Trash2 size={24} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-white">Delete User Account</h3>
+                <p className="text-sm text-slate-400">Confirm action</p>
+              </div>
+            </div>
+            <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
+              Are you sure you want to permanently delete the account for{' '}
+              <span className="font-semibold text-white">{deleteConfirm.userName}</span> ({deleteConfirm.userEmail})?
+              <span className="block mt-2 text-red-400 text-xs md:text-sm font-semibold">
+                ⚠️ This action cannot be undone. All user data and conversations will be permanently deleted.
+              </span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                onClick={cancelDeleteUser}
+                disabled={updating === deleteConfirm.userId}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                disabled={updating === deleteConfirm.userId}
+                className="flex-1 px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                {updating === deleteConfirm.userId ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span className="hidden sm:inline">Deleting...</span>
+                    <span className="sm:hidden">...</span>
+                  </span>
+                ) : (
+                  'Delete Account'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação de Reset Password */}
+      {resetPasswordConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center border border-yellow-500/30 flex-shrink-0">
+                <KeyRound size={24} className="text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-white">Reset Password</h3>
+                <p className="text-sm text-slate-400">Confirm action</p>
+              </div>
+            </div>
+            <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
+              Are you sure you want to reset the password for{' '}
+              <span className="font-semibold text-white">{resetPasswordConfirm.userName}</span>?
+              <span className="block mt-2 text-yellow-400 text-xs md:text-sm">
+                The user will be required to set a new password on their next login attempt.
+              </span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                onClick={cancelResetPassword}
+                disabled={updating === resetPasswordConfirm.userId}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmResetPassword}
+                disabled={updating === resetPasswordConfirm.userId}
+                className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                {updating === resetPasswordConfirm.userId ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span className="hidden sm:inline">Resetting...</span>
+                    <span className="sm:hidden">...</span>
+                  </span>
+                ) : (
+                  'Reset Password'
                 )}
               </button>
             </div>

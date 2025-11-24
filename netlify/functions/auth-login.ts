@@ -55,6 +55,7 @@ export const handler: Handler = async (event, context) => {
         isBlocked: true,
         isActive: true,
         accessExpiresAt: true,
+        passwordResetRequired: true,
       },
     });
 
@@ -114,6 +115,7 @@ export const handler: Handler = async (event, context) => {
           isBlocked: user.isBlocked,
           isActive: user.isActive,
           accessExpiresAt: user.accessExpiresAt,
+          passwordResetRequired: user.passwordResetRequired,
         },
       }),
     };

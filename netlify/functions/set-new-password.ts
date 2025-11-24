@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { prisma } from '../../lib/prisma';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -8,7 +9,7 @@ export const handler: Handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -19,7 +20,7 @@ export const handler: Handler = async (event, context) => {
     };
   }
 
-  if (event.httpMethod !== 'GET') {
+  if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
       headers,
@@ -43,70 +44,71 @@ export const handler: Handler = async (event, context) => {
     // Verificar token
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
 
+    const { newPassword, confirmPassword } = JSON.parse(event.body || '{}');
+
+    // Validações
+    if (!newPassword || !confirmPassword) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'New password and confirmation are required' }),
+      };
+    }
+
+    if (newPassword.length < 6) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Password must be at least 6 characters' }),
+      };
+    }
+
+    if (newPassword !== confirmPassword) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Passwords do not match' }),
+      };
+    }
+
     // Buscar usuário
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
         id: true,
-        name: true,
-        email: true,
-        role: true,
-        isBlocked: true,
-        isActive: true,
-        accessExpiresAt: true,
         passwordResetRequired: true,
-        createdAt: true,
       },
     });
 
     if (!user) {
       return {
-        statusCode: 401,
+        statusCode: 404,
         headers,
         body: JSON.stringify({ error: 'User not found' }),
       };
     }
 
-    // Verificar se usuário está bloqueado (admin pode estar bloqueado também)
-    if (user.isBlocked && user.role !== 'admin') {
+    // Verificar se realmente precisa resetar senha
+    if (!user.passwordResetRequired) {
       return {
-        statusCode: 403,
+        statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: 'Account is blocked',
-          blocked: true,
-        }),
+        body: JSON.stringify({ error: 'Password reset is not required for this account' }),
       };
     }
 
-    // IMPORTANTE: Admin sempre tem acesso ilimitado
-    // Não verifica isActive ou accessExpiresAt para admin
-    // Apenas usuários comuns precisam de ativação e têm expiração de acesso
-    if (user.role !== 'admin') {
-      // Verificar se usuário está ativo (apenas para usuários comuns)
-      if (!user.isActive) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ 
-            error: 'Account access not granted. Please contact an administrator.',
-            notActive: true,
-          }),
-        };
-      }
+    // Hash da nova senha
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // Verificar se acesso expirou (apenas para usuários comuns)
-      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ 
-            error: 'Your access has expired. Please contact an administrator to renew.',
-            expired: true,
-          }),
-        };
-      }
-    }
+    // Atualizar senha e remover flag de reset
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        passwordResetRequired: false,
+      },
+    });
 
     return {
       statusCode: 200,
@@ -115,11 +117,7 @@ export const handler: Handler = async (event, context) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        valid: true,
-        user: {
-          ...user,
-          passwordResetRequired: user.passwordResetRequired || false,
-        },
+        message: 'Password set successfully',
       }),
     };
   } catch (error: any) {
@@ -131,7 +129,7 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    console.error('Verify error:', error);
+    console.error('Set new password error:', error);
     return {
       statusCode: 500,
       headers,

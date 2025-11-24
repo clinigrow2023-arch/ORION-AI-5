@@ -6,6 +6,7 @@ export interface ExtendedUser extends User {
   isBlocked?: boolean;
   isActive?: boolean;
   accessExpiresAt?: string | null;
+  passwordResetRequired?: boolean;
 }
 
 interface AuthContextType {

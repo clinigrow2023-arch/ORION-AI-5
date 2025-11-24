@@ -391,6 +391,34 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Search Filter */}
+        <div className="mb-4 md:mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 md:py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
+                title="Clear search"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="mt-2 text-sm text-slate-400">
+              Showing {filteredUsers.length} of {users.length} users
+            </p>
+          )}
+        </div>
+
         {/* Seção para promover por email */}
         {showPromoteByEmail && (
           <div className="mb-4 md:mb-6 p-3 md:p-4 bg-slate-900 rounded-xl border border-slate-800">

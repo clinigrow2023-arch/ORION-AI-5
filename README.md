@@ -25,8 +25,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    DATABASE_URL=mongodb+srv://user:password@cluster.mongodb.net/orionai?appName=OrionIA
    JWT_SECRET=your-secret-key-change-in-production
-   SENDGRID_API_KEY=your_sendgrid_api_key_here
-   SENDGRID_FROM_EMAIL=noreply@yourdomain.com
    ```
 
 3. Generate Prisma Client:
@@ -82,8 +80,6 @@ The app requires user authentication. Users must:
    - `GEMINI_API_KEY` - Your Gemini API key
    - `DATABASE_URL` - MongoDB connection string (must include database name)
    - `JWT_SECRET` - Secret key for JWT tokens
-   - `SENDGRID_API_KEY` - SendGrid API key for sending support emails
-   - `SENDGRID_FROM_EMAIL` - Email address to send from (must be verified in SendGrid)
 
 2. The app will automatically deploy on push to main branch
 

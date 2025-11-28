@@ -18,6 +18,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 import ReactMarkdown from "react-markdown";
 import ResetChatModal from "./ResetChatModal";
+import DeleteConversationModal from "./DeleteConversationModal";
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -41,6 +42,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Array<{ id: string; createdAt: string; updatedAt: string }>>([]);
   const [showConversationsList, setShowConversationsList] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<{ id: string; date: string } | null>(null);
 
   // Função para gerar ID único
   const generateUniqueId = () => {
@@ -541,7 +543,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               </div>
                             </button>
                             <button
-                              onClick={() => deleteConversation(conv.id)}
+                              onClick={() => handleDeleteClick(conv.id, conv.updatedAt)}
                               className="p-1 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                               title="Delete conversation"
                             >

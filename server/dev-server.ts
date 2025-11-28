@@ -126,6 +126,10 @@ app.post("/.netlify/functions/conversations", async (req, res) => {
 
 app.delete("/.netlify/functions/conversations", async (req, res) => {
   const event = createNetlifyEvent(req);
+  // DELETE pode ter body (para deletar conversa específica)
+  if (req.body && Object.keys(req.body).length > 0) {
+    event.body = JSON.stringify(req.body);
+  }
   await sendNetlifyResponse(res, conversationsHandler, event);
 });
 

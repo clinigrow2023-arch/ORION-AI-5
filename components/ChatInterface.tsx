@@ -190,6 +190,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const handleDeleteClick = (conversationId: string, updatedAt: string) => {
+    const date = new Date(updatedAt).toLocaleDateString();
+    setConversationToDelete({ id: conversationId, date });
+    setShowConversationsList(false); // Fechar dropdown ao abrir modal
+  };
+
   const deleteConversation = async (conversationId: string) => {
     try {
       const token = authService.getToken();
@@ -211,6 +217,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onResetChat();
           setCurrentConversationId(null);
         }
+        setConversationToDelete(null); // Fechar modal após deletar
       }
     } catch (error) {
       console.error("Failed to delete conversation:", error);

@@ -1,18 +1,24 @@
-import { Handler } from '@netlify/functions';
-import { prisma } from '../../lib/prisma';
-import jwt from 'jsonwebtoken';
+import { Handler } from "@netlify/functions";
+import { prisma } from "../../lib/prisma";
+import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Verificar autenticação
-const verifyAuth = (authHeader: string | undefined): { userId: string; email: string } | null => {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+const verifyAuth = (
+  authHeader: string | undefined
+): { userId: string; email: string } | null => {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
   }
 
   try {
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      email: string;
+    };
     return decoded;
   } catch {
     return null;
@@ -21,35 +27,37 @@ const verifyAuth = (authHeader: string | undefined): { userId: string; email: st
 
 export const handler: Handler = async (event, context) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS, PUT',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS, PUT",
   };
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: "",
     };
   }
 
   // Verificar autenticação
-  const auth = verifyAuth(event.headers.authorization || event.headers.Authorization);
+  const auth = verifyAuth(
+    event.headers.authorization || event.headers.Authorization
+  );
   if (!auth) {
     return {
       statusCode: 401,
       headers,
-      body: JSON.stringify({ error: 'Unauthorized' }),
+      body: JSON.stringify({ error: "Unauthorized" }),
     };
   }
 
   // Verificar se usuário está bloqueado e tem acesso ativo
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
-    select: { 
+    select: {
       role: true,
-      isBlocked: true, 
+      isBlocked: true,
       isActive: true,
       accessExpiresAt: true,
     },
@@ -59,19 +67,19 @@ export const handler: Handler = async (event, context) => {
     return {
       statusCode: 404,
       headers,
-      body: JSON.stringify({ error: 'User not found' }),
+      body: JSON.stringify({ error: "User not found" }),
     };
   }
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
   // Usuários comuns podem acessar o sistema, mas precisam de isActive para usar a IA
   // A verificação de isActive para uso da IA é feita no ChatInterface e na função gemini
-  if (user.role !== 'admin') {
+  if (user.role !== "admin") {
     if (user.isBlocked) {
       return {
         statusCode: 403,
         headers,
-        body: JSON.stringify({ error: 'Account is blocked' }),
+        body: JSON.stringify({ error: "Account is blocked" }),
       };
     }
     // Removido: verificação de isActive e accessExpiresAt aqui
@@ -80,10 +88,10 @@ export const handler: Handler = async (event, context) => {
 
   try {
     // GET - Buscar conversas do usuário
-    if (event.httpMethod === 'GET') {
+    if (event.httpMethod === "GET") {
       const conversations = await prisma.conversation.findMany({
         where: { userId: auth.userId },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { updatedAt: "desc" },
         select: {
           id: true,
           messages: true,
@@ -96,12 +104,12 @@ export const handler: Handler = async (event, context) => {
         statusCode: 200,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          conversations: conversations.map(conv => ({
+          conversations: conversations.map((conv) => ({
             ...conv,
-            messages: JSON.parse(conv.messages || '[]'),
+            messages: JSON.parse(conv.messages || "[]"),
           })),
           accessExpiresAt: user.accessExpiresAt,
         }),
@@ -109,14 +117,14 @@ export const handler: Handler = async (event, context) => {
     }
 
     // POST - Criar/atualizar conversa
-    if (event.httpMethod === 'POST') {
-      const { messages, conversationId } = JSON.parse(event.body || '{}');
+    if (event.httpMethod === "POST") {
+      const { messages, conversationId } = JSON.parse(event.body || "{}");
 
       if (!Array.isArray(messages)) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'messages must be an array' }),
+          body: JSON.stringify({ error: "messages must be an array" }),
         };
       }
 
@@ -126,11 +134,14 @@ export const handler: Handler = async (event, context) => {
           where: { id: conversationId },
         });
 
-        if (!existingConversation || existingConversation.userId !== auth.userId) {
+        if (
+          !existingConversation ||
+          existingConversation.userId !== auth.userId
+        ) {
           return {
             statusCode: 404,
             headers,
-            body: JSON.stringify({ error: 'Conversation not found' }),
+            body: JSON.stringify({ error: "Conversation not found" }),
           };
         }
 
@@ -151,7 +162,7 @@ export const handler: Handler = async (event, context) => {
           statusCode: 200,
           headers: {
             ...headers,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             conversation: {
@@ -171,8 +182,9 @@ export const handler: Handler = async (event, context) => {
         return {
           statusCode: 403,
           headers,
-          body: JSON.stringify({ 
-            error: 'Maximum of 3 conversations allowed. Please delete a conversation to create a new one.',
+          body: JSON.stringify({
+            error:
+              "Maximum of 3 conversations allowed. Please delete a conversation to create a new one.",
             maxConversations: true,
           }),
         };
@@ -196,7 +208,7 @@ export const handler: Handler = async (event, context) => {
         statusCode: 200,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           conversation: {
@@ -208,8 +220,8 @@ export const handler: Handler = async (event, context) => {
     }
 
     // DELETE - Deletar conversa específica ou todas as conversas
-    if (event.httpMethod === 'DELETE') {
-      const { conversationId } = JSON.parse(event.body || '{}');
+    if (event.httpMethod === "DELETE") {
+      const { conversationId } = JSON.parse(event.body || "{}");
 
       if (conversationId) {
         // Deletar conversa específica
@@ -221,7 +233,7 @@ export const handler: Handler = async (event, context) => {
           return {
             statusCode: 404,
             headers,
-            body: JSON.stringify({ error: 'Conversation not found' }),
+            body: JSON.stringify({ error: "Conversation not found" }),
           };
         }
 
@@ -233,10 +245,10 @@ export const handler: Handler = async (event, context) => {
           statusCode: 200,
           headers: {
             ...headers,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ 
-            message: 'Conversation deleted successfully',
+          body: JSON.stringify({
+            message: "Conversation deleted successfully",
           }),
         };
       } else {
@@ -249,10 +261,10 @@ export const handler: Handler = async (event, context) => {
           statusCode: 200,
           headers: {
             ...headers,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ 
-            message: 'All conversations deleted successfully',
+          body: JSON.stringify({
+            message: "All conversations deleted successfully",
           }),
         };
       }
@@ -261,17 +273,16 @@ export const handler: Handler = async (event, context) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   } catch (error: any) {
-    console.error('Conversations error:', error);
+    console.error("Conversations error:", error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: error.message || 'Internal server error',
+        error: error.message || "Internal server error",
       }),
     };
   }
 };
-

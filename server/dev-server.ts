@@ -31,6 +31,17 @@ if (!dbUrl.startsWith("mongodb://") && !dbUrl.startsWith("mongodb+srv://")) {
 
 console.log("✅ DATABASE_URL loaded successfully");
 
+// Verify GEMINI_API_KEY is loaded
+if (!process.env.GEMINI_API_KEY) {
+  console.warn("⚠️  WARNING: GEMINI_API_KEY not found in .env file");
+  console.warn("The Gemini chat functionality will not work without this key.");
+  console.warn("Please add GEMINI_API_KEY to your .env file:");
+  console.warn("  GEMINI_API_KEY=your_gemini_api_key_here");
+  console.warn("");
+} else {
+  console.log("✅ GEMINI_API_KEY loaded successfully");
+}
+
 // Import Netlify Functions
 import { handler as authRegisterHandler } from "../netlify/functions/auth-register";
 import { handler as authLoginHandler } from "../netlify/functions/auth-login";

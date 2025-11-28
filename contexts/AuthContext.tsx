@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { authService, User } from '../lib/auth';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  ReactNode,
+} from "react";
+import { authService, User } from "../lib/auth";
+import { geminiService } from "../services/geminiService";
 
 export interface ExtendedUser extends User {
   role?: string;
@@ -25,7 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };
@@ -48,9 +56,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Fazer apenas uma chamada direta para auth-verify
-      const response = await fetch('/.netlify/functions/auth-verify', {
+      const response = await fetch("/.netlify/functions/auth-verify", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -59,9 +67,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const updatedUser = data.user;
         // IMPORTANTE: Atualizar localStorage com dados atualizados do servidor
         // Isso garante que os dados persistam entre recarregamentos
-        localStorage.setItem('user', JSON.stringify(updatedUser));
+        localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
-        
+
         // Se usuário foi bloqueado, fazer logout imediatamente
         if (updatedUser.isBlocked) {
           authService.logout();
@@ -78,7 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           window.location.reload();
         } else if (data.notActive || data.expired) {
           // Usuário sem acesso ativo ou expirado - manter logado mas atualizar status
-          const userStr = localStorage.getItem('user');
+          const userStr = localStorage.getItem("user");
           if (userStr) {
             const currentUser = JSON.parse(userStr);
             setUser({ ...currentUser, isActive: false, ...data });
@@ -90,17 +98,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
       }
     } catch (error) {
-      console.error('Refresh user failed:', error);
+      console.error("Refresh user failed:", error);
     }
   };
 
   useEffect(() => {
     // Verificar autenticação ao carregar - fazer apenas UMA vez
     if (hasCheckedAuth.current) return;
-    
+
     const checkAuth = async () => {
       hasCheckedAuth.current = true;
-      
+
       try {
         const token = authService.getToken();
         if (!token) {
@@ -115,9 +123,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // A otimização de não fazer requisição quando isActive !== true só se aplica após a primeira verificação
 
         // Fazer apenas uma chamada direta para auth-verify
-        const response = await fetch('/.netlify/functions/auth-verify', {
+        const response = await fetch("/.netlify/functions/auth-verify", {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -127,7 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Limpar histórico do geminiService ao carregar usuário para evitar compartilhamento
           geminiService.clearHistory();
           setUser(userData);
-          
+
           // Se usuário foi bloqueado, fazer logout imediatamente
           if (userData.isBlocked) {
             authService.logout();
@@ -152,9 +160,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(null);
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error("Auth check failed:", error);
         // Em caso de erro, tentar usar dados do localStorage
-        const userStr = localStorage.getItem('user');
+        const userStr = localStorage.getItem("user");
         if (userStr) {
           try {
             setUser(JSON.parse(userStr));
@@ -176,30 +184,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const interval = setInterval(async () => {
       // Verificar se usuário existe e não está bloqueado
       // Verificar também se tem accessExpiresAt para detectar expiração mesmo se isActive ainda for true
-      if (user && !user.isBlocked && (user.isActive === true || user.accessExpiresAt)) {
+      if (
+        user &&
+        !user.isBlocked &&
+        (user.isActive === true || user.accessExpiresAt)
+      ) {
         const token = authService.getToken();
         if (token) {
           try {
-            const response = await fetch('/.netlify/functions/auth-verify', {
+            const response = await fetch("/.netlify/functions/auth-verify", {
               headers: {
-                'Authorization': `Bearer ${token}`,
+                Authorization: `Bearer ${token}`,
               },
             });
             if (response.status === 403) {
               const data = await response.json().catch(() => ({}));
-              if (data.blocked || data.error?.includes('blocked')) {
+              if (data.blocked || data.error?.includes("blocked")) {
                 // Usuário bloqueado - fazer logout
                 authService.logout();
                 setUser(null);
-                alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+                alert(
+                  "Sua conta foi bloqueada. Entre em contato com um administrador."
+                );
                 window.location.reload();
               } else if (data.expired || data.notActive) {
                 // Acesso expirado ou revogado - atualizar estado sem fazer logout
-                const userStr = localStorage.getItem('user');
+                const userStr = localStorage.getItem("user");
                 if (userStr) {
                   const currentUser = JSON.parse(userStr);
                   setUser({ ...currentUser, isActive: false, ...data });
-                  localStorage.setItem('user', JSON.stringify({ ...currentUser, isActive: false, ...data }));
+                  localStorage.setItem(
+                    "user",
+                    JSON.stringify({ ...currentUser, isActive: false, ...data })
+                  );
                 }
               }
             } else if (response.ok) {
@@ -209,12 +226,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               if (updatedUser?.isBlocked) {
                 authService.logout();
                 setUser(null);
-                alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+                alert(
+                  "Sua conta foi bloqueada. Entre em contato com um administrador."
+                );
                 window.location.reload();
               } else {
                 // Atualizar dados do usuário (incluindo status de expiração)
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-                setUser(prev => prev ? { ...prev, ...updatedUser } : null);
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+                setUser((prev) => (prev ? { ...prev, ...updatedUser } : null));
               }
             }
           } catch (error) {
@@ -235,7 +254,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // O login agora retorna isActive e accessExpiresAt, então não precisa fazer refreshUser
     if (response.user) {
       // Atualizar localStorage com dados completos do servidor
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem("user", JSON.stringify(response.user));
       // Atualizar estado do contexto
       setUser(response.user);
     }
@@ -245,7 +264,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const response = await authService.register(name, email, password);
     // Após registro, usuário não tem acesso ativo, então não precisa fazer refreshUser
     // O useEffect já vai verificar e mostrar tela de espera
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem("user");
     if (userStr) {
       const currentUser = JSON.parse(userStr);
       // Usuário recém-criado não tem acesso ativo
@@ -256,7 +275,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     // Limpar histórico do geminiService ao fazer logout para evitar compartilhamento entre usuários
     geminiService.clearHistory();
-    
+
     authService.logout();
     setUser(null);
   };
@@ -270,7 +289,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         register,
         logout,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
+        isAdmin: user?.role === "admin",
         refreshUser,
       }}
     >
@@ -278,4 +297,3 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-

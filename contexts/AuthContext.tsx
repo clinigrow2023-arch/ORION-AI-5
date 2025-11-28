@@ -133,23 +133,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             window.location.reload();
           }
         } else if (response.status === 403) {
-          // Verificar se é bloqueado ou sem acesso ativo
+          // Verificar se é bloqueado
           const data = await response.json().catch(() => ({}));
           if (data.blocked) {
             // Usuário bloqueado - fazer logout
             authService.logout();
             setUser(null);
             window.location.reload();
-          } else if (data.notActive || data.expired) {
-            // Usuário sem acesso ativo ou expirado - manter logado mas mostrar tela de espera
-            const userStr = localStorage.getItem('user');
-            if (userStr) {
-              const currentUser = JSON.parse(userStr);
-              setUser({ ...currentUser, isActive: false, ...data });
-            } else {
-              setUser(null);
-            }
           } else {
+            // Outros erros 403 - fazer logout
             setUser(null);
           }
         } else {

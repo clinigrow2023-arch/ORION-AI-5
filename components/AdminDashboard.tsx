@@ -394,7 +394,10 @@ const AdminDashboard: React.FC = () => {
         {/* Search Filter */}
         <div className="mb-4 md:mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+              size={20}
+            />
             <input
               type="text"
               placeholder="Search by name or email..."
@@ -1185,7 +1188,9 @@ const AdminDashboard: React.FC = () => {
           <div className="text-center py-12">
             <Users size={48} className="text-slate-600 mx-auto mb-4" />
             <p className="text-slate-400">
-              {searchQuery ? "No users found matching your search" : "No users found"}
+              {searchQuery
+                ? "No users found matching your search"
+                : "No users found"}
             </p>
             {searchQuery && (
               <button

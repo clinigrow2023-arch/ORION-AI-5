@@ -64,8 +64,8 @@ export const handler: Handler = async (event, context) => {
   }
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
-  // Não verifica isActive ou accessExpiresAt para admin
-  // Apenas usuários comuns precisam de ativação e têm expiração de acesso
+  // Usuários comuns podem acessar o sistema, mas precisam de isActive para usar a IA
+  // A verificação de isActive para uso da IA é feita no ChatInterface e na função gemini
   if (user.role !== 'admin') {
     if (user.isBlocked) {
       return {
@@ -74,23 +74,8 @@ export const handler: Handler = async (event, context) => {
         body: JSON.stringify({ error: 'Account is blocked' }),
       };
     }
-
-    if (!user.isActive) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ error: 'Account access not granted. Please contact an administrator.' }),
-      };
-    }
-
-    // Verificar se acesso expirou (apenas para usuários comuns)
-    if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-      return {
-        statusCode: 403,
-        headers,
-        body: JSON.stringify({ error: 'Your access has expired. Please contact an administrator to renew.' }),
-      };
-    }
+    // Removido: verificação de isActive e accessExpiresAt aqui
+    // Usuários podem acessar o sistema mesmo sem isActive, mas não podem usar a IA
   }
 
   try {

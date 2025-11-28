@@ -6,7 +6,6 @@ import GuideView from "./components/GuideView";
 import SupportView from "./components/SupportView";
 import AdminDashboard from "./components/AdminDashboard";
 import Auth from "./components/Auth";
-import WaitingActivation from "./components/WaitingActivation";
 import SetNewPassword from "./components/SetNewPassword";
 import { useAuth } from "./contexts/AuthContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
@@ -97,26 +96,13 @@ const App: React.FC = () => {
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
   // Não verifica isActive ou accessExpiresAt para admin
-  // Apenas usuários comuns precisam de ativação e têm expiração de acesso
+  // Apenas usuários comuns precisam de ativação para usar a IA
 
   // LÓGICA DE ACESSO:
   // - isBlocked: logout automático (não chega aqui)
-  // - isActive: false = acesso revogado (permanece logado, não pode usar chat)
-  // - accessExpiresAt expirado = acesso expirado (permanece logado, não pode usar chat)
-  // - WaitingActivation: APENAS para novos usuários que nunca foram aprovados (accessExpiresAt === null)
-
-  // Mostrar tela de aguardando ativação APENAS se:
-  // 1. Usuário não tem acesso ativo (isActive: false)
-  // 2. E nunca foi aprovado antes (accessExpiresAt === null) = novo cadastro
-  // Se já foi aprovado uma vez, mesmo que acesso seja revogado, não mostra mais essa tela
-  if (user && user.role !== "admin") {
-    // Novo usuário aguardando primeira aprovação
-    if (!user.isActive && !user.accessExpiresAt) {
-      return <WaitingActivation />;
-    }
-    // Acesso expirado ou revogado - não mostrar WaitingActivation (usuário já foi aprovado antes)
-    // Usuário pode ver interface mas não pode usar chat (já está bloqueado no ChatInterface)
-  }
+  // - isActive: false = usuário pode acessar o sistema, mas não pode usar a IA (bloqueado no ChatInterface)
+  // - accessExpiresAt expirado = usuário pode acessar o sistema, mas não pode usar a IA (bloqueado no ChatInterface)
+  // - Usuários recém-cadastrados já podem acessar o sistema, mas precisam de liberação para usar a IA
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden">

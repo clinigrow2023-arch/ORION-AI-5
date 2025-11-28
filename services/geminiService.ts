@@ -396,6 +396,11 @@ export class GeminiService {
   clearHistory(): void {
     this.chatHistory = [];
   }
+
+  // Método para adicionar mensagens ao histórico (usado ao carregar conversas)
+  addToHistory(role: 'user' | 'model', text: string): void {
+    this.chatHistory.push({ role, parts: [{ text }] });
+  }
 }
 
 export const geminiService = new GeminiService();

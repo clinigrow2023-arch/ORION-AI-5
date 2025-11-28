@@ -115,6 +115,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               Array.isArray(lastConv.messages) &&
               lastConv.messages.length > 0
             ) {
+              // Limpar histórico do geminiService para evitar compartilhamento entre usuários
+              geminiService.clearHistory();
+              
+              // Reconstruir histórico do geminiService a partir das mensagens salvas
+              lastConv.messages.forEach((msg: any) => {
+                if (msg.sender === "user") {
+                  geminiService.addToHistory("user", msg.text);
+                } else {
+                  geminiService.addToHistory("model", msg.text);
+                }
+              });
+
               // Converter mensagens do histórico para o formato do componente
               const loadedMessages: Message[] = lastConv.messages.map(
                 (msg: any, index: number) => ({
@@ -140,6 +152,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 uniqueMessages.forEach((msg) => addMessage(msg));
               }
             }
+          } else if (!currentConversationId) {
+            // Se não há conversas, limpar histórico do geminiService
+            geminiService.clearHistory();
           }
         }
       } catch (error) {
@@ -488,8 +503,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     const selectedConv = data.conversations.find((c: any) => c.id === conv.id);
                                     
                                     if (selectedConv && selectedConv.messages) {
-                                      // Limpar mensagens atuais
+                                      // Limpar mensagens atuais e histórico do geminiService
                                       onResetChat();
+                                      
+                                      // Reconstruir histórico do geminiService a partir das mensagens salvas
+                                      selectedConv.messages.forEach((msg: any) => {
+                                        if (msg.sender === "user") {
+                                          geminiService.addToHistory("user", msg.text);
+                                        } else {
+                                          geminiService.addToHistory("model", msg.text);
+                                        }
+                                      });
                                       
                                       // Carregar mensagens da conversa selecionada
                                       const loadedMessages: Message[] = selectedConv.messages.map((msg: any) => ({

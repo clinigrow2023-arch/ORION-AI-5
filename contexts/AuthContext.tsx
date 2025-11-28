@@ -250,6 +250,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    // Limpar histórico do geminiService ao fazer logout para evitar compartilhamento entre usuários
+    geminiService.clearHistory();
+    
     authService.logout();
     setUser(null);
   };

@@ -478,9 +478,47 @@ const AdminDashboard: React.FC = () => {
 
         {/* Desktop Table View */}
         <div className="hidden lg:block bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex-1 min-h-0 flex flex-col">
-          <div className="overflow-x-auto overflow-y-auto flex-1">
+          <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-800 border-b border-slate-700">
+                <tr>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    User
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Email
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Role
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Blocked
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Access
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Expires
+                  </th>
+                  <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+          <div className="overflow-y-auto overflow-x-auto flex-1 min-h-0">
+            <table className="w-full">
+              <colgroup>
+                <col className="w-auto" />
+                <col className="w-auto" />
+                <col className="w-auto" />
+                <col className="w-auto" />
+                <col className="w-auto" />
+                <col className="w-auto" />
+                <col className="w-auto" />
+              </colgroup>
+              <thead className="bg-slate-800 border-b border-slate-700 hidden">
                 <tr>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
                     User

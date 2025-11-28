@@ -307,7 +307,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
             <p className="text-slate-400 text-sm leading-relaxed">{plan.distancingStrategy}</p>
         </div>
         <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-6">
-            <h4 className="text-indigo-300 font-semibold mb-2">Neurological Triggers</h4>
+            <h4 className="text-indigo-300 font-semibold mb-2">Secret Signals</h4>
             <p className="text-slate-400 text-sm leading-relaxed">{plan.neurologicalTriggers}</p>
         </div>
       </section>

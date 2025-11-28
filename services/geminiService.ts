@@ -1,27 +1,36 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { ActionPlan } from '../types';
+import { ActionPlan } from "../types";
 
 // Netlify Function endpoint
-const NETLIFY_FUNCTION_ENDPOINT = '/.netlify/functions/gemini';
+const NETLIFY_FUNCTION_ENDPOINT = "/.netlify/functions/gemini";
 
 // Check if we're in development and Netlify Function is not available
-const isDevelopment = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isDevelopment =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1");
 
 // Get API key for development fallback (only used if Netlify Function fails)
 const getDevApiKey = (): string => {
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
+  if (
+    typeof import.meta !== "undefined" &&
+    (import.meta as any).env
+  ) {
     // Try to get from Vite env (only in dev, not bundled)
-    return (import.meta.env as any).VITE_GEMINI_API_KEY || '';
+    return (import.meta as any).env.VITE_GEMINI_API_KEY || "";
   }
-  return '';
+  return "";
 };
 
 // Schema for the JSON response (used in generateFormalPlan)
 const planSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    diagnosis: { type: Type.STRING, description: "A clear, analytical diagnosis of what caused the distance or breakup in simple human terms." },
+    diagnosis: {
+      type: Type.STRING,
+      description:
+        "A clear, analytical diagnosis of what caused the distance or breakup in simple human terms, and the man's current emotional level.",
+    },
     steps: {
       type: Type.ARRAY,
       items: {
@@ -29,74 +38,120 @@ const planSchema: Schema = {
         properties: {
           stepNumber: { type: Type.INTEGER },
           title: { type: Type.STRING },
-          description: { type: Type.STRING, description: "Clear instructions with psychological justification." },
-          duration: { type: Type.STRING, description: "Specific timing (e.g., '3 days', '5-7 days')" }
+          description: {
+            type: Type.STRING,
+            description: "Clear instructions with psychological justification.",
+          },
+          duration: {
+            type: Type.STRING,
+            description: "Specific timing (e.g., '3 days', '5-7 days')",
+          },
         },
-        required: ["stepNumber", "title", "description", "duration"]
-      }
+        required: ["stepNumber", "title", "description", "duration"],
+      },
     },
     messageTemplates: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
-          situation: { type: Type.STRING, description: "When to use this message" },
-          text: { type: Type.STRING, description: "The exact text content, personalized to the user." },
-          timing: { type: Type.STRING, description: "When to send it" }
+          situation: {
+            type: Type.STRING,
+            description: "When to use this message",
+          },
+          text: {
+            type: Type.STRING,
+            description: "The exact text content, personalized to the user.",
+          },
+          timing: { type: Type.STRING, description: "When to send it" },
         },
-        required: ["situation", "text", "timing"]
-      }
+        required: ["situation", "text", "timing"],
+      },
     },
     dos: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "List of things the user MUST do to build value and emotional safety."
+      description:
+        "List of things the user MUST do to build value and emotional safety.",
     },
     donts: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: "List of behaviors to avoid (pressure, lowering value)."
+      description: "List of behaviors to avoid (pressure, lowering value).",
     },
-    distancingStrategy: { type: Type.STRING, description: "Explanation of Strategic Distancing vs No Contact, including exact timeframe." },
-    neurologicalTriggers: { type: Type.STRING, description: "How to use triggers like Nostalgia, Safety, Curiosity, etc." }
+    distancingStrategy: {
+      type: Type.STRING,
+      description:
+        "Explanation of the specific timing and strategy (e.g., 12-word phrase, The One Text Message) to use.",
+    },
+    neurologicalTriggers: {
+      type: Type.STRING,
+      description:
+        "How to use specific Secret Signals (e.g., The Awakening Phrase, The Fascination Signal, The Silent Signals, The 'I Owe You' Signal, The Princess in Distress Signal, The Private Island Signal, The X-Ray Question, The Get Your Ex Back Signal, The Secret Signal to Prevent Distance, The Love-Lasting Signal).",
+    },
   },
-  required: ["diagnosis", "steps", "messageTemplates", "dos", "donts", "distancingStrategy", "neurologicalTriggers"]
+  required: [
+    "diagnosis",
+    "steps",
+    "messageTemplates",
+    "dos",
+    "donts",
+    "distancingStrategy",
+    "neurologicalTriggers",
+  ],
 };
 
 export class GeminiService {
   private ai: GoogleGenAI | null = null;
-  private modelName = 'gemini-2.5-flash';
+  private modelName = "gemini-2.5-flash";
   // History for the continuous chat
-  private chatHistory: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
+  private chatHistory: { role: "user" | "model"; parts: { text: string }[] }[] =
+    [];
 
   private getSystemInstruction(): string {
-    return `You are Orion AI, a specialized digital mentor for relationship reconciliation. 
-    
-    STRICT BEHAVIORAL PROTOCOL (Follow this order exactly):
-    
-    1. **PHASE 1: INVESTIGATION (The Interview)**
-       - When the user first describes their situation, DO NOT offer a solution or plan immediately.
-       - Instead, acknowledge their pain briefly and act as a diagnostician.
-       - ASK 3-4 strategic, high-impact questions to understand the context. Examples: "Who ended it?", "How long ago?", "Have you been chasing or begging?", "What was the specific reason given?".
-       - Wait for the user's answers.
+    return `You are Orion, a top expert in romantic reconciliation, attraction, and seduction, specifically for women who want to attract, captivate, and inspire deep commitment in a man.
 
-    2. **PHASE 2 & 3: DIAGNOSIS AND STRATEGY (The Pivot)**
-       - Once the user answers your questions, you MUST provide the Diagnosis AND the Action Plan in the SAME response.
-       - **Step 1: The Diagnosis**: First, provide a clear, analytical diagnosis of *why* the breakup happened psychologically (e.g., "Loss of attraction due to predictability," "Erosion of emotional safety").
-       - **Step 2: The Action Plan**: IMMEDIATELY after the diagnosis, provide the personalized strategy. DO NOT wait for the user to ask "What do I do?".
-       - The Plan MUST include:
-         - **3-Step Action Plan**: Clear steps with specific timing.
-         - **3 Message Templates**: Personalized texts for their exact situation.
-         - **Strategic Distancing**: Specific timeframe (e.g., "5-7 days") and logic.
-         - **Neurological Triggers**: Which specific triggers to use (Nostalgia, Safety, etc.).
-    
-    KEY CONCEPTS TO TEACH:
-    - **Strategic Distancing** (NOT "No Contact"): Explain it as a calibration tool to reset pressure and spark curiosity. Always specify exact days (e.g., "5 days", "10 days"). Contrast it with "No Contact" (which feels punitive).
-    - **Neurological Triggers**: Mention concepts like "Nostalgia Spike", "Safety Validation", "Dopamine Reset", "Curiosity Loops".
+CORE PHILOSOPHY:
+A woman can only awaken a man's true passion when she activates the **Third Level of Love** — the level that triggers his **Alpha Instinct**, making him want to protect her, care for her, choose her, and love her unconditionally.
+To do this, she must use specific **Secret Signals** (psychological triggers) and a customized **12-word phrase**.
 
-    TONE & LANGUAGE:
-    - **Language**: ALL OUTPUT MUST BE IN ENGLISH.
-    - **Tone**: Warm, Rational, Analytical, Practical. Like a supportive expert friend.
+STRICT INTERACTION STRUCTURE (Follow exactly):
+
+1. **FIRST MESSAGE: INVESTIGATION**
+   - Ask specific, high-impact questions to clearly understand her situation.
+   - DO NOT give a diagnosis or solution yet.
+   - Example questions: "How long has he been distant?", "What was the last thing he said?", "Have you been chasing him?".
+
+2. **SECOND MESSAGE: DIAGNOSIS (After she answers)**
+   - Provide a clear and precise diagnosis of what is happening with the man and what **emotional level** he is currently at.
+   - Explain the psychological dynamic driving his behavior.
+   - DO NOT provide the full solution yet; prepare her for the solution in the next step.
+
+3. **THIRD MESSAGE: SOLUTION (After diagnosis)**
+   - Send a fully personalized solution including:
+     - **Steps & Timing**: Exact days to wait or act.
+     - **Messages**: Exact scripts (including the 12-word phrase if applicable).
+     - **Secret Signals**: How to use specific signals naturally.
+     - **Strategy**: Adjusted for her specific stage (new attraction, dating, crush, distance, cold behavior, situationship, etc.).
+
+SECRET SIGNALS TO USE (Select relevant ones):
+- **The Awakening Phrase**: A simple line that gives him a taste of her true feminine essence and awakens magnetic desire.
+- **The Fascination Signal**: A deep-attraction trigger that creates emotional addiction.
+- **The Silent Signals**: Subtle gestures that activate his Alpha Instinct without words.
+- **The "I Owe You" Signal**: Turns everyday words into a trusted-bond trigger.
+- **The Princess in Distress Signal**: Activates his protective instinct when he is distant/cold.
+- **The Private Island Signal**: Determines the type of woman he chooses for long-term commitment.
+- **The X-Ray Question**: Opens his emotional mind and redirects focus to her.
+- **The Get Your Ex Back Signal**: 12 explosive words to reactivate his Alpha Instinct.
+- **The Secret Signal to Prevent Distance**: Stops emotional cooling.
+- **The Love-Lasting Signal**: Builds lasting emotional commitment.
+- **The One Text Message**: Makes him instantly attentive.
+
+BEHAVIORAL RULES:
+- **Always Personalized**: Adapt to the specific context (breakup, coldness, dating, etc.).
+- **Never Give Up**: Never say there is no solution or it's impossible.
+- **English Only**: Every answer must be in English.
+- **Tone**: Empathetic, confident, expert, "Sisterly" but authoritative.
     `;
   }
 
@@ -104,31 +159,37 @@ export class GeminiService {
     if (!this.ai) {
       const apiKey = getDevApiKey();
       if (!apiKey) {
-        throw new Error('API key not found. Please set VITE_GEMINI_API_KEY in your .env file for local development.');
+        throw new Error(
+          "API key not found. Please set VITE_GEMINI_API_KEY in your .env file for local development."
+        );
       }
       this.ai = new GoogleGenAI({ apiKey });
     }
   }
 
-  async sendMessageStream(message: string, onChunk: (text: string) => void): Promise<string> {
+  async sendMessageStream(
+    message: string,
+    onChunk: (text: string) => void
+  ): Promise<string> {
     try {
       // Get auth token for authorization header
-      const token = typeof window !== 'undefined' && localStorage.getItem('auth_token');
-      
+      const token =
+        typeof window !== "undefined" && localStorage.getItem("auth_token");
+
       // Try Netlify Function first
       let response: Response | null = null;
       try {
         const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         };
-        
+
         // Adicionar token de autenticação se disponível
         if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
+          headers["Authorization"] = `Bearer ${token}`;
         }
-        
+
         response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
-          method: 'POST',
+          method: "POST",
           headers,
           body: JSON.stringify({
             message,
@@ -138,15 +199,15 @@ export class GeminiService {
 
         if (response.ok) {
           const data = await response.json();
-          const fullText = data.response || '';
+          const fullText = data.response || "";
 
           // Simulate streaming
           if (fullText && onChunk) {
-            const words = fullText.split(' ');
+            const words = fullText.split(" ");
             for (let i = 0; i < words.length; i++) {
-              const chunk = (i === 0 ? '' : ' ') + words[i];
+              const chunk = (i === 0 ? "" : " ") + words[i];
               onChunk(chunk);
-              await new Promise(resolve => setTimeout(resolve, 10));
+              await new Promise((resolve) => setTimeout(resolve, 10));
             }
           }
 
@@ -154,8 +215,11 @@ export class GeminiService {
           if (data.history) {
             this.chatHistory = data.history;
           } else {
-            this.chatHistory.push({ role: 'user', parts: [{ text: message }] });
-            this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
+            this.chatHistory.push({ role: "user", parts: [{ text: message }] });
+            this.chatHistory.push({
+              role: "model",
+              parts: [{ text: fullText }],
+            });
           }
 
           return fullText;
@@ -163,26 +227,31 @@ export class GeminiService {
 
         // If response is 404 and we're in development, throw error to trigger fallback
         if (response.status === 404 && isDevelopment) {
-          throw new Error('404 - Netlify Function not available');
+          throw new Error("404 - Netlify Function not available");
         }
 
         // If response is not ok and not 404 in dev, throw error
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          throw new Error(
+            errorData.error || `HTTP error! status: ${response.status}`
+          );
         }
       } catch (netlifyError: any) {
         // If Netlify Function fails and we're in development, fallback to direct API
-        const is404Error = netlifyError?.message?.includes('404') || 
-                          netlifyError?.message?.includes('Failed to fetch') ||
-                          (response && response.status === 404);
-        
+        const is404Error =
+          netlifyError?.message?.includes("404") ||
+          netlifyError?.message?.includes("Failed to fetch") ||
+          (response && response.status === 404);
+
         if (isDevelopment && is404Error) {
           // Silently fallback to direct API in development
           try {
             await this.initializeAI();
             if (!this.ai) {
-              throw new Error('Failed to initialize AI client - API key may be missing');
+              throw new Error(
+                "Failed to initialize AI client - API key may be missing"
+              );
             }
 
             const chat = this.ai.chats.create({
@@ -190,12 +259,12 @@ export class GeminiService {
               config: {
                 systemInstruction: this.getSystemInstruction(),
               },
-              history: this.chatHistory
+              history: this.chatHistory,
             });
 
             const result = await chat.sendMessageStream({ message });
-            
-            let fullText = '';
+
+            let fullText = "";
             for await (const chunk of result) {
               const text = chunk.text;
               if (text) {
@@ -205,36 +274,48 @@ export class GeminiService {
             }
 
             // Update local history
-            this.chatHistory.push({ role: 'user', parts: [{ text: message }] });
-            this.chatHistory.push({ role: 'model', parts: [{ text: fullText }] });
+            this.chatHistory.push({ role: "user", parts: [{ text: message }] });
+            this.chatHistory.push({
+              role: "model",
+              parts: [{ text: fullText }],
+            });
 
             return fullText;
           } catch (apiError: any) {
-            console.error('❌ Direct API fallback failed:', apiError);
-            throw new Error(apiError.message || 'Failed to connect to Gemini API. Please check your VITE_GEMINI_API_KEY in .env file.');
+            console.error("❌ Direct API fallback failed:", apiError);
+            throw new Error(
+              apiError.message ||
+                "Failed to connect to Gemini API. Please check your VITE_GEMINI_API_KEY in .env file."
+            );
           }
         }
-        
+
         // If we have a response but it's not ok, throw with error details
         if (response && !response.ok && response.status !== 404) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          throw new Error(
+            errorData.error || `HTTP error! status: ${response.status}`
+          );
         }
-        
+
         throw netlifyError;
       }
     } catch (error: any) {
       console.error("Gemini Chat Error:", error);
-      
+
       // Check for leaked API key error
-      if (error?.code === 403 || error?.message?.includes('leaked') || error?.message?.includes('PERMISSION_DENIED')) {
+      if (
+        error?.code === 403 ||
+        error?.message?.includes("leaked") ||
+        error?.message?.includes("PERMISSION_DENIED")
+      ) {
         const leakedError = new Error(
-          'Sua chave API foi reportada como vazada. Por favor, gere uma nova chave API no Google AI Studio (https://aistudio.google.com/apikey) e atualize as variáveis de ambiente.'
+          "Sua chave API foi reportada como vazada. Por favor, gere uma nova chave API no Google AI Studio (https://aistudio.google.com/apikey) e atualize as variáveis de ambiente."
         );
-        console.error('🔒 Erro de segurança detectado:', leakedError.message);
+        console.error("🔒 Erro de segurança detectado:", leakedError.message);
         throw leakedError;
       }
-      
+
       throw error;
     }
   }
@@ -242,21 +323,22 @@ export class GeminiService {
   async generateFormalPlan(contextHistory: string): Promise<ActionPlan> {
     try {
       // Get auth token for authorization header
-      const token = typeof window !== 'undefined' && localStorage.getItem('auth_token');
-      
+      const token =
+        typeof window !== "undefined" && localStorage.getItem("auth_token");
+
       // Try Netlify Function first
       try {
         const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         };
-        
+
         // Adicionar token de autenticação se disponível
         if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
+          headers["Authorization"] = `Bearer ${token}`;
         }
-        
+
         const response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
-          method: 'POST',
+          method: "POST",
           headers,
           body: JSON.stringify({
             message: `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
@@ -279,11 +361,11 @@ export class GeminiService {
 
         if (response.ok) {
           const data = await response.json();
-          
+
           // A Netlify Function agora retorna JSON estruturado diretamente em data.response
           let parsedPlan: ActionPlan;
-          
-          if (typeof data.response === 'string') {
+
+          if (typeof data.response === "string") {
             // Se response é string, tentar parsear como JSON
             try {
               parsedPlan = JSON.parse(data.response) as ActionPlan;
@@ -296,13 +378,13 @@ export class GeminiService {
                 throw new Error("No valid JSON found in response");
               }
             }
-          } else if (typeof data.response === 'object') {
+          } else if (typeof data.response === "object") {
             // Se response já é um objeto, usar diretamente
             parsedPlan = data.response as ActionPlan;
           } else {
             throw new Error("Invalid response format");
           }
-          
+
           // Validar que o plano tem todas as propriedades necessárias
           if (this.validatePlan(parsedPlan)) {
             return parsedPlan;
@@ -314,7 +396,7 @@ export class GeminiService {
         // Fallback to direct API in development
         if (isDevelopment) {
           await this.initializeAI();
-          if (!this.ai) throw new Error('Failed to initialize AI client');
+          if (!this.ai) throw new Error("Failed to initialize AI client");
 
           const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
       
@@ -327,7 +409,7 @@ export class GeminiService {
       3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
       4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
       5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
-      6. TRIGGERS: Explain how to apply neurological triggers (Nostalgia, Safety, etc.).
+      6. TRIGGERS: Explain how to apply specific Secret Signals (The Awakening Phrase, The Fascination Signal, etc.).
       
       Output strictly valid JSON.`;
 
@@ -338,12 +420,13 @@ export class GeminiService {
               responseMimeType: "application/json",
               responseSchema: planSchema,
               systemInstruction: this.getSystemInstruction(),
-            }
+            },
           });
 
           const jsonText = response.text;
-          if (!jsonText) throw new Error("No data received from plan generation.");
-          
+          if (!jsonText)
+            throw new Error("No data received from plan generation.");
+
           const parsedPlan = JSON.parse(jsonText) as ActionPlan;
           // Validar que o plano tem todas as propriedades necessárias
           if (this.validatePlan(parsedPlan)) {
@@ -358,24 +441,28 @@ export class GeminiService {
       throw new Error("Failed to generate plan");
     } catch (error: any) {
       console.error("Gemini Plan Generation Error:", error);
-      
+
       // Check for leaked API key error
-      if (error?.code === 403 || error?.message?.includes('leaked') || error?.message?.includes('PERMISSION_DENIED')) {
+      if (
+        error?.code === 403 ||
+        error?.message?.includes("leaked") ||
+        error?.message?.includes("PERMISSION_DENIED")
+      ) {
         const leakedError = new Error(
-          'Sua chave API foi reportada como vazada. Por favor, gere uma nova chave API no Google AI Studio (https://aistudio.google.com/apikey) e atualize as variáveis de ambiente.'
+          "Sua chave API foi reportada como vazada. Por favor, gere uma nova chave API no Google AI Studio (https://aistudio.google.com/apikey) e atualize as variáveis de ambiente."
         );
-        console.error('🔒 Erro de segurança detectado:', leakedError.message);
+        console.error("🔒 Erro de segurança detectado:", leakedError.message);
         throw leakedError;
       }
-      
+
       throw error;
     }
   }
-    
+
   private validatePlan(plan: any): plan is ActionPlan {
     return (
       plan &&
-      typeof plan.diagnosis === 'string' &&
+      typeof plan.diagnosis === "string" &&
       Array.isArray(plan.steps) &&
       plan.steps.length > 0 &&
       Array.isArray(plan.messageTemplates) &&
@@ -384,13 +471,15 @@ export class GeminiService {
       plan.dos.length > 0 &&
       Array.isArray(plan.donts) &&
       plan.donts.length > 0 &&
-      typeof plan.distancingStrategy === 'string' &&
-      typeof plan.neurologicalTriggers === 'string'
+      typeof plan.distancingStrategy === "string" &&
+      typeof plan.neurologicalTriggers === "string"
     );
   }
 
   getHistoryAsString(): string {
-    return this.chatHistory.map(h => `${h.role}: ${h.parts[0].text}`).join('\n');
+    return this.chatHistory
+      .map((h) => `${h.role}: ${h.parts[0].text}`)
+      .join("\n");
   }
 
   clearHistory(): void {
@@ -398,7 +487,7 @@ export class GeminiService {
   }
 
   // Método para adicionar mensagens ao histórico (usado ao carregar conversas)
-  addToHistory(role: 'user' | 'model', text: string): void {
+  addToHistory(role: "user" | "model", text: string): void {
     this.chatHistory.push({ role, parts: [{ text }] });
   }
 }

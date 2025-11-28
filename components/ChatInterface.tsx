@@ -39,10 +39,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const hasLoadedHistory = useRef(false);
   const messageIdCounter = useRef(0);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<Array<{ id: string; createdAt: string; updatedAt: string }>>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
+  const [conversations, setConversations] = useState<
+    Array<{ id: string; createdAt: string; updatedAt: string }>
+  >([]);
   const [showConversationsList, setShowConversationsList] = useState(false);
-  const [conversationToDelete, setConversationToDelete] = useState<{ id: string; date: string } | null>(null);
+  const [conversationToDelete, setConversationToDelete] = useState<{
+    id: string;
+    date: string;
+  } | null>(null);
 
   // Função para gerar ID único
   const generateUniqueId = () => {
@@ -109,7 +116,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const data = await response.json();
 
           // Carregar última conversa se existir e não houver conversa atual selecionada
-          if (data.conversations && data.conversations.length > 0 && !currentConversationId) {
+          if (
+            data.conversations &&
+            data.conversations.length > 0 &&
+            !currentConversationId
+          ) {
             const lastConv = data.conversations[0];
             setCurrentConversationId(lastConv.id);
             if (
@@ -119,7 +130,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ) {
               // Limpar histórico do geminiService para evitar compartilhamento entre usuários
               geminiService.clearHistory();
-              
+
               // Reconstruir histórico do geminiService a partir das mensagens salvas
               lastConv.messages.forEach((msg: any) => {
                 if (msg.sender === "user") {
@@ -242,7 +253,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: messagesToSave,
           conversationId: currentConversationId || undefined,
         }),
@@ -256,7 +267,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
       } else if (response.status === 403) {
         const errorData = await response.json().catch(() => ({}));
-        
+
         if (errorData.maxConversations) {
           // Limite de 3 conversas atingido
           const errorMsg: Message = {
@@ -456,23 +467,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {/* Conversas Dropdown */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowConversationsList(!showConversationsList)}
+                    onClick={() =>
+                      setShowConversationsList(!showConversationsList)
+                    }
                     className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1"
                     title="Manage conversations"
                   >
                     <MessageSquare size={18} />
-                    <ChevronDown size={14} className={showConversationsList ? "rotate-180" : ""} />
+                    <ChevronDown
+                      size={14}
+                      className={showConversationsList ? "rotate-180" : ""}
+                    />
                     {conversations.length > 0 && (
                       <span className="text-xs bg-indigo-600 text-white px-1.5 py-0.5 rounded-full">
                         {conversations.length}/3
                       </span>
                     )}
                   </button>
-                  
+
                   {showConversationsList && (
                     <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                       <div className="p-2 border-b border-slate-700 flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-300">Conversations</span>
+                        <span className="text-sm font-medium text-slate-300">
+                          Conversations
+                        </span>
                         <button
                           onClick={() => setShowConversationsList(false)}
                           className="p-1 text-slate-400 hover:text-slate-200"
@@ -495,62 +513,92 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 // Carregar conversa selecionada
                                 setCurrentConversationId(conv.id);
                                 setShowConversationsList(false);
-                                
+
                                 // Carregar mensagens da conversa selecionada
                                 try {
                                   const token = authService.getToken();
                                   if (!token) return;
 
-                                  const response = await fetch("/.netlify/functions/conversations", {
-                                    headers: {
-                                      Authorization: `Bearer ${token}`,
-                                    },
-                                  });
+                                  const response = await fetch(
+                                    "/.netlify/functions/conversations",
+                                    {
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    }
+                                  );
 
                                   if (response.ok) {
                                     const data = await response.json();
-                                    const selectedConv = data.conversations.find((c: any) => c.id === conv.id);
-                                    
+                                    const selectedConv =
+                                      data.conversations.find(
+                                        (c: any) => c.id === conv.id
+                                      );
+
                                     if (selectedConv && selectedConv.messages) {
                                       // Limpar mensagens atuais e histórico do geminiService
                                       onResetChat();
-                                      
-                                      // Reconstruir histórico do geminiService a partir das mensagens salvas
-                                      selectedConv.messages.forEach((msg: any) => {
-                                        if (msg.sender === "user") {
-                                          geminiService.addToHistory("user", msg.text);
-                                        } else {
-                                          geminiService.addToHistory("model", msg.text);
-                                        }
-                                      });
-                                      
-                                      // Carregar mensagens da conversa selecionada
-                                      const loadedMessages: Message[] = selectedConv.messages.map((msg: any) => ({
-                                        id: msg.id || generateUniqueId(),
-                                        text: msg.text || "",
-                                        sender: msg.sender === "user" ? Sender.User : Sender.Bot,
-                                        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-                                      }));
 
-                                      loadedMessages.forEach((msg) => addMessage(msg));
+                                      // Reconstruir histórico do geminiService a partir das mensagens salvas
+                                      selectedConv.messages.forEach(
+                                        (msg: any) => {
+                                          if (msg.sender === "user") {
+                                            geminiService.addToHistory(
+                                              "user",
+                                              msg.text
+                                            );
+                                          } else {
+                                            geminiService.addToHistory(
+                                              "model",
+                                              msg.text
+                                            );
+                                          }
+                                        }
+                                      );
+
+                                      // Carregar mensagens da conversa selecionada
+                                      const loadedMessages: Message[] =
+                                        selectedConv.messages.map(
+                                          (msg: any) => ({
+                                            id: msg.id || generateUniqueId(),
+                                            text: msg.text || "",
+                                            sender:
+                                              msg.sender === "user"
+                                                ? Sender.User
+                                                : Sender.Bot,
+                                            timestamp: msg.timestamp
+                                              ? new Date(msg.timestamp)
+                                              : new Date(),
+                                          })
+                                        );
+
+                                      loadedMessages.forEach((msg) =>
+                                        addMessage(msg)
+                                      );
                                       hasLoadedHistory.current = true;
                                     }
                                   }
                                 } catch (error) {
-                                  console.error("Failed to load conversation:", error);
+                                  console.error(
+                                    "Failed to load conversation:",
+                                    error
+                                  );
                                 }
                               }}
                               className="flex-1 text-left text-sm text-slate-300"
                             >
                               <div className="font-medium">
-                                Chat {new Date(conv.updatedAt).toLocaleDateString()}
+                                Chat{" "}
+                                {new Date(conv.updatedAt).toLocaleDateString()}
                               </div>
                               <div className="text-xs text-slate-500">
                                 {new Date(conv.updatedAt).toLocaleTimeString()}
                               </div>
                             </button>
                             <button
-                              onClick={() => handleDeleteClick(conv.id, conv.updatedAt)}
+                              onClick={() =>
+                                handleDeleteClick(conv.id, conv.updatedAt)
+                              }
                               className="p-1 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                               title="Delete conversation"
                             >
@@ -574,7 +622,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </div>
                   )}
                 </div>
-                
+
                 {messages.length > 0 && (
                   <button
                     onClick={() => setShowResetModal(true)}
@@ -763,6 +811,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             setCurrentConversationId(null);
           }}
           onCancel={() => setShowResetModal(false)}
+        />
+      )}
+
+      {/* Delete Conversation Modal */}
+      {conversationToDelete && (
+        <DeleteConversationModal
+          onConfirm={async () => {
+            await deleteConversation(conversationToDelete.id);
+          }}
+          onCancel={() => setConversationToDelete(null)}
+          conversationDate={conversationToDelete.date}
         />
       )}
     </div>

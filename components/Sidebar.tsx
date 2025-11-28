@@ -49,11 +49,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
               </p>
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
               {!user.isActive && (
-                <p className="text-xs text-orange-400 mt-1">AI access pending</p>
+                <p className="text-xs text-orange-400 mt-1">
+                  AI access pending
+                </p>
               )}
-              {user.isActive && user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date() && (
-                <p className="text-xs text-orange-400 mt-1">AI access expired</p>
-              )}
+              {user.isActive &&
+                user.accessExpiresAt &&
+                new Date(user.accessExpiresAt) < new Date() && (
+                  <p className="text-xs text-orange-400 mt-1">
+                    AI access expired
+                  </p>
+                )}
             </div>
           </div>
         </div>

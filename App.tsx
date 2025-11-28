@@ -134,7 +134,9 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 h-full relative w-full pt-16 md:pt-0">{renderContent()}</main>
+      <main className="flex-1 h-full relative w-full pt-16 md:pt-0">
+        {renderContent()}
+      </main>
 
       {/* Overlay for mobile menu */}
       {isMobileMenuOpen && (

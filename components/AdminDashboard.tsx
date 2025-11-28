@@ -361,8 +361,8 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-3 md:p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-screen bg-slate-950 p-3 md:p-6 flex flex-col overflow-hidden">
+      <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0">
         <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">
@@ -477,8 +477,8 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {/* Desktop Table View */}
-        <div className="hidden lg:block bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="hidden lg:block bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="overflow-x-auto overflow-y-auto flex-1">
             <table className="w-full">
               <thead className="bg-slate-800 border-b border-slate-700">
                 <tr>
@@ -870,7 +870,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Mobile Card View */}
-        <div className="lg:hidden space-y-4">
+        <div className="lg:hidden space-y-4 overflow-y-auto flex-1 min-h-0 pb-4">
           {filteredUsers.map((user) => (
             <div
               key={user.id}

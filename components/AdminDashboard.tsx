@@ -477,8 +477,14 @@ const AdminDashboard: React.FC = () => {
         )}
 
         {/* Desktop Table View */}
-        <div className="hidden lg:flex bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex-1 min-h-0 flex-col" style={{ maxHeight: 'calc(100vh - 300px)' }}>
-          <div className="overflow-y-auto overflow-x-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+        <div
+          className="hidden lg:flex bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex-1 min-h-0 flex-col"
+          style={{ maxHeight: "calc(100vh - 300px)" }}
+        >
+          <div
+            className="overflow-y-auto overflow-x-auto"
+            style={{ maxHeight: "calc(100vh - 300px)" }}
+          >
             <table className="w-full">
               <thead className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
                 <tr>

@@ -23,7 +23,7 @@ export const handler: Handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS, PUT',
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -110,7 +110,7 @@ export const handler: Handler = async (event, context) => {
 
     // POST - Criar/atualizar conversa
     if (event.httpMethod === 'POST') {
-      const { messages } = JSON.parse(event.body || '{}');
+      const { messages, conversationId } = JSON.parse(event.body || '{}');
 
       if (!Array.isArray(messages)) {
         return {
@@ -120,42 +120,77 @@ export const handler: Handler = async (event, context) => {
         };
       }
 
-      // Buscar conversa mais recente ou criar nova
-      const existingConversation = await prisma.conversation.findFirst({
+      // Se conversationId foi fornecido, atualizar conversa existente
+      if (conversationId) {
+        const existingConversation = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+        });
+
+        if (!existingConversation || existingConversation.userId !== auth.userId) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Conversation not found' }),
+          };
+        }
+
+        const conversation = await prisma.conversation.update({
+          where: { id: conversationId },
+          data: {
+            messages: JSON.stringify(messages),
+          },
+          select: {
+            id: true,
+            messages: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        return {
+          statusCode: 200,
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation: {
+              ...conversation,
+              messages: JSON.parse(conversation.messages),
+            },
+          }),
+        };
+      }
+
+      // Criar nova conversa - verificar limite de 3 conversas
+      const conversationCount = await prisma.conversation.count({
         where: { userId: auth.userId },
-        orderBy: { updatedAt: 'desc' },
       });
 
-      let conversation;
-      if (existingConversation) {
-        // Atualizar conversa existente
-        conversation = await prisma.conversation.update({
-          where: { id: existingConversation.id },
-          data: {
-            messages: JSON.stringify(messages),
-          },
-          select: {
-            id: true,
-            messages: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        });
-      } else {
-        // Criar nova conversa
-        conversation = await prisma.conversation.create({
-          data: {
-            userId: auth.userId,
-            messages: JSON.stringify(messages),
-          },
-          select: {
-            id: true,
-            messages: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        });
+      if (conversationCount >= 3) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Maximum of 3 conversations allowed. Please delete a conversation to create a new one.',
+            maxConversations: true,
+          }),
+        };
       }
+
+      // Criar nova conversa
+      const conversation = await prisma.conversation.create({
+        data: {
+          userId: auth.userId,
+          messages: JSON.stringify(messages),
+        },
+        select: {
+          id: true,
+          messages: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
 
       return {
         statusCode: 200,
@@ -172,22 +207,55 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // DELETE - Deletar todas as conversas do usuário
+    // DELETE - Deletar conversa específica ou todas as conversas
     if (event.httpMethod === 'DELETE') {
-      await prisma.conversation.deleteMany({
-        where: { userId: auth.userId },
-      });
+      const { conversationId } = JSON.parse(event.body || '{}');
 
-      return {
-        statusCode: 200,
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: 'Conversation deleted successfully',
-        }),
-      };
+      if (conversationId) {
+        // Deletar conversa específica
+        const conversation = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+        });
+
+        if (!conversation || conversation.userId !== auth.userId) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Conversation not found' }),
+          };
+        }
+
+        await prisma.conversation.delete({
+          where: { id: conversationId },
+        });
+
+        return {
+          statusCode: 200,
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            message: 'Conversation deleted successfully',
+          }),
+        };
+      } else {
+        // Deletar todas as conversas do usuário
+        await prisma.conversation.deleteMany({
+          where: { userId: auth.userId },
+        });
+
+        return {
+          statusCode: 200,
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            message: 'All conversations deleted successfully',
+          }),
+        };
+      }
     }
 
     return {

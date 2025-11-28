@@ -7,6 +7,10 @@ import {
   AlertCircle,
   Key,
   RotateCcw,
+  MessageSquare,
+  Trash2,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { Message, Sender } from "../types";
 import { geminiService } from "../services/geminiService";
@@ -34,6 +38,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const hasLoadedHistory = useRef(false);
   const messageIdCounter = useRef(0);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Array<{ id: string; createdAt: string; updatedAt: string }>>([]);
+  const [showConversationsList, setShowConversationsList] = useState(false);
 
   // Função para gerar ID único
   const generateUniqueId = () => {
@@ -99,9 +106,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         if (response.ok) {
           const data = await response.json();
 
-          // Carregar última conversa se existir
-          if (data.conversations && data.conversations.length > 0) {
+          // Carregar última conversa se existir e não houver conversa atual selecionada
+          if (data.conversations && data.conversations.length > 0 && !currentConversationId) {
             const lastConv = data.conversations[0];
+            setCurrentConversationId(lastConv.id);
             if (
               lastConv.messages &&
               Array.isArray(lastConv.messages) &&
@@ -140,7 +148,57 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     loadConversation();
+    loadConversations(); // Carregar lista de conversas
   }, [messages.length, addMessage]);
+
+  const loadConversations = async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const response = await fetch("/.netlify/functions/conversations", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.conversations) {
+          setConversations(data.conversations);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load conversations:", error);
+    }
+  };
+
+  const deleteConversation = async (conversationId: string) => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const response = await fetch("/.netlify/functions/conversations", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ conversationId }),
+      });
+
+      if (response.ok) {
+        await loadConversations();
+        if (currentConversationId === conversationId) {
+          // Se deletou a conversa atual, limpar mensagens
+          onResetChat();
+          setCurrentConversationId(null);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    }
+  };
 
   const saveConversation = async (allMessages: Message[]) => {
     try {
@@ -160,20 +218,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ messages: messagesToSave }),
+        body: JSON.stringify({ 
+          messages: messagesToSave,
+          conversationId: currentConversationId || undefined,
+        }),
       });
 
       if (response.ok) {
-        // Conversa salva com sucesso - não precisa atualizar usuário
-        // Removido refreshUser() para evitar requisições desnecessárias
+        const data = await response.json();
+        if (data.conversation) {
+          setCurrentConversationId(data.conversation.id);
+          await loadConversations(); // Atualizar lista de conversas
+        }
       } else if (response.status === 403) {
-        // Acesso revogado ou expirado (usuários bloqueados já foram deslogados antes)
         const errorData = await response.json().catch(() => ({}));
+        
+        if (errorData.maxConversations) {
+          // Limite de 3 conversas atingido
+          const errorMsg: Message = {
+            id: generateUniqueId(),
+            text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+            sender: Sender.Bot,
+            timestamp: new Date(),
+          };
+          addMessage(errorMsg);
+          return;
+        }
+
         let errorText =
           "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
 
         if (errorData.error?.includes("blocked")) {
-          // Se por algum motivo ainda chegou aqui bloqueado, fazer logout
           errorText =
             "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.";
           setTimeout(() => {
@@ -353,15 +428,130 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   Provide details about your situation for analysis.
                 </p>
               </div>
-              {messages.length > 0 && (
-                <button
-                  onClick={() => setShowResetModal(true)}
-                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors "
-                  title="Reset chat"
-                >
-                  <RotateCcw size={18} />
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Conversas Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowConversationsList(!showConversationsList)}
+                    className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1"
+                    title="Manage conversations"
+                  >
+                    <MessageSquare size={18} />
+                    <ChevronDown size={14} className={showConversationsList ? "rotate-180" : ""} />
+                    {conversations.length > 0 && (
+                      <span className="text-xs bg-indigo-600 text-white px-1.5 py-0.5 rounded-full">
+                        {conversations.length}/3
+                      </span>
+                    )}
+                  </button>
+                  
+                  {showConversationsList && (
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                      <div className="p-2 border-b border-slate-700 flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-300">Conversations</span>
+                        <button
+                          onClick={() => setShowConversationsList(false)}
+                          className="p-1 text-slate-400 hover:text-slate-200"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <div className="p-2 space-y-1">
+                        {conversations.map((conv) => (
+                          <div
+                            key={conv.id}
+                            className={`p-2 rounded-lg flex items-center justify-between group ${
+                              currentConversationId === conv.id
+                                ? "bg-indigo-600/20 border border-indigo-500/50"
+                                : "hover:bg-slate-700"
+                            }`}
+                          >
+                            <button
+                              onClick={async () => {
+                                // Carregar conversa selecionada
+                                setCurrentConversationId(conv.id);
+                                setShowConversationsList(false);
+                                
+                                // Carregar mensagens da conversa selecionada
+                                try {
+                                  const token = authService.getToken();
+                                  if (!token) return;
+
+                                  const response = await fetch("/.netlify/functions/conversations", {
+                                    headers: {
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                  });
+
+                                  if (response.ok) {
+                                    const data = await response.json();
+                                    const selectedConv = data.conversations.find((c: any) => c.id === conv.id);
+                                    
+                                    if (selectedConv && selectedConv.messages) {
+                                      // Limpar mensagens atuais
+                                      onResetChat();
+                                      
+                                      // Carregar mensagens da conversa selecionada
+                                      const loadedMessages: Message[] = selectedConv.messages.map((msg: any) => ({
+                                        id: msg.id || generateUniqueId(),
+                                        text: msg.text || "",
+                                        sender: msg.sender === "user" ? Sender.User : Sender.Bot,
+                                        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+                                      }));
+
+                                      loadedMessages.forEach((msg) => addMessage(msg));
+                                      hasLoadedHistory.current = true;
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error("Failed to load conversation:", error);
+                                }
+                              }}
+                              className="flex-1 text-left text-sm text-slate-300"
+                            >
+                              <div className="font-medium">
+                                Chat {new Date(conv.updatedAt).toLocaleDateString()}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {new Date(conv.updatedAt).toLocaleTimeString()}
+                              </div>
+                            </button>
+                            <button
+                              onClick={() => deleteConversation(conv.id)}
+                              className="p-1 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Delete conversation"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        {conversations.length < 3 && (
+                          <button
+                            onClick={() => {
+                              setCurrentConversationId(null);
+                              onResetChat();
+                              setShowConversationsList(false);
+                            }}
+                            className="w-full p-2 text-sm text-indigo-400 hover:bg-slate-700 rounded-lg text-center"
+                          >
+                            + New Conversation
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {messages.length > 0 && (
+                  <button
+                    onClick={() => setShowResetModal(true)}
+                    className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                    title="Reset current chat"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -529,23 +719,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onConfirm={async () => {
             // Limpar mensagens localmente
             onResetChat();
+            setCurrentConversationId(null);
             setShowResetModal(false);
             hasLoadedHistory.current = false; // Permitir recarregar histórico se necessário
 
-            // Deletar conversa do backend
-            try {
-              const token = authService.getToken();
-              if (token) {
-                await fetch("/.netlify/functions/conversations", {
-                  method: "DELETE",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                });
-              }
-            } catch (error) {
-              console.error("Failed to delete conversation:", error);
+            // Deletar conversa do backend se houver uma conversa atual
+            if (currentConversationId) {
+              await deleteConversation(currentConversationId);
             }
+            setCurrentConversationId(null);
           }}
           onCancel={() => setShowResetModal(false)}
         />

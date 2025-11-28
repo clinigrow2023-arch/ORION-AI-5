@@ -1,24 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActionPlan } from '../types';
 import { geminiService } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
-import { Target, Clock, MessageCircle, ShieldAlert, ShieldCheck, BrainCircuit, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { authService } from '../lib/auth';
+import { Target, Clock, MessageCircle, ShieldAlert, ShieldCheck, BrainCircuit, Loader2, AlertTriangle, AlertCircle, ChevronDown } from 'lucide-react';
 
 interface PlanDisplayProps {
   plan: ActionPlan | null;
   setPlan: (plan: ActionPlan) => void;
 }
 
+interface Conversation {
+  id: string;
+  messages: Array<{ text: string; sender: string; timestamp: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [showConversationSelector, setShowConversationSelector] = useState(false);
 
   // Verificar se usuário tem acesso ativo
   const hasAccess = user && (
     user.role === 'admin' || 
     (user.isActive && (!user.accessExpiresAt || new Date(user.accessExpiresAt) >= new Date()))
   );
+
+  // Carregar conversas ao montar
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        const token = authService.getToken();
+        if (!token) return;
+
+        const response = await fetch("/.netlify/functions/conversations", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.conversations && data.conversations.length > 0) {
+            setConversations(data.conversations);
+            // Selecionar primeira conversa por padrão
+            if (!selectedConversationId) {
+              setSelectedConversationId(data.conversations[0].id);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load conversations:", error);
+      }
+    };
+
+    loadConversations();
+  }, []);
+
+  const getSelectedConversationHistory = (): string => {
+    if (!selectedConversationId) {
+      // Fallback para histórico do geminiService
+      return geminiService.getHistoryAsString() || "";
+    }
+
+    const selectedConv = conversations.find(c => c.id === selectedConversationId);
+    if (!selectedConv || !selectedConv.messages || selectedConv.messages.length === 0) {
+      return geminiService.getHistoryAsString() || "";
+    }
+
+    // Converter mensagens da conversa para string de histórico
+    return selectedConv.messages
+      .map(msg => `${msg.sender === 'user' ? 'User' : 'Orion'}: ${msg.text}`)
+      .join('\n\n');
+  };
 
   const generatePlan = async () => {
     // Verificar acesso antes de gerar plano
@@ -27,9 +86,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       return;
     }
 
-    const history = geminiService.getHistoryAsString();
+    const history = getSelectedConversationHistory();
     if (!history) {
-      setError("Please chat with Orion first to provide context about your situation.");
+      setError("Please select a conversation or chat with Orion first to provide context about your situation.");
       return;
     }
 
@@ -93,9 +152,57 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
              </div>
           )}
 
+          {/* Conversation Selector */}
+          {conversations.length > 0 && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Select conversation to use as context:
+              </label>
+              <div className="relative">
+                <button
+                  onClick={() => setShowConversationSelector(!showConversationSelector)}
+                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-left text-slate-300 flex items-center justify-between hover:border-indigo-500 transition-colors"
+                >
+                  <span>
+                    {selectedConversationId
+                      ? `Chat from ${new Date(conversations.find(c => c.id === selectedConversationId)?.updatedAt || '').toLocaleDateString()}`
+                      : "Select a conversation"}
+                  </span>
+                  <ChevronDown size={16} className={showConversationSelector ? "rotate-180" : ""} />
+                </button>
+                
+                {showConversationSelector && (
+                  <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                    {conversations.map((conv) => (
+                      <button
+                        key={conv.id}
+                        onClick={() => {
+                          setSelectedConversationId(conv.id);
+                          setShowConversationSelector(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-700 transition-colors ${
+                          selectedConversationId === conv.id
+                            ? "bg-indigo-600/20 text-indigo-300"
+                            : "text-slate-300"
+                        }`}
+                      >
+                        <div className="font-medium">
+                          Chat from {new Date(conv.updatedAt).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {conv.messages?.length || 0} messages • {new Date(conv.updatedAt).toLocaleTimeString()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={generatePlan}
-            disabled={isGenerating || !hasAccess}
+            disabled={isGenerating || !hasAccess || !selectedConversationId}
             className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isGenerating ? <Loader2 className="animate-spin" /> : <BrainCircuit />}

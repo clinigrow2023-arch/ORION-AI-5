@@ -226,6 +226,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user?.isActive, user?.isBlocked, user?.accessExpiresAt]); // Re-executar se isActive, isBlocked ou accessExpiresAt mudar
 
   const login = async (email: string, password: string) => {
+    // Limpar histórico do geminiService ao fazer login para evitar compartilhamento entre usuários
+    geminiService.clearHistory();
     const response = await authService.login(email, password);
     // Após login, atualizar localStorage e estado com dados completos do servidor
     // O login agora retorna isActive e accessExpiresAt, então não precisa fazer refreshUser

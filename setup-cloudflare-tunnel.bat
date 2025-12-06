@@ -40,23 +40,37 @@ echo [INFO] Nome do tunnel: %TUNNEL_NAME%
 echo [INFO] Porta local: %TUNNEL_PORT%
 echo.
 
-REM Verificar se já está logado no Cloudflare
-echo [INFO] Verificando autenticacao no Cloudflare...
-%CLOUDFLARED_CMD% tunnel info >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [INFO] Nao esta autenticado. Fazendo login...
+REM Verificar se já está logado no Cloudflare (verificar certificado)
+set CERT_PATH=%USERPROFILE%\.cloudflared\cert.pem
+if not exist "%CERT_PATH%" (
+    echo [INFO] Certificado de origem nao encontrado.
+    echo [INFO] Fazendo login no Cloudflare...
     echo [INFO] Isso abrira seu navegador para autenticacao.
-    echo [INFO] Apos autenticar, o certificado sera salvo automaticamente.
+    echo [INFO] Apos autenticar, o certificado sera baixado automaticamente.
     echo.
     %CLOUDFLARED_CMD% tunnel login
     if %errorlevel% neq 0 (
         echo [ERRO] Falha na autenticacao.
+        echo [INFO] Certifique-se de que o navegador foi aberto e voce completou a autenticacao.
         pause
         exit /b 1
     )
-    echo [OK] Autenticacao concluida!
+    REM Verificar se o certificado foi baixado
+    if exist "%CERT_PATH%" (
+        echo [OK] Certificado baixado com sucesso!
+    ) else (
+        echo [AVISO] Certificado nao foi encontrado apos login.
+        echo [INFO] Tentando verificar autenticacao novamente...
+        %CLOUDFLARED_CMD% tunnel info >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo [ERRO] Autenticacao falhou. Tente novamente.
+            pause
+            exit /b 1
+        )
+    )
     echo.
 ) else (
+    echo [OK] Certificado de origem encontrado.
     echo [OK] Ja esta autenticado no Cloudflare.
     echo.
 )
@@ -104,18 +118,6 @@ if %errorlevel% equ 0 (
     )
     echo [OK] Tunnel '%TUNNEL_NAME%' criado com sucesso!
     echo.
-    REM Gerar token/credenciais para o tunnel
-    echo [INFO] Gerando credenciais do tunnel...
-    set CONFIG_DIR=%USERPROFILE%\.cloudflared
-    if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
-    %CLOUDFLARED_CMD% tunnel token %TUNNEL_NAME% > "%CONFIG_DIR%\%TUNNEL_NAME%.json" 2>&1
-    if %errorlevel% equ 0 (
-        echo [OK] Credenciais geradas e salvas.
-    ) else (
-        echo [AVISO] Nao foi possivel gerar credenciais automaticamente.
-        echo [INFO] Execute manualmente: %CLOUDFLARED_CMD% tunnel token %TUNNEL_NAME%
-    )
-    echo.
 )
 
 :configure_tunnel
@@ -131,16 +133,15 @@ REM Garantir que o diretorio de config existe
 set CONFIG_DIR=%USERPROFILE%\.cloudflared
 if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
 
-REM Verificar se as credenciais existem, se nao, gerar
+REM Verificar se as credenciais existem
+REM Nota: O comando 'tunnel token' nao existe mais nas versoes recentes
+REM As credenciais sao geradas automaticamente quando o tunnel e criado
+REM O arquivo JSON e criado em %CONFIG_DIR%\%TUNNEL_NAME%.json automaticamente
 if not exist "%CONFIG_DIR%\%TUNNEL_NAME%.json" (
-    echo [INFO] Gerando credenciais do tunnel...
-    %CLOUDFLARED_CMD% tunnel token %TUNNEL_NAME% > "%CONFIG_DIR%\%TUNNEL_NAME%.json" 2>&1
-    if %errorlevel% equ 0 (
-        echo [OK] Credenciais geradas e salvas.
-    ) else (
-        echo [AVISO] Nao foi possivel gerar credenciais automaticamente.
-        echo [INFO] Execute manualmente: %CLOUDFLARED_CMD% tunnel token %TUNNEL_NAME%
-    )
+    echo [AVISO] Arquivo de credenciais nao encontrado.
+    echo [INFO] Isso pode acontecer se o tunnel foi criado em outra maquina.
+    echo [INFO] O arquivo de credenciais deve estar em: %CONFIG_DIR%\%TUNNEL_NAME%.json
+    echo [INFO] Se necessario, recrie o tunnel ou copie o arquivo de credenciais.
     echo.
 )
 

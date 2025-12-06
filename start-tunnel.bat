@@ -1,5 +1,5 @@
 @echo off
-REM Script para iniciar o Cloudflare Tunnel configurado
+REM Script para iniciar o Cloudflare Tunnel (Quick Tunnel - sem configuracao)
 REM Autor: ORION-AI-5
 REM Data: 2025
 
@@ -16,16 +16,21 @@ if %errorlevel% neq 0 (
         set CLOUDFLARED_CMD=.\cloudflared.exe
     ) else (
         echo [ERRO] cloudflared nao encontrado!
-        echo Por favor, execute setup-cloudflare-tunnel.bat primeiro.
+        echo.
+        echo Por favor, instale o Cloudflare Tunnel:
+        echo 1. Baixe de: https://github.com/cloudflare/cloudflared/releases
+        echo 2. Extraia o arquivo cloudflared.exe
+        echo 3. Adicione ao PATH ou coloque neste diretorio
+        echo.
         pause
         exit /b 1
     )
 )
 
-set TUNNEL_NAME=orion-ai-dev
+set TUNNEL_PORT=3000
 
-echo [INFO] Iniciando tunnel: %TUNNEL_NAME%
-echo [INFO] Certifique-se de que o servidor esta rodando na porta 3000
+echo [INFO] Certifique-se de que o servidor esta rodando na porta %TUNNEL_PORT%
+echo [INFO] Expondo porta %TUNNEL_PORT% via Cloudflare Tunnel...
 echo.
 echo ========================================
 echo   TUNNEL ATIVO
@@ -35,7 +40,7 @@ echo.
 echo [INFO] Use Ctrl+C para parar o tunnel
 echo.
 
-%CLOUDFLARED_CMD% tunnel run %TUNNEL_NAME%
+%CLOUDFLARED_CMD% tunnel --url http://localhost:%TUNNEL_PORT%
 
 echo.
 echo [INFO] Tunnel encerrado.

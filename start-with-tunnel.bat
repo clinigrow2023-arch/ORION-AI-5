@@ -76,29 +76,8 @@ set SERVER_PORT=3000
 set TUNNEL_HOST=localhost
 set TUNNEL_PORT=%SERVER_PORT%
 
-REM Verificar se tunnel configurado existe
-set TUNNEL_NAME=orion-ai-dev
-%CLOUDFLARED_CMD% tunnel list | findstr /C:"%TUNNEL_NAME%" >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [INFO] Tunnel configurado '%TUNNEL_NAME%' encontrado.
-    echo.
-    echo Deseja usar:
-    echo 1. Tunnel configurado (%TUNNEL_NAME%) - Recomendado para webhooks
-    echo 2. Quick tunnel temporario
-    echo.
-    set /p tunnel_option="Escolha (1/2) [padrao: 1]: "
-    if "%tunnel_option%"=="" set tunnel_option=1
-) else (
-    echo [AVISO] Tunnel configurado nao encontrado.
-    echo [INFO] Execute 'setup-cloudflare-tunnel.bat' primeiro para configurar.
-    echo.
-    echo Deseja usar:
-    echo 1. Tentar usar tunnel configurado mesmo assim
-    echo 2. Quick tunnel temporario (recomendado agora)
-    echo.
-    set /p tunnel_option="Escolha (1/2) [padrao: 2]: "
-    if "%tunnel_option%"=="" set tunnel_option=2
-)
+REM Usar quick tunnel (sem configuracao necessaria)
+set tunnel_option=2
 
 REM Iniciar servidor em nova janela
 echo.

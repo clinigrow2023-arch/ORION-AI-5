@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        // Permitir hosts do Cloudflare Tunnel para webhooks
+        allowedHosts: [
+          '.trycloudflare.com',
+          '.cloudflare.com',
+        ],
         proxy: {
           '/.netlify/functions': {
             target: 'http://localhost:8888',

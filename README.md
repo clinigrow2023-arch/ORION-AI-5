@@ -131,7 +131,7 @@ You can test the IPN connection using DigiStore's connection test feature. The e
 
 ## Cloudflare Tunnel (Development)
 
-For local development with external access, you can use Cloudflare Tunnel.
+For local development with external access and webhook support (e.g., DigiStore IPN), use Cloudflare Tunnel.
 
 ### Setup
 
@@ -139,22 +139,45 @@ For local development with external access, you can use Cloudflare Tunnel.
    - Download from: https://github.com/cloudflare/cloudflared/releases
    - Extract `cloudflared.exe` and add to PATH or place in project directory
 
-2. Run the script:
+2. **First time setup** - Configure the tunnel:
+   ```bash
+   setup-cloudflare-tunnel.bat
+   ```
+   This will:
+   - Authenticate with Cloudflare (opens browser)
+   - Create a named tunnel (`orion-ai-dev`)
+   - Configure it to point to `localhost:3000`
+   - Optionally set up a custom hostname
+
+3. **Start the tunnel** (after setup):
+   ```bash
+   start-tunnel.bat
+   ```
+   Or use the combined script that starts both server and tunnel:
    ```bash
    start-with-tunnel.bat
    ```
 
-### Options
+### Scripts
 
-The script offers three tunnel options:
+- **`setup-cloudflare-tunnel.bat`** - One-time setup to create and configure the tunnel
+- **`start-tunnel.bat`** - Start only the tunnel (server must be running separately)
+- **`start-with-tunnel.bat`** - Start both server and tunnel together
 
-1. **Named Tunnel** - Use an existing configured tunnel (requires prior setup)
-2. **Quick Tunnel** (Default) - Creates a temporary tunnel with a random URL (recommended for development)
-3. **Custom Hostname** - Use a custom hostname (requires prior configuration)
+### Usage for Webhooks
 
-### Usage
+1. Run `setup-cloudflare-tunnel.bat` (first time only)
+2. Start your development server: `npm run dev`
+3. Start the tunnel: `start-tunnel.bat`
+4. Copy the tunnel URL shown in the console
+5. Use this URL in webhook configurations (e.g., DigiStore IPN):
+   ```
+   https://your-tunnel-url.trycloudflare.com/.netlify/functions/digistore-ipn
+   ```
 
-- The script will start the development server in a separate window
-- The Cloudflare Tunnel URL will be displayed in the console
-- Use this URL to access your local server from anywhere
-- Press Ctrl+C to stop the tunnel (server will continue running in the other window)
+### Notes
+
+- The tunnel URL is persistent (same URL each time) when using a named tunnel
+- Quick tunnels generate random URLs each time (not recommended for webhooks)
+- Press Ctrl+C to stop the tunnel
+- The tunnel must be running to receive webhooks

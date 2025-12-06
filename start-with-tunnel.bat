@@ -76,15 +76,29 @@ set SERVER_PORT=3000
 set TUNNEL_HOST=localhost
 set TUNNEL_PORT=%SERVER_PORT%
 
-REM Perguntar se deseja usar um tunnel nomeado ou criar um novo
-echo.
-echo Configuracao do Cloudflare Tunnel:
-echo 1. Usar tunnel existente (nomeado)
-echo 2. Criar tunnel temporario (quick tunnel)
-echo 3. Usar tunnel com nome personalizado
-echo.
-set /p tunnel_option="Escolha uma opcao (1/2/3) [padrao: 2]: "
-if "%tunnel_option%"=="" set tunnel_option=2
+REM Verificar se tunnel configurado existe
+set TUNNEL_NAME=orion-ai-dev
+%CLOUDFLARED_CMD% tunnel list | findstr /C:"%TUNNEL_NAME%" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [INFO] Tunnel configurado '%TUNNEL_NAME%' encontrado.
+    echo.
+    echo Deseja usar:
+    echo 1. Tunnel configurado (%TUNNEL_NAME%) - Recomendado para webhooks
+    echo 2. Quick tunnel temporario
+    echo.
+    set /p tunnel_option="Escolha (1/2) [padrao: 1]: "
+    if "%tunnel_option%"=="" set tunnel_option=1
+) else (
+    echo [AVISO] Tunnel configurado nao encontrado.
+    echo [INFO] Execute 'setup-cloudflare-tunnel.bat' primeiro para configurar.
+    echo.
+    echo Deseja usar:
+    echo 1. Tentar usar tunnel configurado mesmo assim
+    echo 2. Quick tunnel temporario (recomendado agora)
+    echo.
+    set /p tunnel_option="Escolha (1/2) [padrao: 2]: "
+    if "%tunnel_option%"=="" set tunnel_option=2
+)
 
 REM Iniciar servidor em nova janela
 echo.
@@ -118,20 +132,15 @@ echo ========================================
 echo.
 
 if "%tunnel_option%"=="1" (
-    REM Usar tunnel existente (nomeado)
-    echo [INFO] Usando tunnel existente...
-    echo Por favor, informe o nome do tunnel:
-    set /p tunnel_name="Nome do tunnel: "
-    if "%tunnel_name%"=="" (
-        echo [ERRO] Nome do tunnel nao pode ser vazio.
-        pause
-        exit /b 1
-    )
-    echo.
-    echo [INFO] Iniciando tunnel: %tunnel_name%
+    REM Usar tunnel configurado
+    echo [INFO] Usando tunnel configurado: %TUNNEL_NAME%
     echo [INFO] URL sera exibida abaixo quando o tunnel estiver pronto.
     echo.
-    %CLOUDFLARED_CMD% tunnel run %tunnel_name%
+    echo ========================================
+    echo   TUNNEL CONFIGURADO - Para Webhooks
+    echo ========================================
+    echo.
+    %CLOUDFLARED_CMD% tunnel run %TUNNEL_NAME%
 ) else if "%tunnel_option%"=="3" (
     REM Tunnel com hostname personalizado (requer configuracao previa)
     echo Por favor, informe o hostname do tunnel:

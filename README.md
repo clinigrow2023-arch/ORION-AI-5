@@ -94,6 +94,7 @@ The app includes integration with DigiStore24 for automatic user creation when p
 ### Configuration
 
 1. Set up the IPN URL in DigiStore24 settings:
+
    - Go to https://www.digistore24.com/settings/ipn
    - Set the notify URL to: `https://your-site.netlify.app/.netlify/functions/digistore-ipn`
    - Configure IPN timing to "Before redirect to thankyou page"
@@ -106,6 +107,7 @@ The app includes integration with DigiStore24 for automatic user creation when p
 ### How it works
 
 When a payment is confirmed:
+
 - A new user account is automatically created with the email and name from DigiStore
 - A random password is generated and the user is marked as active
 - The user is required to change their password on first login (`passwordResetRequired: true`)
@@ -126,3 +128,33 @@ You can test the IPN connection using DigiStore's connection test feature. The e
   - All functions work locally without needing `netlify dev`
   - In production, Netlify automatically uses the real Functions
 - **Netlify CLI** (Optional): You can also use `netlify dev` if preferred
+
+## Cloudflare Tunnel (Development)
+
+For local development with external access, you can use Cloudflare Tunnel.
+
+### Setup
+
+1. Install Cloudflare Tunnel:
+   - Download from: https://github.com/cloudflare/cloudflared/releases
+   - Extract `cloudflared.exe` and add to PATH or place in project directory
+
+2. Run the script:
+   ```bash
+   start-with-tunnel.bat
+   ```
+
+### Options
+
+The script offers three tunnel options:
+
+1. **Named Tunnel** - Use an existing configured tunnel (requires prior setup)
+2. **Quick Tunnel** (Default) - Creates a temporary tunnel with a random URL (recommended for development)
+3. **Custom Hostname** - Use a custom hostname (requires prior configuration)
+
+### Usage
+
+- The script will start the development server in a separate window
+- The Cloudflare Tunnel URL will be displayed in the console
+- Use this URL to access your local server from anywhere
+- Press Ctrl+C to stop the tunnel (server will continue running in the other window)

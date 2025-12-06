@@ -25,6 +25,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    DATABASE_URL=mongodb+srv://user:password@cluster.mongodb.net/orionai?appName=OrionIA
    JWT_SECRET=your-secret-key-change-in-production
+   SITE_URL=https://your-site.netlify.app
+   DIGISTORE_IPN_PASSPHRASE=your_digistore_ipn_passphrase
    ```
 
 3. Generate Prisma Client:
@@ -80,8 +82,39 @@ The app requires user authentication. Users must:
    - `GEMINI_API_KEY` - Your Gemini API key
    - `DATABASE_URL` - MongoDB connection string (must include database name)
    - `JWT_SECRET` - Secret key for JWT tokens
+   - `SITE_URL` - Your site URL (e.g., https://your-site.netlify.app)
+   - `DIGISTORE_IPN_PASSPHRASE` - IPN passphrase from DigiStore settings (optional, for signature validation)
 
 2. The app will automatically deploy on push to main branch
+
+## DigiStore IPN Integration
+
+The app includes integration with DigiStore24 for automatic user creation when payments are confirmed.
+
+### Configuration
+
+1. Set up the IPN URL in DigiStore24 settings:
+   - Go to https://www.digistore24.com/settings/ipn
+   - Set the notify URL to: `https://your-site.netlify.app/.netlify/functions/digistore-ipn`
+   - Configure IPN timing to "Before redirect to thankyou page"
+   - Set "group by upsells" to NO (important for access data to be sent via email)
+
+2. Set environment variables:
+   - `SITE_URL` - Your site URL (e.g., https://your-site.netlify.app)
+   - `DIGISTORE_IPN_PASSPHRASE` - IPN passphrase from DigiStore settings (optional, for signature validation)
+
+### How it works
+
+When a payment is confirmed:
+- A new user account is automatically created with the email and name from DigiStore
+- A random password is generated and the user is marked as active
+- The user is required to change their password on first login (`passwordResetRequired: true`)
+- Access credentials (email and temporary password) are sent to the customer via DigiStore's confirmation email
+- The user is redirected to the login page
+
+### Testing
+
+You can test the IPN connection using DigiStore's connection test feature. The endpoint will respond with "OK" for connection tests.
 
 ## Important Notes
 

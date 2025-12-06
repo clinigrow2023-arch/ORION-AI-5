@@ -12,10 +12,7 @@ const isDevelopment =
 
 // Get API key for development fallback (only used if Netlify Function fails)
 const getDevApiKey = (): string => {
-  if (
-    typeof import.meta !== "undefined" &&
-    (import.meta as any).env
-  ) {
+  if (typeof import.meta !== "undefined" && (import.meta as any).env) {
     // Try to get from Vite env (only in dev, not bundled)
     return (import.meta as any).env.VITE_GEMINI_API_KEY || "";
   }

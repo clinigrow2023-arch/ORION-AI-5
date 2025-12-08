@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/.netlify/functions/(.*)",
+      "destination": "/api/$1"
+    }
+  ],
+  "env": {
+    "PRISMA_GENERATE_DATABASE_URL": "mongodb://localhost:27017/dummy"
+  }
+}

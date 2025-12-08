@@ -52,14 +52,12 @@ export const handler: Handler = async (event, context) => {
     };
   }
 
-  // Verificar se usuário está bloqueado e tem acesso ativo
+  // Verificar se usuário está bloqueado
   const user = await prisma.user.findUnique({
     where: { id: auth.userId },
     select: {
       role: true,
       isBlocked: true,
-      isActive: true,
-      accessExpiresAt: true,
     },
   });
 
@@ -72,8 +70,7 @@ export const handler: Handler = async (event, context) => {
   }
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
-  // Usuários comuns podem acessar o sistema, mas precisam de isActive para usar a IA
-  // A verificação de isActive para uso da IA é feita no ChatInterface e na função gemini
+  // Verificar apenas se usuário está bloqueado
   if (user.role !== "admin") {
     if (user.isBlocked) {
       return {
@@ -82,8 +79,6 @@ export const handler: Handler = async (event, context) => {
         body: JSON.stringify({ error: "Account is blocked" }),
       };
     }
-    // Removido: verificação de isActive e accessExpiresAt aqui
-    // Usuários podem acessar o sistema mesmo sem isActive, mas não podem usar a IA
   }
 
   try {

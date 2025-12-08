@@ -1,47 +1,52 @@
-import { Handler } from '@netlify/functions';
-import { prisma } from '../../lib/prisma';
-import jwt from 'jsonwebtoken';
+import { Handler } from "@netlify/functions";
+import { prisma } from "../../lib/prisma";
+import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 export const handler: Handler = async (event, context) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
   };
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: "",
     };
   }
 
-  if (event.httpMethod !== 'GET') {
+  if (event.httpMethod !== "GET") {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   try {
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader =
+      event.headers.authorization || event.headers.Authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: 'No token provided' }),
+        body: JSON.stringify({ error: "No token provided" }),
       };
     }
 
     const token = authHeader.substring(7);
 
     // Verificar token
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      email: string;
+    };
 
     // Buscar usuário
     const user = await prisma.user.findUnique({
@@ -52,8 +57,6 @@ export const handler: Handler = async (event, context) => {
         email: true,
         role: true,
         isBlocked: true,
-        isActive: true,
-        accessExpiresAt: true,
         passwordResetRequired: true,
         createdAt: true,
       },
@@ -63,31 +66,30 @@ export const handler: Handler = async (event, context) => {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: 'User not found' }),
+        body: JSON.stringify({ error: "User not found" }),
       };
     }
 
     // Verificar se usuário está bloqueado (admin pode estar bloqueado também)
-    if (user.isBlocked && user.role !== 'admin') {
+    if (user.isBlocked && user.role !== "admin") {
       return {
         statusCode: 403,
         headers,
-        body: JSON.stringify({ 
-          error: 'Account is blocked',
+        body: JSON.stringify({
+          error: "Account is blocked",
           blocked: true,
         }),
       };
     }
 
     // IMPORTANTE: Admin sempre tem acesso ilimitado
-    // Usuários comuns podem acessar o sistema, mas precisam de isActive para usar a IA
-    // A verificação de isActive para uso da IA é feita no ChatInterface e na função gemini
+    // Usuários comuns podem usar a IA imediatamente após cadastro (sem necessidade de liberação)
 
     return {
       statusCode: 200,
       headers: {
         ...headers,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         valid: true,
@@ -98,22 +100,24 @@ export const handler: Handler = async (event, context) => {
       }),
     };
   } catch (error: any) {
-    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+    if (
+      error.name === "JsonWebTokenError" ||
+      error.name === "TokenExpiredError"
+    ) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: 'Invalid or expired token' }),
+        body: JSON.stringify({ error: "Invalid or expired token" }),
       };
     }
 
-    console.error('Verify error:', error);
+    console.error("Verify error:", error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: error.message || 'Internal server error',
+        error: error.message || "Internal server error",
       }),
     };
   }
 };
-

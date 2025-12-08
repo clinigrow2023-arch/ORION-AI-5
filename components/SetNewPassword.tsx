@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
-import { KeyRound, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { authService } from '../lib/auth';
+import React, { useState } from "react";
+import {
+  KeyRound,
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
+import { authService } from "../lib/auth";
 
 interface SetNewPasswordProps {
   onComplete: () => void;
 }
 
 const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,17 +29,17 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
 
     // Validações
     if (!newPassword || !confirmPassword) {
-      setError('All fields are required');
+      setError("All fields are required");
       return;
     }
 
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError("Password must be at least 6 characters");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
@@ -40,34 +47,35 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
       setLoading(true);
       const token = authService.getToken();
       if (!token) {
-        throw new Error('No token found');
+        throw new Error("No token found");
       }
 
-      const response = await fetch('/.netlify/functions/set-new-password', {
-        method: 'POST',
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("set-new-password"), {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ newPassword, confirmPassword }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to set password');
+        throw new Error(data.error || "Failed to set password");
       }
 
       setSuccess(true);
-      setNewPassword('');
-      setConfirmPassword('');
-      
+      setNewPassword("");
+      setConfirmPassword("");
+
       // Fechar após 2 segundos e recarregar
       setTimeout(() => {
         onComplete();
         window.location.reload();
       }, 2000);
     } catch (err: any) {
-      setError(err.message || 'Failed to set password');
+      setError(err.message || "Failed to set password");
     } finally {
       setLoading(false);
     }
@@ -81,8 +89,13 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-500/20 rounded-full mb-4 border border-yellow-500/30">
               <KeyRound className="w-8 h-8 text-yellow-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Set New Password</h1>
-            <p className="text-slate-400">Your password has been reset. Please set a new password to continue.</p>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Set New Password
+            </h1>
+            <p className="text-slate-400">
+              Your password has been reset. Please set a new password to
+              continue.
+            </p>
           </div>
 
           {error && (
@@ -101,14 +114,20 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="newPassword"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 New Password
               </label>
               <div className="relative">
-                <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <KeyRound
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                  size={20}
+                />
                 <input
                   id="newPassword"
-                  type={showNewPassword ? 'text' : 'password'}
+                  type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full pl-10 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
@@ -128,14 +147,20 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-slate-300 mb-2"
+              >
                 Confirm New Password
               </label>
               <div className="relative">
-                <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                <KeyRound
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+                  size={20}
+                />
                 <input
                   id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-10 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
@@ -149,7 +174,11 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
                   tabIndex={-1}
                 >
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showConfirmPassword ? (
+                    <EyeOff size={20} />
+                  ) : (
+                    <Eye size={20} />
+                  )}
                 </button>
               </div>
             </div>
@@ -170,7 +199,7 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
                   <span>Success!</span>
                 </>
               ) : (
-                'Set New Password'
+                "Set New Password"
               )}
             </button>
           </form>
@@ -181,4 +210,3 @@ const SetNewPassword: React.FC<SetNewPasswordProps> = ({ onComplete }) => {
 };
 
 export default SetNewPassword;
-

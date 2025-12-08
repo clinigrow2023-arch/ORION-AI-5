@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Clock, Mail, LogOut, RefreshCw } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { authService } from '../lib/auth';
+import React, { useState } from "react";
+import { Clock, Mail, LogOut, RefreshCw } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { authService } from "../lib/auth";
 
 const WaitingActivation: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
@@ -17,20 +17,21 @@ const WaitingActivation: React.FC = () => {
       }
 
       // Fazer verificação direta quando usuário clicar
-      const response = await fetch('/.netlify/functions/auth-verify', {
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("auth-verify"), {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (response.ok) {
         const data = await response.json();
         const updatedUser = data.user;
-        
+
         // IMPORTANTE: Atualizar localStorage ANTES de atualizar o estado
         // Isso garante que quando a página recarregar, o checkAuth encontre os dados corretos
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+
         // Se usuário foi ativado, atualizar estado do contexto e recarregar
         if (updatedUser.isActive) {
           // Atualizar estado do contexto através do refreshUser
@@ -46,7 +47,9 @@ const WaitingActivation: React.FC = () => {
         if (data.blocked) {
           // Usuário bloqueado - fazer logout
           authService.logout();
-          alert('Sua conta foi bloqueada. Entre em contato com um administrador.');
+          alert(
+            "Sua conta foi bloqueada. Entre em contato com um administrador."
+          );
           window.location.reload();
         } else if (data.notActive || data.expired) {
           // Ainda sem acesso ativo - atualizar estado para refletir status atual
@@ -54,7 +57,7 @@ const WaitingActivation: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to verify activation:', error);
+      console.error("Failed to verify activation:", error);
     } finally {
       setRefreshing(false);
     }
@@ -68,15 +71,13 @@ const WaitingActivation: React.FC = () => {
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-3">
-          {user?.accessExpiresAt &&
-          new Date(user.accessExpiresAt) < new Date()
+          {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
             ? "Acesso Expirado"
             : "Aguardando Ativação"}
         </h1>
 
         <p className="text-slate-400 mb-6 leading-relaxed">
-          {user?.accessExpiresAt &&
-          new Date(user.accessExpiresAt) < new Date()
+          {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
             ? "Seu acesso expirou. Entre em contato com um administrador para renovar seu acesso."
             : "Seu acesso ainda não foi liberado. Entre em contato com um administrador para liberar seu acesso ao chat."}
         </p>
@@ -88,9 +89,7 @@ const WaitingActivation: React.FC = () => {
               <p className="text-sm font-medium text-slate-300 mb-1">
                 Email cadastrado:
               </p>
-              <p className="text-sm text-slate-400 break-all">
-                {user?.email}
-              </p>
+              <p className="text-sm text-slate-400 break-all">{user?.email}</p>
             </div>
           </div>
         </div>
@@ -132,4 +131,3 @@ const WaitingActivation: React.FC = () => {
 };
 
 export default WaitingActivation;
-

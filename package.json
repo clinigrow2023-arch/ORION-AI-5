@@ -13,11 +13,13 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "create-admin": "tsx scripts/create-admin.ts",
-    "postinstall": "prisma generate"
+    "activate-users": "tsx scripts/activate-all-users.ts",
+    "postinstall": "prisma generate || (echo '⚠️ Prisma generate failed, setting dummy DATABASE_URL and retrying...' && DATABASE_URL='mongodb://localhost:27017/dummy' prisma generate) || echo '⚠️ Prisma generate skipped (this is OK if DATABASE_URL is not set during build)'"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
     "@netlify/functions": "^5.1.0",
+    "@vercel/node": "^3.0.0",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",

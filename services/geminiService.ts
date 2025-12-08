@@ -1,8 +1,10 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from "../types";
 
-// Netlify Function endpoint
-const NETLIFY_FUNCTION_ENDPOINT = "/.netlify/functions/gemini";
+// API endpoint (compatível com Netlify e Vercel)
+import { getApiEndpoint } from "../lib/api-endpoints";
+
+const NETLIFY_FUNCTION_ENDPOINT = getApiEndpoint("gemini");
 
 // Check if we're in development and Netlify Function is not available
 const isDevelopment =
@@ -12,10 +14,7 @@ const isDevelopment =
 
 // Get API key for development fallback (only used if Netlify Function fails)
 const getDevApiKey = (): string => {
-  if (
-    typeof import.meta !== "undefined" &&
-    (import.meta as any).env
-  ) {
+  if (typeof import.meta !== "undefined" && (import.meta as any).env) {
     // Try to get from Vite env (only in dev, not bundled)
     return (import.meta as any).env.VITE_GEMINI_API_KEY || "";
   }
@@ -199,7 +198,26 @@ BEHAVIORAL RULES:
 
         if (response.ok) {
           const data = await response.json();
+          
+          console.log("API Response Data:", { 
+            hasResponse: !!data.response, 
+            responseType: typeof data.response,
+            responseLength: data.response?.length || 0,
+            responsePreview: data.response?.substring(0, 200) || "empty",
+            fullData: data
+          });
+
           const fullText = data.response || "";
+
+          // Validar se a resposta não está vazia
+          if (!fullText || (typeof fullText === "string" && fullText.trim() === "")) {
+            console.error("❌ Empty response from API:", {
+              data,
+              response: data.response,
+              responseType: typeof data.response
+            });
+            throw new Error("AI returned an empty response. Please try again.");
+          }
 
           // Simulate streaming
           if (fullText && onChunk) {

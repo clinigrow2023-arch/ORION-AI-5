@@ -127,7 +127,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         history || []
       );
 
-      console.log(`✅ Message sent using ${provider}`);
+      console.log(`✅ Message sent using ${provider}`, {
+        responseLength: fullText?.length || 0,
+        responsePreview: fullText?.substring(0, 100) || "empty"
+      });
+
+      // Validar se a resposta não está vazia
+      if (!fullText || fullText.trim() === "") {
+        console.error("❌ Empty response from provider:", provider);
+        return res.status(500).json({
+          error: "AI returned an empty response. Please try again.",
+        });
+      }
 
       return res.status(200).json({
         response: fullText,

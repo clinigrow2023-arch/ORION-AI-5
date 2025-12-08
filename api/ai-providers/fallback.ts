@@ -163,12 +163,12 @@ export async function tryProviders<T>(
       // Mas só parar se for claramente um erro de autenticação
       if (!isRetryable) {
         const errorMessage = (error?.message || "").toLowerCase();
-        const isAuthError = 
+        const isAuthError =
           errorMessage.includes("invalid api key") ||
           errorMessage.includes("unauthorized") ||
           errorMessage.includes("authentication failed") ||
           errorMessage.includes("invalid authentication");
-        
+
         // Se não for erro de autenticação, continuar tentando outros providers
         if (!isAuthError) {
           console.warn(
@@ -176,7 +176,7 @@ export async function tryProviders<T>(
           );
           continue;
         }
-        
+
         console.error(
           `🚫 ${provider.name} error is not retryable (auth error), stopping fallback chain`
         );
@@ -190,7 +190,9 @@ export async function tryProviders<T>(
 
   // All providers failed
   const errorMessages = errors
-    .map((e) => `${e.provider}: ${e.error?.message || e.error || "Unknown error"}`)
+    .map(
+      (e) => `${e.provider}: ${e.error?.message || e.error || "Unknown error"}`
+    )
     .join("; ");
   throw new Error(
     `All AI providers failed for ${operationName}. Errors: ${errorMessages}`

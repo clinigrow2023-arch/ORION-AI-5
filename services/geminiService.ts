@@ -200,6 +200,18 @@ BEHAVIORAL RULES:
           const data = await response.json();
           const fullText = data.response || "";
 
+          console.log("API Response:", { 
+            hasResponse: !!data.response, 
+            responseLength: data.response?.length || 0,
+            responsePreview: data.response?.substring(0, 100) || "empty"
+          });
+
+          // Validar se a resposta não está vazia
+          if (!fullText || fullText.trim() === "") {
+            console.error("Empty response from API:", data);
+            throw new Error("AI returned an empty response. Please try again.");
+          }
+
           // Simulate streaming
           if (fullText && onChunk) {
             const words = fullText.split(" ");

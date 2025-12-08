@@ -349,16 +349,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
       );
 
+      // Validar se a resposta não está vazia
+      if (!fullResponse || fullResponse.trim() === "") {
+        console.error("Empty response from AI:", fullResponse);
+        throw new Error("AI returned an empty response. Please try again.");
+      }
+
       // Limpar streamedResponse ANTES de adicionar a mensagem final
       // Isso evita a duplicação visual (placeholder + mensagem final)
       setStreamedResponse("");
 
       const botMsg: Message = {
         id: generateUniqueId(),
-        text: fullResponse,
+        text: fullResponse.trim(),
         sender: Sender.Bot,
         timestamp: new Date(),
       };
+
+      console.log("Bot message created:", botMsg);
 
       const updatedMessages = [...currentMessages, botMsg];
       addMessage(botMsg);
@@ -477,7 +485,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   const token = authService.getToken();
                                   if (!token) return;
 
-                                  const { getApiEndpoint } = await import("../lib/api-endpoints");
+                                  const { getApiEndpoint } = await import(
+                                    "../lib/api-endpoints"
+                                  );
                                   const response = await fetch(
                                     getApiEndpoint("conversations"),
                                     {

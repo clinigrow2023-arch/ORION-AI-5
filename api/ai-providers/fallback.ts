@@ -207,12 +207,32 @@ export async function sendMessageWithFallback(
   const providers = createProviders();
   const systemInstruction = getSystemInstruction();
 
-  return tryProviders(
+  const { result, provider } = await tryProviders(
     providers,
-    async (provider) =>
-      await provider.sendMessage(message, history, systemInstruction),
+    async (provider) => {
+      const response = await provider.sendMessage(message, history, systemInstruction);
+      console.log(`📦 Provider ${provider.name} returned:`, {
+        hasResponse: !!response,
+        responseType: typeof response,
+        responseLength: response?.length || 0,
+        responsePreview: response?.substring(0, 100) || "empty"
+      });
+      return response;
+    },
     "sendMessage"
   );
+
+  // Garantir que result é uma string válida
+  if (!result || (typeof result === "string" && result.trim() === "")) {
+    console.error("❌ sendMessageWithFallback: result is empty:", {
+      result,
+      type: typeof result,
+      provider
+    });
+    throw new Error(`Provider ${provider} returned an empty response`);
+  }
+
+  return { response: typeof result === "string" ? result : String(result), provider };
 }
 
 // Generate plan with fallback

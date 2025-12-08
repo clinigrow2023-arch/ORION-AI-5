@@ -343,7 +343,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     try {
       console.log("📤 Sending message:", input);
-      
+
       const fullResponse = await geminiService.sendMessageStream(
         input,
         (chunk) => {
@@ -355,15 +355,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         hasResponse: !!fullResponse,
         responseType: typeof fullResponse,
         responseLength: fullResponse?.length || 0,
-        responsePreview: fullResponse?.substring(0, 100) || "empty"
+        responsePreview: fullResponse?.substring(0, 100) || "empty",
       });
 
       // Validar se a resposta não está vazia
-      if (!fullResponse || (typeof fullResponse === "string" && fullResponse.trim() === "")) {
+      if (
+        !fullResponse ||
+        (typeof fullResponse === "string" && fullResponse.trim() === "")
+      ) {
         console.error("❌ Empty response from AI:", {
           fullResponse,
           type: typeof fullResponse,
-          length: fullResponse?.length
+          length: fullResponse?.length,
         });
         throw new Error("AI returned an empty response. Please try again.");
       }
@@ -373,14 +376,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setStreamedResponse("");
 
       // Garantir que temos uma resposta válida antes de criar a mensagem
-      const responseText = typeof fullResponse === "string" 
-        ? fullResponse.trim() 
-        : String(fullResponse || "").trim();
+      const responseText =
+        typeof fullResponse === "string"
+          ? fullResponse.trim()
+          : String(fullResponse || "").trim();
 
       if (!responseText) {
         console.error("❌ Cannot create bot message - response is empty:", {
           fullResponse,
-          type: typeof fullResponse
+          type: typeof fullResponse,
         });
         throw new Error("AI returned an empty response. Please try again.");
       }
@@ -397,7 +401,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         textLength: botMsg.text.length,
         textPreview: botMsg.text.substring(0, 100),
         sender: botMsg.sender,
-        hasText: !!botMsg.text
+        hasText: !!botMsg.text,
       });
 
       // Validar novamente antes de adicionar
@@ -692,7 +696,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ) : (
                   <div className="text-slate-400 italic">
                     <p>Empty message (ID: {msg.id})</p>
-                    <p className="text-xs mt-1">This may indicate an issue with the AI response.</p>
+                    <p className="text-xs mt-1">
+                      This may indicate an issue with the AI response.
+                    </p>
                   </div>
                 )}
               </div>

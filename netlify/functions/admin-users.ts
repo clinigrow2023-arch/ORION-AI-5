@@ -59,85 +59,6 @@ export const handler: Handler = async (event, context) => {
   }
 
   try {
-    // POST - Promover usuário por email
-    if (event.httpMethod === 'POST') {
-      const { email, role } = JSON.parse(event.body || '{}');
-
-      if (!email) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Email is required' }),
-        };
-      }
-
-      if (role !== 'admin' && role !== 'user') {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Invalid role. Must be "admin" or "user"' }),
-        };
-      }
-
-      // Buscar usuário por email
-      const targetUser = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true, email: true, name: true },
-      });
-
-      if (!targetUser) {
-        return {
-          statusCode: 404,
-          headers,
-          body: JSON.stringify({ error: 'User not found with this email' }),
-        };
-      }
-
-      // Não permitir que admin altere seu próprio role
-      if (targetUser.id === admin.userId) {
-        if (role === 'user') {
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'You cannot change your own role to user' }),
-          };
-        }
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'You cannot change your own role' }),
-        };
-      }
-
-      // Atualizar role
-      const updatedUser = await prisma.user.update({
-        where: { id: targetUser.id },
-        data: { role },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isBlocked: true,
-          isActive: true,
-          accessExpiresAt: true,
-          createdAt: true,
-        },
-      });
-
-      return {
-        statusCode: 200,
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          success: true,
-          message: `User ${updatedUser.email} role updated to ${role}`,
-          user: updatedUser 
-        }),
-      };
-    }
 
     // GET - Listar todos os usuários
     if (event.httpMethod === 'GET') {
@@ -148,8 +69,6 @@ export const handler: Handler = async (event, context) => {
           email: true,
           role: true,
           isBlocked: true,
-          isActive: true,
-          accessExpiresAt: true,
           passwordResetRequired: true,
           createdAt: true,
         },
@@ -219,9 +138,9 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // PUT - Atualizar usuário (bloquear/desbloquear, liberar acesso, editar data, alterar role, reset password)
+    // PUT - Atualizar usuário (bloquear/desbloquear, reset password)
     if (event.httpMethod === 'PUT') {
-      const { userId, isBlocked, grantAccess, accessExpiresAt, updateExpirationDate, role, resetPassword } = JSON.parse(event.body || '{}');
+      const { userId, isBlocked, resetPassword } = JSON.parse(event.body || '{}');
 
       if (!userId) {
         return {
@@ -231,7 +150,7 @@ export const handler: Handler = async (event, context) => {
         };
       }
 
-      // Verificar se está tentando alterar o próprio role (não permitir)
+      // Verificar se usuário existe
       const targetUser = await prisma.user.findUnique({
         where: { id: userId },
         select: { id: true },
@@ -245,75 +164,14 @@ export const handler: Handler = async (event, context) => {
         };
       }
 
-      // Não permitir que admin altere seu próprio role, especialmente para user
-      if (targetUser.id === admin.userId && role) {
-        // Se está tentando alterar para user, bloquear completamente
-        if (role === 'user') {
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'You cannot change your own role to user' }),
-          };
-        }
-        // Mesmo para admin, não permitir alterar próprio role
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'You cannot change your own role' }),
-        };
-      }
-
       const updateData: any = {};
       if (typeof isBlocked === 'boolean') {
         updateData.isBlocked = isBlocked;
-      }
-      
-      // Atualizar role (admin ou user)
-      if (role === 'admin' || role === 'user') {
-        updateData.role = role;
       }
 
       // Resetar senha (define passwordResetRequired = true)
       if (resetPassword === true) {
         updateData.passwordResetRequired = true;
-      }
-      
-      // Editar apenas a data de expiração (sem alterar isActive)
-      if (updateExpirationDate === true && accessExpiresAt) {
-        const customDate = new Date(accessExpiresAt);
-        if (isNaN(customDate.getTime())) {
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'Invalid date format for accessExpiresAt' }),
-          };
-        }
-        updateData.accessExpiresAt = customDate;
-      } else if (grantAccess === true) {
-        // Liberar acesso
-        updateData.isActive = true;
-        
-        // Se foi fornecida uma data customizada, usar ela
-        if (accessExpiresAt) {
-          const customDate = new Date(accessExpiresAt);
-          if (isNaN(customDate.getTime())) {
-            return {
-              statusCode: 400,
-              headers,
-              body: JSON.stringify({ error: 'Invalid date format for accessExpiresAt' }),
-            };
-          }
-          updateData.accessExpiresAt = customDate;
-        } else {
-          // Caso contrário, usar padrão: 1 mês
-          const expiresAt = new Date();
-          expiresAt.setMonth(expiresAt.getMonth() + 1);
-          updateData.accessExpiresAt = expiresAt;
-        }
-      } else if (grantAccess === false) {
-        // Revogar acesso
-        updateData.isActive = false;
-        updateData.accessExpiresAt = null;
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -333,8 +191,6 @@ export const handler: Handler = async (event, context) => {
           email: true,
           role: true,
           isBlocked: true,
-          isActive: true,
-          accessExpiresAt: true,
           createdAt: true,
         },
       });

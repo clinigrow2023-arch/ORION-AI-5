@@ -77,20 +77,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           window.location.reload();
         }
       } else if (response.status === 403) {
-        // Verificar se é bloqueado ou sem acesso ativo
+        // Verificar se é bloqueado
         const data = await response.json().catch(() => ({}));
         if (data.blocked) {
           // Usuário bloqueado - fazer logout
           authService.logout();
           setUser(null);
           window.location.reload();
-        } else if (data.notActive || data.expired) {
-          // Usuário sem acesso ativo ou expirado - manter logado mas atualizar status
-          const userStr = localStorage.getItem("user");
-          if (userStr) {
-            const currentUser = JSON.parse(userStr);
-            setUser({ ...currentUser, isActive: false, ...data });
-          }
         }
       } else {
         // Outros erros - fazer logout
@@ -179,16 +172,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkAuth();
 
-    // Verificar periodicamente se o usuário foi bloqueado ou se acesso expirou (a cada 30 segundos)
-    // Verificar se usuário tem acesso ativo OU se tem accessExpiresAt (para detectar expiração)
+    // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
     const interval = setInterval(async () => {
       // Verificar se usuário existe e não está bloqueado
-      // Verificar também se tem accessExpiresAt para detectar expiração mesmo se isActive ainda for true
-      if (
-        user &&
-        !user.isBlocked &&
-        (user.isActive === true || user.accessExpiresAt)
-      ) {
+      if (user && !user.isBlocked) {
         const token = authService.getToken();
         if (token) {
           try {
@@ -207,17 +194,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   "Sua conta foi bloqueada. Entre em contato com um administrador."
                 );
                 window.location.reload();
-              } else if (data.expired || data.notActive) {
-                // Acesso expirado ou revogado - atualizar estado sem fazer logout
-                const userStr = localStorage.getItem("user");
-                if (userStr) {
-                  const currentUser = JSON.parse(userStr);
-                  setUser({ ...currentUser, isActive: false, ...data });
-                  localStorage.setItem(
-                    "user",
-                    JSON.stringify({ ...currentUser, isActive: false, ...data })
-                  );
-                }
               }
             } else if (response.ok) {
               const data = await response.json();
@@ -231,7 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 );
                 window.location.reload();
               } else {
-                // Atualizar dados do usuário (incluindo status de expiração)
+                // Atualizar dados do usuário
                 localStorage.setItem("user", JSON.stringify(updatedUser));
                 setUser((prev) => (prev ? { ...prev, ...updatedUser } : null));
               }
@@ -244,7 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, 30000); // Verificar a cada 30 segundos
 
     return () => clearInterval(interval);
-  }, [user?.isActive, user?.isBlocked, user?.accessExpiresAt]); // Re-executar se isActive, isBlocked ou accessExpiresAt mudar
+  }, [user?.isBlocked]); // Re-executar se isBlocked mudar
 
   const login = async (email: string, password: string) => {
     // Limpar histórico do geminiService ao fazer login para evitar compartilhamento entre usuários
@@ -262,13 +238,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (name: string, email: string, password: string) => {
     const response = await authService.register(name, email, password);
-    // Após registro, usuário não tem acesso ativo, então não precisa fazer refreshUser
-    // O useEffect já vai verificar e mostrar tela de espera
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      const currentUser = JSON.parse(userStr);
-      // Usuário recém-criado não tem acesso ativo
-      setUser({ ...currentUser, isActive: false });
+    // Após registro, usuário já está ativo e pode usar a IA imediatamente
+    if (response.user) {
+      localStorage.setItem("user", JSON.stringify(response.user));
+      setUser(response.user);
     }
   };
 

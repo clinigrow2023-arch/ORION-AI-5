@@ -63,8 +63,6 @@ export const handler: Handler = async (event, context) => {
         email: true,
         role: true,
         isBlocked: true,
-        isActive: true,
-        accessExpiresAt: true,
       },
     });
 
@@ -77,7 +75,7 @@ export const handler: Handler = async (event, context) => {
     }
 
     // IMPORTANTE: Admin sempre tem acesso ilimitado
-    // Não verifica isActive ou accessExpiresAt para admin
+    // Verificar apenas se usuário está bloqueado (não verifica mais isActive ou accessExpiresAt)
     if (user.role !== 'admin') {
       // Verificar se usuário está bloqueado
       if (user.isBlocked) {
@@ -87,30 +85,6 @@ export const handler: Handler = async (event, context) => {
           body: JSON.stringify({ 
             error: 'Account blocked. Please contact an administrator.',
             blocked: true,
-          }),
-        };
-      }
-
-      // Verificar se usuário tem acesso ativo
-      if (!user.isActive) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ 
-            error: 'Account access not granted. Please contact an administrator.',
-            notActive: true,
-          }),
-        };
-      }
-
-      // Verificar se acesso expirou
-      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ 
-            error: 'Your access has expired. Please contact an administrator to renew.',
-            expired: true,
           }),
         };
       }

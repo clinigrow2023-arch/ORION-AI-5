@@ -78,13 +78,13 @@ export const handler: Handler = async (event, context) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Criar usuário (não liberado por padrão - precisa aprovação do admin)
+    // Criar usuário (já ativo por padrão - pode usar a IA imediatamente)
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
-        isActive: false, // Usuário precisa ser liberado manualmente pelo admin
+        isActive: true, // Usuário já pode usar a IA imediatamente após cadastro
       },
       select: {
         id: true,

@@ -52,8 +52,6 @@ export const handler: Handler = async (event, context) => {
         email: true,
         role: true,
         isBlocked: true,
-        isActive: true,
-        accessExpiresAt: true,
         passwordResetRequired: true,
         createdAt: true,
       },
@@ -80,8 +78,7 @@ export const handler: Handler = async (event, context) => {
     }
 
     // IMPORTANTE: Admin sempre tem acesso ilimitado
-    // Usuários comuns podem acessar o sistema, mas precisam de isActive para usar a IA
-    // A verificação de isActive para uso da IA é feita no ChatInterface e na função gemini
+    // Usuários comuns podem usar a IA imediatamente após cadastro (sem necessidade de liberação)
 
     return {
       statusCode: 200,

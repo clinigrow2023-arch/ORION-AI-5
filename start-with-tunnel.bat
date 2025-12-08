@@ -110,43 +110,18 @@ echo   Iniciando Cloudflare Tunnel...
 echo ========================================
 echo.
 
-if "%tunnel_option%"=="1" (
-    REM Usar tunnel configurado
-    echo [INFO] Usando tunnel configurado: %TUNNEL_NAME%
-    echo [INFO] URL sera exibida abaixo quando o tunnel estiver pronto.
-    echo.
-    echo ========================================
-    echo   TUNNEL CONFIGURADO - Para Webhooks
-    echo ========================================
-    echo.
-    %CLOUDFLARED_CMD% tunnel run %TUNNEL_NAME%
-) else if "%tunnel_option%"=="3" (
-    REM Tunnel com hostname personalizado (requer configuracao previa)
-    echo Por favor, informe o hostname do tunnel:
-    set /p tunnel_hostname="Hostname (ex: app.exemplo.com): "
-    if "%tunnel_hostname%"=="" (
-        echo [ERRO] Hostname nao pode ser vazio.
-        pause
-        exit /b 1
-    )
-    echo.
-    echo [INFO] Criando tunnel para: %tunnel_hostname%
-    echo [INFO] URL sera exibida abaixo quando o tunnel estiver pronto.
-    echo.
-    %CLOUDFLARED_CMD% tunnel --url http://%TUNNEL_HOST%:%TUNNEL_PORT% --hostname %tunnel_hostname%
-) else (
-    REM Quick tunnel (temporario) - mais simples e recomendado para desenvolvimento
-    echo [INFO] Criando tunnel temporario (quick tunnel)...
-    echo [INFO] URL sera exibida abaixo quando o tunnel estiver pronto.
-    echo.
-    echo ========================================
-    echo   TUNNEL ATIVO - Aguarde a URL abaixo
-    echo ========================================
-    echo.
-    echo [INFO] Conectando a http://%TUNNEL_HOST%:%TUNNEL_PORT%
-    echo.
-    %CLOUDFLARED_CMD% tunnel --url http://%TUNNEL_HOST%:%TUNNEL_PORT%
-)
+REM Quick tunnel (sem configuracao necessaria - apenas expoe a porta)
+echo [INFO] Criando quick tunnel (sem configuracao necessaria)...
+echo [INFO] URL sera exibida abaixo quando o tunnel estiver pronto.
+echo.
+echo ========================================
+echo   TUNNEL ATIVO - Aguarde a URL abaixo
+echo ========================================
+echo.
+echo [INFO] Conectando a http://%TUNNEL_HOST%:%TUNNEL_PORT%
+echo [INFO] Use essa URL para configurar webhooks (ex: DigiStore IPN)
+echo.
+%CLOUDFLARED_CMD% tunnel --url http://%TUNNEL_HOST%:%TUNNEL_PORT%
 
 REM Se chegou aqui, o tunnel foi encerrado
 echo.

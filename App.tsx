@@ -95,14 +95,8 @@ const App: React.FC = () => {
   }
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
-  // Não verifica isActive ou accessExpiresAt para admin
-  // Apenas usuários comuns precisam de ativação para usar a IA
-
-  // LÓGICA DE ACESSO:
-  // - isBlocked: logout automático (não chega aqui)
-  // - isActive: false = usuário pode acessar o sistema, mas não pode usar a IA (bloqueado no ChatInterface)
-  // - accessExpiresAt expirado = usuário pode acessar o sistema, mas não pode usar a IA (bloqueado no ChatInterface)
-  // - Usuários recém-cadastrados já podem acessar o sistema, mas precisam de liberação para usar a IA
+  // Usuários comuns podem usar a IA imediatamente após cadastro (sem necessidade de liberação)
+  // Apenas usuários bloqueados não podem usar o sistema
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden">

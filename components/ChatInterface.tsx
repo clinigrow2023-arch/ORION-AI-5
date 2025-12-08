@@ -67,28 +67,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, streamedResponse]);
 
-  // Verificar periodicamente se o acesso expirou (a cada 30 segundos)
-  // Atualiza o estado do usuário quando a data de expiração é atingida
-  useEffect(() => {
-    if (!user || user.role === "admin") return;
-
-    const checkExpiration = async () => {
-      // Verificar se acesso expirou (mesmo que isActive ainda seja true)
-      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-        // Acesso expirou - atualizar estado do usuário para refletir expiração
-        // Isso atualiza os elementos visuais (Sidebar, ChatInterface header)
-        await refreshUser();
-      }
-    };
-
-    // Verificar imediatamente
-    checkExpiration();
-
-    // Verificar periodicamente (a cada 30 segundos)
-    const interval = setInterval(checkExpiration, 30000);
-
-    return () => clearInterval(interval);
-  }, [user?.accessExpiresAt, user?.isActive, user?.role, refreshUser]);
 
   // Carregar histórico ao montar (apenas uma vez)
   useEffect(() => {
@@ -315,7 +293,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Verificar acesso ANTES de chamar API - BLOQUEAR IMEDIATAMENTE se sem acesso
+    // Verificar acesso ANTES de chamar API - BLOQUEAR IMEDIATAMENTE se bloqueado
     // Admin sempre tem acesso ilimitado
     if (user.role !== "admin") {
       // Verificar se usuário está bloqueado (não deveria chegar aqui, mas verificar por segurança)
@@ -327,24 +305,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         window.location.reload();
         return;
       }
-
-      // Bloquear se usuário não tem acesso ativo
-      // isActive: false = acesso revogado (permanece logado mas não pode usar chat)
-      if (!user.isActive) {
-        alert(
-          "Seu acesso ainda não foi liberado. Entre em contato com um administrador."
-        );
-        return;
-      }
-
-      // Bloquear se acesso expirou - VERIFICAR ANTES DE CHAMAR API
-      // accessExpiresAt expirado = acesso expirado (permanece logado mas não pode usar chat)
-      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
-        alert(
-          "Seu acesso expirou. Entre em contato com um administrador para renovar."
-        );
-        return;
-      }
     }
 
     // Atualizar estado do usuário antes de enviar (garantir dados mais recentes)
@@ -353,17 +313,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Obter usuário atualizado após refresh
     const updatedUser = user; // refreshUser já atualiza o estado, mas vamos usar o user do contexto
 
-    // Verificar novamente após refresh (caso acesso tenha sido revogado durante o uso)
+    // Verificar novamente após refresh (caso tenha sido bloqueado durante o uso)
     // Nota: O backend também valida, mas esta verificação dupla garante que não gastamos tokens
     if (updatedUser && updatedUser.role !== "admin") {
-      if (
-        updatedUser.isBlocked ||
-        !updatedUser.isActive ||
-        (updatedUser.accessExpiresAt &&
-          new Date(updatedUser.accessExpiresAt) < new Date())
-      ) {
+      if (updatedUser.isBlocked) {
         alert(
-          "Seu acesso foi revogado ou expirou. Por favor, entre em contato com um administrador."
+          "Sua conta foi bloqueada. Por favor, entre em contato com um administrador."
         );
         return;
       }
@@ -636,34 +591,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           </div>
         </div>
-        {user && !user.isActive && !user.accessExpiresAt && (
-          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
-            <AlertCircle size={16} />
-            <span>
-              Your account access has not been granted. Please contact an
-              administrator.
-            </span>
-          </div>
-        )}
-        {user && !user.isActive && user.accessExpiresAt && (
-          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/20 rounded-lg flex items-center gap-2 text-orange-400 text-sm">
-            <AlertCircle size={16} />
-            <span>
-              Your access has been revoked. Please contact an administrator to
-              restore access.
-            </span>
-          </div>
-        )}
-        {user?.accessExpiresAt &&
-          new Date(user.accessExpiresAt) < new Date() && (
-            <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
-              <AlertCircle size={16} />
-              <span>
-                Your access has expired. Please contact an administrator to
-                renew.
-              </span>
-            </div>
-          )}
       </div>
 
       {/* Messages Area */}
@@ -759,34 +686,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             placeholder={
               !user
                 ? "Please log in to use the chat"
-                : user.role !== "admin" && !user.isActive
-                ? "Your access has not been granted. Contact an administrator."
-                : user.role !== "admin" &&
-                  user.accessExpiresAt &&
-                  new Date(user.accessExpiresAt) < new Date()
-                ? "Your access has expired. Contact an administrator to renew."
                 : "Describe the situation (e.g., 'She broke up with me yesterday because I was too needy...')"
             }
-            disabled={
-              !user ||
-              (user.role !== "admin" && !user.isActive) ||
-              (user.role !== "admin" &&
-                user.accessExpiresAt &&
-                new Date(user.accessExpiresAt) < new Date())
-            }
+            disabled={!user}
             className="w-full bg-slate-800 text-slate-200 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 resize-none h-[60px] scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
-            disabled={
-              !input.trim() ||
-              isLoading ||
-              !user ||
-              (user.role !== "admin" && !user.isActive) ||
-              (user.role !== "admin" &&
-                user.accessExpiresAt &&
-                new Date(user.accessExpiresAt) < new Date())
-            }
+            disabled={!input.trim() || isLoading || !user}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
           >
             <Send size={18} />

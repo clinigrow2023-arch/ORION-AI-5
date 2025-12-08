@@ -25,11 +25,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [showConversationSelector, setShowConversationSelector] = useState(false);
 
-  // Verificar se usuário tem acesso ativo
-  const hasAccess = user && (
-    user.role === 'admin' || 
-    (user.isActive && (!user.accessExpiresAt || new Date(user.accessExpiresAt) >= new Date()))
-  );
+  // Usuários podem usar a IA imediatamente após cadastro (sem necessidade de liberação)
+  const hasAccess = !!user;
 
   // Carregar conversas ao montar
   useEffect(() => {
@@ -132,18 +129,6 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
             Orion will analyze your chat history to create a custom 3-step reconciliation plan, including specific texts and psychological triggers.
           </p>
           
-          {!hasAccess && (
-            <div className="mb-6 p-3 bg-orange-500/10 border border-orange-500/20 text-orange-300 rounded-lg flex items-center gap-2 text-sm text-left">
-              <AlertCircle size={16} />
-              <span>
-                {!user?.isActive 
-                  ? "Your account access has not been granted. Please contact an administrator."
-                  : user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
-                  ? "Your access has expired. Please contact an administrator to renew."
-                  : "Access required to generate action plans."}
-              </span>
-            </div>
-          )}
           
           {error && (
              <div className="mb-6 p-3 bg-red-900/30 border border-red-800 text-red-300 rounded-lg flex items-center gap-2 text-sm text-left">

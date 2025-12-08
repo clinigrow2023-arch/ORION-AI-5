@@ -136,14 +136,18 @@ For local development with external access and webhook support (e.g., DigiStore 
 ### Setup
 
 1. Install Cloudflare Tunnel:
+
    - Download from: https://github.com/cloudflare/cloudflared/releases
    - Extract `cloudflared.exe` and add to PATH or place in project directory
 
 2. **First time setup** - Configure the tunnel:
+
    ```bash
    setup-cloudflare-tunnel.bat
    ```
+
    This will:
+
    - Authenticate with Cloudflare (opens browser)
    - Create a named tunnel (`orion-ai-dev`)
    - Configure it to point to `localhost:3000`

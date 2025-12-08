@@ -1,39 +1,41 @@
-import { Handler } from '@netlify/functions';
-import { prisma } from '../../lib/prisma';
-import bcrypt from 'bcryptjs';
+import { Handler } from "@netlify/functions";
+import { prisma } from "../../lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const handler: Handler = async (event, context) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: "",
     };
   }
 
-  if (event.httpMethod !== 'POST') {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   try {
-    const { name, email, password } = JSON.parse(event.body || '{}');
+    const { name, email, password } = JSON.parse(event.body || "{}");
 
     // Validações
     if (!name || !email || !password) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Name, email and password are required' }),
+        body: JSON.stringify({
+          error: "Name, email and password are required",
+        }),
       };
     }
 
@@ -41,7 +43,7 @@ export const handler: Handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Name must be at least 2 characters' }),
+        body: JSON.stringify({ error: "Name must be at least 2 characters" }),
       };
     }
 
@@ -49,7 +51,7 @@ export const handler: Handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Invalid email format' }),
+        body: JSON.stringify({ error: "Invalid email format" }),
       };
     }
 
@@ -57,7 +59,9 @@ export const handler: Handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Password must be at least 6 characters' }),
+        body: JSON.stringify({
+          error: "Password must be at least 6 characters",
+        }),
       };
     }
 
@@ -70,7 +74,7 @@ export const handler: Handler = async (event, context) => {
       return {
         statusCode: 409,
         headers,
-        body: JSON.stringify({ error: 'Email already registered' }),
+        body: JSON.stringify({ error: "Email already registered" }),
       };
     }
 
@@ -99,22 +103,21 @@ export const handler: Handler = async (event, context) => {
       statusCode: 201,
       headers: {
         ...headers,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: 'User created successfully',
+        message: "User created successfully",
         user,
       }),
     };
   } catch (error: any) {
-    console.error('Register error:', error);
+    console.error("Register error:", error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: error.message || 'Internal server error',
+        error: error.message || "Internal server error",
       }),
     };
   }
 };
-

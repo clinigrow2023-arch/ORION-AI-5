@@ -1,57 +1,62 @@
-import { Handler } from '@netlify/functions';
-import { GoogleGenAI } from '@google/genai';
-import jwt from 'jsonwebtoken';
-import { prisma } from '../../lib/prisma';
+import { Handler } from "@netlify/functions";
+import { GoogleGenAI } from "@google/genai";
+import jwt from "jsonwebtoken";
+import { prisma } from "../../lib/prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 export const handler: Handler = async (event, context) => {
   // CORS headers
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
   // Handle preflight
-  if (event.httpMethod === 'OPTIONS') {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: "",
     };
   }
 
   // Only allow POST
-  if (event.httpMethod !== 'POST') {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
 
   try {
     // Verificar autenticação e acesso ANTES de processar mensagem
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader =
+      event.headers.authorization || event.headers.Authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: 'Authentication required' }),
+        body: JSON.stringify({ error: "Authentication required" }),
       };
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace("Bearer ", "");
     let decoded: { userId: string; email: string };
-    
+
     try {
-      decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+      decoded = jwt.verify(token, JWT_SECRET) as {
+        userId: string;
+        email: string;
+      };
     } catch (error) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: 'Invalid or expired token' }),
+        body: JSON.stringify({ error: "Invalid or expired token" }),
       };
     }
 
@@ -70,20 +75,20 @@ export const handler: Handler = async (event, context) => {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: 'User not found' }),
+        body: JSON.stringify({ error: "User not found" }),
       };
     }
 
     // IMPORTANTE: Admin sempre tem acesso ilimitado
     // Verificar apenas se usuário está bloqueado (não verifica mais isActive ou accessExpiresAt)
-    if (user.role !== 'admin') {
+    if (user.role !== "admin") {
       // Verificar se usuário está bloqueado
       if (user.isBlocked) {
         return {
           statusCode: 403,
           headers,
-          body: JSON.stringify({ 
-            error: 'Account blocked. Please contact an administrator.',
+          body: JSON.stringify({
+            error: "Account blocked. Please contact an administrator.",
             blocked: true,
           }),
         };
@@ -91,76 +96,113 @@ export const handler: Handler = async (event, context) => {
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
-    
+
     if (!apiKey) {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'API key not configured' }),
+        body: JSON.stringify({ error: "API key not configured" }),
       };
     }
 
-    const { message, history } = JSON.parse(event.body || '{}');
+    const { message, history } = JSON.parse(event.body || "{}");
 
     if (!message) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Message is required' }),
+        body: JSON.stringify({ error: "Message is required" }),
       };
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    
+
     // Detectar se é uma requisição de plano formal (contém "generate a comprehensive Reconciliation Action Plan")
-    const isPlanRequest = message.includes('generate a comprehensive Reconciliation Action Plan') || 
-                         message.includes('Reconciliation Action Plan in JSON format');
-    
+    const isPlanRequest =
+      message.includes("generate a comprehensive Reconciliation Action Plan") ||
+      message.includes("Reconciliation Action Plan in JSON format");
+
     if (isPlanRequest && (!history || history.length === 0)) {
       // Requisição de plano formal - usar schema JSON
       const planSchema = {
-        type: 'object',
+        type: "object",
         properties: {
-          diagnosis: { type: 'string', description: "A clear, analytical diagnosis of what caused the distance or breakup in simple human terms." },
+          diagnosis: {
+            type: "string",
+            description:
+              "A clear, analytical diagnosis of what caused the distance or breakup in simple human terms.",
+          },
           steps: {
-            type: 'array',
+            type: "array",
             items: {
-              type: 'object',
+              type: "object",
               properties: {
-                stepNumber: { type: 'integer' },
-                title: { type: 'string' },
-                description: { type: 'string', description: "Clear instructions with psychological justification." },
-                duration: { type: 'string', description: "Specific timing (e.g., '3 days', '5-7 days')" }
+                stepNumber: { type: "integer" },
+                title: { type: "string" },
+                description: {
+                  type: "string",
+                  description:
+                    "Clear instructions with psychological justification.",
+                },
+                duration: {
+                  type: "string",
+                  description: "Specific timing (e.g., '3 days', '5-7 days')",
+                },
               },
-              required: ["stepNumber", "title", "description", "duration"]
-            }
+              required: ["stepNumber", "title", "description", "duration"],
+            },
           },
           messageTemplates: {
-            type: 'array',
+            type: "array",
             items: {
-              type: 'object',
+              type: "object",
               properties: {
-                situation: { type: 'string', description: "When to use this message" },
-                text: { type: 'string', description: "The exact text content, personalized to the user." },
-                timing: { type: 'string', description: "When to send it" }
+                situation: {
+                  type: "string",
+                  description: "When to use this message",
+                },
+                text: {
+                  type: "string",
+                  description:
+                    "The exact text content, personalized to the user.",
+                },
+                timing: { type: "string", description: "When to send it" },
               },
-              required: ["situation", "text", "timing"]
-            }
+              required: ["situation", "text", "timing"],
+            },
           },
           dos: {
-            type: 'array',
-            items: { type: 'string' },
-            description: "List of things the user MUST do to build value and emotional safety."
+            type: "array",
+            items: { type: "string" },
+            description:
+              "List of things the user MUST do to build value and emotional safety.",
           },
           donts: {
-            type: 'array',
-            items: { type: 'string' },
-            description: "List of behaviors to avoid (pressure, lowering value)."
+            type: "array",
+            items: { type: "string" },
+            description:
+              "List of behaviors to avoid (pressure, lowering value).",
           },
-          distancingStrategy: { type: 'string', description: "Explanation of the specific timing and strategy (e.g., 12-word phrase, The One Text Message) to use." },
-          neurologicalTriggers: { type: 'string', description: "How to use specific Secret Signals (e.g., The Awakening Phrase, The Fascination Signal, The Silent Signals, The 'I Owe You' Signal, The Princess in Distress Signal, The Private Island Signal, The X-Ray Question, The Get Your Ex Back Signal, The Secret Signal to Prevent Distance, The Love-Lasting Signal)." }
+          distancingStrategy: {
+            type: "string",
+            description:
+              "Explanation of the specific timing and strategy (e.g., 12-word phrase, The One Text Message) to use.",
+          },
+          neurologicalTriggers: {
+            type: "string",
+            description:
+              "How to use specific Secret Signals (e.g., The Awakening Phrase, The Fascination Signal, The Silent Signals, The 'I Owe You' Signal, The Princess in Distress Signal, The Private Island Signal, The X-Ray Question, The Get Your Ex Back Signal, The Secret Signal to Prevent Distance, The Love-Lasting Signal).",
+          },
         },
-        required: ["diagnosis", "steps", "messageTemplates", "dos", "donts", "distancingStrategy", "neurologicalTriggers"]
+        required: [
+          "diagnosis",
+          "steps",
+          "messageTemplates",
+          "dos",
+          "donts",
+          "distancingStrategy",
+          "neurologicalTriggers",
+        ],
       };
 
       const systemInstruction = `You are Orion, a top expert in romantic reconciliation, attraction, and seduction, specifically for women who want to attract, captivate, and inspire deep commitment in a man.
@@ -209,13 +251,13 @@ BEHAVIORAL RULES:
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: "gemini-2.5-flash",
         contents: message,
         config: {
           responseMimeType: "application/json",
           responseSchema: planSchema,
           systemInstruction,
-        }
+        },
       });
 
       const jsonText = response.text;
@@ -223,7 +265,9 @@ BEHAVIORAL RULES:
         return {
           statusCode: 500,
           headers,
-          body: JSON.stringify({ error: 'No data received from plan generation' }),
+          body: JSON.stringify({
+            error: "No data received from plan generation",
+          }),
         };
       }
 
@@ -235,7 +279,7 @@ BEHAVIORAL RULES:
         return {
           statusCode: 500,
           headers,
-          body: JSON.stringify({ error: 'Invalid JSON response from AI' }),
+          body: JSON.stringify({ error: "Invalid JSON response from AI" }),
         };
       }
 
@@ -243,9 +287,9 @@ BEHAVIORAL RULES:
         statusCode: 200,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           response: jsonText, // Retornar JSON como string para compatibilidade
         }),
       };
@@ -253,7 +297,7 @@ BEHAVIORAL RULES:
 
     // Requisição normal de chat
     const chat = ai.chats.create({
-      model: 'gemini-2.5-flash',
+      model: "gemini-2.5-flash",
       config: {
         systemInstruction: `You are Orion, a top expert in romantic reconciliation, attraction, and seduction, specifically for women who want to attract, captivate, and inspire deep commitment in a man.
 
@@ -304,8 +348,8 @@ BEHAVIORAL RULES:
     });
 
     const result = await chat.sendMessageStream({ message });
-    
-    let fullText = '';
+
+    let fullText = "";
     for await (const chunk of result) {
       const text = chunk.text;
       if (text) {
@@ -317,26 +361,25 @@ BEHAVIORAL RULES:
       statusCode: 200,
       headers: {
         ...headers,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         response: fullText,
         history: [
           ...(history || []),
-          { role: 'user', parts: [{ text: message }] },
-          { role: 'model', parts: [{ text: fullText }] },
+          { role: "user", parts: [{ text: message }] },
+          { role: "model", parts: [{ text: fullText }] },
         ],
       }),
     };
   } catch (error: any) {
-    console.error('Gemini API Error:', error);
+    console.error("Gemini API Error:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
-        error: error.message || 'Internal server error',
+      body: JSON.stringify({
+        error: error.message || "Internal server error",
       }),
     };
   }
 };
-

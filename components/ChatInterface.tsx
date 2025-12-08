@@ -67,7 +67,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, streamedResponse]);
 
-
   // Carregar histórico ao montar (apenas uma vez)
   useEffect(() => {
     // Evitar carregar múltiplas vezes

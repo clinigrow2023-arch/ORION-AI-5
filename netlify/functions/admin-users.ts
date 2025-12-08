@@ -1,18 +1,24 @@
-import { Handler } from '@netlify/functions';
-import { prisma } from '../../lib/prisma';
-import jwt from 'jsonwebtoken';
+import { Handler } from "@netlify/functions";
+import { prisma } from "../../lib/prisma";
+import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Verificar se é admin
-const verifyAdmin = (authHeader: string | undefined): { userId: string; email: string } | null => {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+const verifyAdmin = (
+  authHeader: string | undefined
+): { userId: string; email: string } | null => {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
   }
 
   try {
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      email: string;
+    };
     return decoded;
   } catch {
     return null;
@@ -21,26 +27,28 @@ const verifyAdmin = (authHeader: string | undefined): { userId: string; email: s
 
 export const handler: Handler = async (event, context) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   };
 
-  if (event.httpMethod === 'OPTIONS') {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: "",
     };
   }
 
   // Verificar autenticação e admin
-  const admin = verifyAdmin(event.headers.authorization || event.headers.Authorization);
+  const admin = verifyAdmin(
+    event.headers.authorization || event.headers.Authorization
+  );
   if (!admin) {
     return {
       statusCode: 401,
       headers,
-      body: JSON.stringify({ error: 'Unauthorized' }),
+      body: JSON.stringify({ error: "Unauthorized" }),
     };
   }
 
@@ -50,18 +58,17 @@ export const handler: Handler = async (event, context) => {
     select: { role: true },
   });
 
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== "admin") {
     return {
       statusCode: 403,
       headers,
-      body: JSON.stringify({ error: 'Forbidden: Admin access required' }),
+      body: JSON.stringify({ error: "Forbidden: Admin access required" }),
     };
   }
 
   try {
-
     // GET - Listar todos os usuários
-    if (event.httpMethod === 'GET') {
+    if (event.httpMethod === "GET") {
       const users = await prisma.user.findMany({
         select: {
           id: true,
@@ -72,28 +79,28 @@ export const handler: Handler = async (event, context) => {
           passwordResetRequired: true,
           createdAt: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
 
       return {
         statusCode: 200,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ users }),
       };
     }
 
     // DELETE - Deletar usuário
-    if (event.httpMethod === 'DELETE') {
-      const { userId } = JSON.parse(event.body || '{}');
+    if (event.httpMethod === "DELETE") {
+      const { userId } = JSON.parse(event.body || "{}");
 
       if (!userId) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'userId is required' }),
+          body: JSON.stringify({ error: "userId is required" }),
         };
       }
 
@@ -102,7 +109,7 @@ export const handler: Handler = async (event, context) => {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'You cannot delete your own account' }),
+          body: JSON.stringify({ error: "You cannot delete your own account" }),
         };
       }
 
@@ -116,7 +123,7 @@ export const handler: Handler = async (event, context) => {
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ error: 'User not found' }),
+          body: JSON.stringify({ error: "User not found" }),
         };
       }
 
@@ -129,9 +136,9 @@ export const handler: Handler = async (event, context) => {
         statusCode: 200,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           success: true,
           message: `User ${targetUser.email} deleted successfully`,
         }),
@@ -139,14 +146,16 @@ export const handler: Handler = async (event, context) => {
     }
 
     // PUT - Atualizar usuário (bloquear/desbloquear, reset password)
-    if (event.httpMethod === 'PUT') {
-      const { userId, isBlocked, resetPassword } = JSON.parse(event.body || '{}');
+    if (event.httpMethod === "PUT") {
+      const { userId, isBlocked, resetPassword } = JSON.parse(
+        event.body || "{}"
+      );
 
       if (!userId) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'userId is required' }),
+          body: JSON.stringify({ error: "userId is required" }),
         };
       }
 
@@ -160,12 +169,12 @@ export const handler: Handler = async (event, context) => {
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ error: 'User not found' }),
+          body: JSON.stringify({ error: "User not found" }),
         };
       }
 
       const updateData: any = {};
-      if (typeof isBlocked === 'boolean') {
+      if (typeof isBlocked === "boolean") {
         updateData.isBlocked = isBlocked;
       }
 
@@ -178,7 +187,7 @@ export const handler: Handler = async (event, context) => {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'No valid fields to update' }),
+          body: JSON.stringify({ error: "No valid fields to update" }),
         };
       }
 
@@ -199,7 +208,7 @@ export const handler: Handler = async (event, context) => {
         statusCode: 200,
         headers: {
           ...headers,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ user: updatedUser }),
       };
@@ -208,17 +217,16 @@ export const handler: Handler = async (event, context) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   } catch (error: any) {
-    console.error('Admin users error:', error);
+    console.error("Admin users error:", error);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: error.message || 'Internal server error',
+        error: error.message || "Internal server error",
       }),
     };
   }
 };
-

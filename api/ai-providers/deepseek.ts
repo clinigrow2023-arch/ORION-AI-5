@@ -185,7 +185,19 @@ Output strictly valid JSON with the following structure:
         );
       }
 
-      return data.choices[0].message.content || "";
+      const content = data.choices[0].message.content || "";
+      
+      // Validar se a resposta não está vazia
+      if (!content || content.trim() === "") {
+        throw createProviderError(
+          this.name,
+          "Empty response from Deep Seek API",
+          undefined,
+          true // Retryable - pode ser um problema temporário
+        );
+      }
+
+      return content;
     } catch (error: any) {
       if (error.provider) {
         throw error; // Already a provider error

@@ -49,10 +49,22 @@ export class GrokProvider implements AIProvider {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage =
           errorData.error?.message || `HTTP ${response.status}`;
-        const isRetryable = isRetryableError({
-          status: response.status,
-          message: errorMessage,
-        });
+        
+        // 403 pode ser rate limit, quota ou auth error
+        // Verificar se é claramente um erro de autenticação
+        const errorMsgLower = errorMessage.toLowerCase();
+        const isAuthError = errorMsgLower.includes("invalid") ||
+          errorMsgLower.includes("unauthorized") ||
+          errorMsgLower.includes("authentication") ||
+          errorMsgLower.includes("api key");
+        
+        // Se for 403 mas não for erro de auth, tratar como retryable (pode ser quota/rate limit)
+        const isRetryable = (response.status === 403 && !isAuthError) 
+          ? true 
+          : isRetryableError({
+              status: response.status,
+              message: errorMessage,
+            });
 
         throw createProviderError(
           this.name,
@@ -149,10 +161,22 @@ Output strictly valid JSON with the following structure:
         const errorData = await response.json().catch(() => ({}));
         const errorMessage =
           errorData.error?.message || `HTTP ${response.status}`;
-        const isRetryable = isRetryableError({
-          status: response.status,
-          message: errorMessage,
-        });
+        
+        // 403 pode ser rate limit, quota ou auth error
+        // Verificar se é claramente um erro de autenticação
+        const errorMsgLower = errorMessage.toLowerCase();
+        const isAuthError = errorMsgLower.includes("invalid") ||
+          errorMsgLower.includes("unauthorized") ||
+          errorMsgLower.includes("authentication") ||
+          errorMsgLower.includes("api key");
+        
+        // Se for 403 mas não for erro de auth, tratar como retryable (pode ser quota/rate limit)
+        const isRetryable = (response.status === 403 && !isAuthError) 
+          ? true 
+          : isRetryableError({
+              status: response.status,
+              message: errorMessage,
+            });
 
         throw createProviderError(
           this.name,

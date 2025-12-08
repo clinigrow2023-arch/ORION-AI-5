@@ -372,9 +372,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Isso evita a duplicação visual (placeholder + mensagem final)
       setStreamedResponse("");
 
+      // Garantir que temos uma resposta válida antes de criar a mensagem
+      const responseText = typeof fullResponse === "string" 
+        ? fullResponse.trim() 
+        : String(fullResponse || "").trim();
+
+      if (!responseText) {
+        console.error("❌ Cannot create bot message - response is empty:", {
+          fullResponse,
+          type: typeof fullResponse
+        });
+        throw new Error("AI returned an empty response. Please try again.");
+      }
+
       const botMsg: Message = {
         id: generateUniqueId(),
-        text: typeof fullResponse === "string" ? fullResponse.trim() : String(fullResponse).trim(),
+        text: responseText,
         sender: Sender.Bot,
         timestamp: new Date(),
       };
@@ -383,8 +396,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         id: botMsg.id,
         textLength: botMsg.text.length,
         textPreview: botMsg.text.substring(0, 100),
-        sender: botMsg.sender
+        sender: botMsg.sender,
+        hasText: !!botMsg.text
       });
+
+      // Validar novamente antes de adicionar
+      if (!botMsg.text || botMsg.text.trim() === "") {
+        console.error("❌ Bot message text is empty after creation:", botMsg);
+        throw new Error("Failed to create bot message - text is empty.");
+      }
 
       const updatedMessages = [...currentMessages, botMsg];
       addMessage(botMsg);
@@ -667,7 +687,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               }`}
             >
               <div className="prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{msg.text}</ReactMarkdown>
+                {msg.text && msg.text.trim() ? (
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                ) : (
+                  <div className="text-slate-400 italic">
+                    <p>Empty message (ID: {msg.id})</p>
+                    <p className="text-xs mt-1">This may indicate an issue with the AI response.</p>
+                  </div>
+                )}
               </div>
               <span className="text-[10px] opacity-50 mt-2 block">
                 {msg.timestamp.toLocaleTimeString([], {

@@ -1,14 +1,14 @@
-import { AIProvider, createProviderError, isRetryableError } from './base';
+import { AIProvider, createProviderError, isRetryableError } from "./base";
 
 // Grok (xAI) Provider Implementation
 export class GrokProvider implements AIProvider {
-  name = 'Grok (xAI)';
+  name = "Grok (xAI)";
   private apiKey: string;
-  private baseUrl = 'https://api.x.ai/v1';
+  private baseUrl = "https://api.x.ai/v1";
 
   constructor(apiKey: string) {
     if (!apiKey) {
-      throw new Error('Grok API key is required');
+      throw new Error("Grok API key is required");
     }
     this.apiKey = apiKey;
   }
@@ -20,22 +20,25 @@ export class GrokProvider implements AIProvider {
   ): Promise<string> {
     try {
       // Convert history format to Grok format
-      const messages = this.convertHistoryToGrokFormat(history, systemInstruction);
-      
+      const messages = this.convertHistoryToGrokFormat(
+        history,
+        systemInstruction
+      );
+
       // Add current user message
       messages.push({
-        role: 'user',
+        role: "user",
         content: message,
       });
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'grok-beta',
+          model: "grok-beta",
           messages: messages,
           temperature: 0.7,
           max_tokens: 2048,
@@ -44,9 +47,13 @@ export class GrokProvider implements AIProvider {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
-        const isRetryable = isRetryableError({ status: response.status, message: errorMessage });
-        
+        const errorMessage =
+          errorData.error?.message || `HTTP ${response.status}`;
+        const isRetryable = isRetryableError({
+          status: response.status,
+          message: errorMessage,
+        });
+
         throw createProviderError(
           this.name,
           `Grok API error: ${errorMessage}`,
@@ -56,27 +63,27 @@ export class GrokProvider implements AIProvider {
       }
 
       const data = await response.json();
-      
+
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
         throw createProviderError(
           this.name,
-          'Invalid response format from Grok API',
+          "Invalid response format from Grok API",
           undefined,
           false
         );
       }
 
-      return data.choices[0].message.content || '';
+      return data.choices[0].message.content || "";
     } catch (error: any) {
       if (error.provider) {
         throw error; // Already a provider error
       }
-      
+
       // Convert to provider error
       const isRetryable = isRetryableError(error);
       throw createProviderError(
         this.name,
-        error.message || 'Unknown error from Grok API',
+        error.message || "Unknown error from Grok API",
         error.code || error.status,
         isRetryable
       );
@@ -114,35 +121,39 @@ Output strictly valid JSON with the following structure:
 
       const messages = [
         {
-          role: 'system',
+          role: "system",
           content: systemInstruction,
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ];
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'grok-beta',
+          model: "grok-beta",
           messages: messages,
           temperature: 0.7,
           max_tokens: 4096,
-          response_format: { type: 'json_object' },
+          response_format: { type: "json_object" },
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
-        const isRetryable = isRetryableError({ status: response.status, message: errorMessage });
-        
+        const errorMessage =
+          errorData.error?.message || `HTTP ${response.status}`;
+        const isRetryable = isRetryableError({
+          status: response.status,
+          message: errorMessage,
+        });
+
         throw createProviderError(
           this.name,
           `Grok API error: ${errorMessage}`,
@@ -152,26 +163,26 @@ Output strictly valid JSON with the following structure:
       }
 
       const data = await response.json();
-      
+
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
         throw createProviderError(
           this.name,
-          'Invalid response format from Grok API',
+          "Invalid response format from Grok API",
           undefined,
           false
         );
       }
 
-      return data.choices[0].message.content || '';
+      return data.choices[0].message.content || "";
     } catch (error: any) {
       if (error.provider) {
         throw error; // Already a provider error
       }
-      
+
       const isRetryable = isRetryableError(error);
       throw createProviderError(
         this.name,
-        error.message || 'Unknown error from Grok API',
+        error.message || "Unknown error from Grok API",
         error.code || error.status,
         isRetryable
       );
@@ -183,20 +194,20 @@ Output strictly valid JSON with the following structure:
     systemInstruction: string
   ): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
-    
+
     // Add system instruction first
     if (systemInstruction) {
       messages.push({
-        role: 'system',
+        role: "system",
         content: systemInstruction,
       });
     }
 
     // Convert history
     for (const item of history) {
-      const role = item.role === 'model' ? 'assistant' : item.role;
-      const content = item.parts.map(p => p.text).join('\n');
-      
+      const role = item.role === "model" ? "assistant" : item.role;
+      const content = item.parts.map((p) => p.text).join("\n");
+
       if (content) {
         messages.push({ role, content });
       }

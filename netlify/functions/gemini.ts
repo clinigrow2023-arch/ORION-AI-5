@@ -117,7 +117,9 @@ export const handler: Handler = async (event, context) => {
       // Requisição de plano formal - usar sistema de fallback
       try {
         // Extrair contexto do histórico da mensagem
-        const contextMatch = message.match(/HISTORY:\s*([\s\S]*?)(?:\n\nSTRICT|$)/);
+        const contextMatch = message.match(
+          /HISTORY:\s*([\s\S]*?)(?:\n\nSTRICT|$)/
+        );
         const contextHistory = contextMatch ? contextMatch[1].trim() : "";
 
         const { response: jsonText, provider } = await generatePlanWithFallback(
@@ -154,7 +156,9 @@ export const handler: Handler = async (event, context) => {
           statusCode: 500,
           headers,
           body: JSON.stringify({
-            error: error.message || "Failed to generate plan. All AI providers failed.",
+            error:
+              error.message ||
+              "Failed to generate plan. All AI providers failed.",
           }),
         };
       }
@@ -190,7 +194,8 @@ export const handler: Handler = async (event, context) => {
         statusCode: 500,
         headers,
         body: JSON.stringify({
-          error: error.message || "Failed to send message. All AI providers failed.",
+          error:
+            error.message || "Failed to send message. All AI providers failed.",
         }),
       };
     }

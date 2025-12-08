@@ -34,26 +34,26 @@ export function createProviderError(
 
 // Check if error is retryable (rate limit, quota, etc.)
 export function isRetryableError(error: any): boolean {
-  if (error && typeof error === 'object' && 'retryable' in error) {
+  if (error && typeof error === "object" && "retryable" in error) {
     return error.retryable;
   }
-  
+
   // Common retryable error patterns
   const retryablePatterns = [
-    'rate limit',
-    'quota',
-    '429',
-    '503',
-    '500',
-    'timeout',
-    'network',
-    'ECONNRESET',
-    'ETIMEDOUT',
+    "rate limit",
+    "quota",
+    "429",
+    "503",
+    "500",
+    "timeout",
+    "network",
+    "ECONNRESET",
+    "ETIMEDOUT",
   ];
-  
-  const errorMessage = error?.message?.toLowerCase() || '';
-  const errorCode = error?.code?.toString() || error?.status?.toString() || '';
-  
+
+  const errorMessage = error?.message?.toLowerCase() || "";
+  const errorCode = error?.code?.toString() || error?.status?.toString() || "";
+
   return retryablePatterns.some(
     (pattern) => errorMessage.includes(pattern) || errorCode.includes(pattern)
   );

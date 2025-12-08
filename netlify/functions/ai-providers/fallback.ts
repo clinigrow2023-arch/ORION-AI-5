@@ -1,6 +1,7 @@
-import { AIProvider, AIProviderError } from './base';
-import { GeminiProvider } from './gemini';
-import { GrokProvider } from './grok';
+import { AIProvider, AIProviderError } from "./base";
+import { GeminiProvider } from "./gemini";
+import { GrokProvider } from "./grok";
+import { GroqProvider } from "./groq";
 
 // System instruction for Orion
 const getSystemInstruction = (): string => {
@@ -60,7 +61,7 @@ export function createProviders(): AIProvider[] {
     try {
       providers.push(new GeminiProvider(geminiKey));
     } catch (error) {
-      console.warn('⚠️ Failed to initialize Gemini provider:', error);
+      console.warn("⚠️ Failed to initialize Gemini provider:", error);
     }
   }
 
@@ -70,7 +71,17 @@ export function createProviders(): AIProvider[] {
     try {
       providers.push(new GrokProvider(grokKey));
     } catch (error) {
-      console.warn('⚠️ Failed to initialize Grok provider:', error);
+      console.warn("⚠️ Failed to initialize Grok provider:", error);
+    }
+  }
+
+  // 3. Groq (fallback)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    try {
+      providers.push(new GroqProvider(groqKey));
+    } catch (error) {
+      console.warn("⚠️ Failed to initialize Groq provider:", error);
     }
   }
 
@@ -82,7 +93,9 @@ export function createProviders(): AIProvider[] {
   // }
 
   if (providers.length === 0) {
-    throw new Error('No AI providers available. Please configure at least one API key.');
+    throw new Error(
+      "No AI providers available. Please configure at least one API key."
+    );
   }
 
   return providers;
@@ -92,7 +105,7 @@ export function createProviders(): AIProvider[] {
 export async function tryProviders<T>(
   providers: AIProvider[],
   operation: (provider: AIProvider) => Promise<T>,
-  operationName: string = 'operation'
+  operationName: string = "operation"
 ): Promise<{ result: T; provider: string }> {
   const errors: Array<{ provider: string; error: any }> = [];
 
@@ -105,24 +118,31 @@ export async function tryProviders<T>(
     } catch (error: any) {
       const providerError = error as AIProviderError;
       const isRetryable = providerError.retryable !== false;
-      
-      console.warn(`❌ ${provider.name} failed for ${operationName}:`, error.message);
-      
+
+      console.warn(
+        `❌ ${provider.name} failed for ${operationName}:`,
+        error.message
+      );
+
       errors.push({ provider: provider.name, error });
-      
+
       // If error is not retryable (e.g., invalid API key), don't try other providers
       if (!isRetryable) {
-        console.error(`🚫 ${provider.name} error is not retryable, stopping fallback chain`);
+        console.error(
+          `🚫 ${provider.name} error is not retryable, stopping fallback chain`
+        );
         throw error;
       }
-      
+
       // Continue to next provider
       continue;
     }
   }
 
   // All providers failed
-  const errorMessages = errors.map(e => `${e.provider}: ${e.error.message}`).join('; ');
+  const errorMessages = errors
+    .map((e) => `${e.provider}: ${e.error.message}`)
+    .join("; ");
   throw new Error(
     `All AI providers failed for ${operationName}. Errors: ${errorMessages}`
   );
@@ -138,8 +158,9 @@ export async function sendMessageWithFallback(
 
   return tryProviders(
     providers,
-    async (provider) => await provider.sendMessage(message, history, systemInstruction),
-    'sendMessage'
+    async (provider) =>
+      await provider.sendMessage(message, history, systemInstruction),
+    "sendMessage"
   );
 }
 
@@ -152,7 +173,8 @@ export async function generatePlanWithFallback(
 
   return tryProviders(
     providers,
-    async (provider) => await provider.generatePlan(contextHistory, systemInstruction),
-    'generatePlan'
+    async (provider) =>
+      await provider.generatePlan(contextHistory, systemInstruction),
+    "generatePlan"
   );
 }

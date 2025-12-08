@@ -23,16 +23,16 @@ Sistema de fallback para múltiplos provedores de IA, garantindo alta disponibil
 2. Implemente a interface `AIProvider`:
 
 ```typescript
-import { AIProvider, createProviderError, isRetryableError } from './base';
+import { AIProvider, createProviderError, isRetryableError } from "./base";
 
 export class OpenAIProvider implements AIProvider {
-  name = 'OpenAI';
+  name = "OpenAI";
   private apiKey: string;
-  private baseUrl = 'https://api.openai.com/v1';
+  private baseUrl = "https://api.openai.com/v1";
 
   constructor(apiKey: string) {
     if (!apiKey) {
-      throw new Error('OpenAI API key is required');
+      throw new Error("OpenAI API key is required");
     }
     this.apiKey = apiKey;
   }
@@ -67,7 +67,7 @@ if (openaiKey) {
   try {
     providers.push(new OpenAIProvider(openaiKey));
   } catch (error) {
-    console.warn('⚠️ Failed to initialize OpenAI provider:', error);
+    console.warn("⚠️ Failed to initialize OpenAI provider:", error);
   }
 }
 ```
@@ -78,6 +78,7 @@ if (openaiKey) {
 
 - `GEMINI_API_KEY` - Chave da API do Gemini (obrigatória)
 - `GROK_API_KEY` - Chave da API do Grok/xAI (opcional, fallback)
+- `GROQ_API_KEY` - Chave da API do Groq (opcional, fallback)
 - `OPENAI_API_KEY` - Chave da API do OpenAI (opcional, se adicionar)
 
 ## Tratamento de Erros
@@ -89,6 +90,7 @@ if (openaiKey) {
 ## Logs
 
 O sistema registra:
+
 - `🔄 Trying [Provider] for [operation]...` - Tentando provider
 - `✅ [Provider] succeeded for [operation]` - Sucesso
 - `❌ [Provider] failed for [operation]: [error]` - Falha

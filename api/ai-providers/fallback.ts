@@ -1,10 +1,10 @@
-import { AIProvider, AIProviderError } from "./base";
-import { GeminiProvider } from "./gemini";
-import { GrokProvider } from "./grok";
-import { GroqProvider } from "./groq";
-import { OpenAIProvider } from "./openai";
-import { DeepSeekProvider } from "./deepseek";
-import { LaozangProvider } from "./laozang";
+import { AIProvider, AIProviderError } from "./base.js";
+import { GeminiProvider } from "./gemini.js";
+import { GrokProvider } from "./grok.js";
+import { GroqProvider } from "./groq.js";
+import { OpenAIProvider } from "./openai.js";
+import { DeepSeekProvider } from "./deepseek.js";
+import { LaozangProvider } from "./laozang.js";
 
 // System instruction for Orion
 const getSystemInstruction = (): string => {

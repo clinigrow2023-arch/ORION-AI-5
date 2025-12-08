@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "./_prisma";
+import { prisma } from "./_prisma.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 

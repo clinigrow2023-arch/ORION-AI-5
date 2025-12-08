@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "./_prisma";
+import { prisma } from "./_prisma.js";
 import bcrypt from "bcryptjs";
-import { setCorsHeaders, handleOptions } from "./_helpers";
+import { setCorsHeaders, handleOptions } from "./_helpers.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res, "POST, OPTIONS");

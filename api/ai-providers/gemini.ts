@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { AIProvider, createProviderError, isRetryableError } from "./base";
+import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 
 // Gemini Provider Implementation
 export class GeminiProvider implements AIProvider {

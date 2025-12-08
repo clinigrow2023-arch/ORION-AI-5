@@ -1,4 +1,4 @@
-import { AIProvider, createProviderError, isRetryableError } from "./base";
+import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 
 // Laozang Provider Implementation (OpenAI-compatible API)
 export class LaozangProvider implements AIProvider {

@@ -1,4 +1,4 @@
-import { AIProvider, createProviderError, isRetryableError } from "./base";
+import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 
 // Grok (xAI) Provider Implementation
 export class GrokProvider implements AIProvider {

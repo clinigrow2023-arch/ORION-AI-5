@@ -1,4 +1,4 @@
-import { AIProvider, createProviderError, isRetryableError } from "./base";
+import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 
 // Deep Seek Provider Implementation (OpenAI-compatible API)
 export class DeepSeekProvider implements AIProvider {

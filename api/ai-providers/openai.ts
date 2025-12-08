@@ -1,4 +1,4 @@
-import { AIProvider, createProviderError, isRetryableError } from "./base";
+import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 
 // OpenAI Provider Implementation
 export class OpenAIProvider implements AIProvider {

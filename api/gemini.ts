@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import jwt from "jsonwebtoken";
-import { prisma } from "./_prisma";
+import { prisma } from "./_prisma.js";
 import {
   sendMessageWithFallback,
   generatePlanWithFallback,
-} from "./ai-providers/fallback";
-import { setCorsHeaders, handleOptions, getTokenFromHeader } from "./_helpers";
+} from "./ai-providers/fallback.js";
+import { setCorsHeaders, handleOptions, getTokenFromHeader } from "./_helpers.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";

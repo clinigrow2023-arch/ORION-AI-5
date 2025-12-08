@@ -1,4 +1,4 @@
-import { AIProvider, createProviderError, isRetryableError } from "./base";
+import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 
 // Groq Provider Implementation
 export class GroqProvider implements AIProvider {

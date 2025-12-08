@@ -39,10 +39,13 @@ export function isRetryableError(error: any): boolean {
   }
 
   // Common retryable error patterns
+  // 403 pode ser rate limit, quota ou outro problema temporário
+  // Só não é retryable se for claramente "invalid api key" ou "unauthorized"
   const retryablePatterns = [
     "rate limit",
     "quota",
     "429",
+    "403", // Pode ser rate limit ou quota em alguns providers
     "503",
     "500",
     "timeout",
@@ -51,9 +54,25 @@ export function isRetryableError(error: any): boolean {
     "ETIMEDOUT",
   ];
 
+  // Erros não retryable (autenticação inválida)
+  const nonRetryablePatterns = [
+    "invalid api key",
+    "unauthorized",
+    "authentication failed",
+    "invalid authentication",
+  ];
+
   const errorMessage = error?.message?.toLowerCase() || "";
   const errorCode = error?.code?.toString() || error?.status?.toString() || "";
 
+  // Se for claramente um erro de autenticação, não é retryable
+  if (nonRetryablePatterns.some(
+    (pattern) => errorMessage.includes(pattern)
+  )) {
+    return false;
+  }
+
+  // Verificar se é um erro retryable
   return retryablePatterns.some(
     (pattern) => errorMessage.includes(pattern) || errorCode.includes(pattern)
   );

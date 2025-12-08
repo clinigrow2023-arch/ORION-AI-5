@@ -5,7 +5,11 @@ import {
   sendMessageWithFallback,
   generatePlanWithFallback,
 } from "./ai-providers/fallback.js";
-import { setCorsHeaders, handleOptions, getTokenFromHeader } from "./_helpers.js";
+import {
+  setCorsHeaders,
+  handleOptions,
+  getTokenFromHeader,
+} from "./_helpers.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";

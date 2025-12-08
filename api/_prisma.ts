@@ -1,3 +1,5 @@
+// Prisma Client helper for Vercel serverless functions
+// This file ensures Prisma Client is available in the /api directory
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 

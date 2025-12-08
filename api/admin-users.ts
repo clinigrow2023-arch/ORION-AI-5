@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { prisma } from "../lib/prisma";
+import { prisma } from "./_prisma";
 import jwt from "jsonwebtoken";
 import { setCorsHeaders, handleOptions, getTokenFromHeader } from "./_helpers";
 

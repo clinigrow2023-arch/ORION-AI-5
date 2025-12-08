@@ -66,9 +66,7 @@ export function isRetryableError(error: any): boolean {
   const errorCode = error?.code?.toString() || error?.status?.toString() || "";
 
   // Se for claramente um erro de autenticação, não é retryable
-  if (nonRetryablePatterns.some(
-    (pattern) => errorMessage.includes(pattern)
-  )) {
+  if (nonRetryablePatterns.some((pattern) => errorMessage.includes(pattern))) {
     return false;
   }
 

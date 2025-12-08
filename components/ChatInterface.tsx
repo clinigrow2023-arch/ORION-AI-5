@@ -191,6 +191,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const token = authService.getToken();
       if (!token) return;
 
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
       const response = await fetch(getApiEndpoint("conversations"), {
         method: "DELETE",
         headers: {
@@ -226,6 +227,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timestamp: msg.timestamp.toISOString(),
       }));
 
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
       const response = await fetch(getApiEndpoint("conversations"), {
         method: "POST",
         headers: {
@@ -475,6 +477,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   const token = authService.getToken();
                                   if (!token) return;
 
+                                  const { getApiEndpoint } = await import("../lib/api-endpoints");
                                   const response = await fetch(
                                     getApiEndpoint("conversations"),
                                     {

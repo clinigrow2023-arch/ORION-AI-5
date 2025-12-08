@@ -7,7 +7,9 @@ export function getApiEndpoint(path: string): string {
 
   const hostname = window.location.hostname;
   const isVercel =
-    hostname.includes("vercel.app") || hostname.includes("vercel.com");
+    hostname.includes("vercel.app") || 
+    hostname.includes("vercel.com") ||
+    hostname.includes("vercel");
   const isNetlify =
     hostname.includes("netlify.app") || hostname.includes("netlify.com");
   const isDev = hostname === "localhost" || hostname === "127.0.0.1";
@@ -18,6 +20,6 @@ export function getApiEndpoint(path: string): string {
     return `/.netlify/functions/${path}`;
   }
 
-  // Default para Vercel
+  // Default para Vercel (assumindo que está na Vercel se não detectar)
   return `/api/${path}`;
 }

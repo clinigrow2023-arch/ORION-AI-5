@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { authService, User } from "../lib/auth";
 import { geminiService } from "../services/geminiService";
+import { getApiEndpoint } from "../lib/api-endpoints";
 
 export interface ExtendedUser extends User {
   role?: string;
@@ -117,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // A otimização de não fazer requisição quando isActive !== true só se aplica após a primeira verificação
 
         // Fazer apenas uma chamada direta para auth-verify
-        const response = await fetch("/.netlify/functions/auth-verify", {
+        const response = await fetch(getApiEndpoint("auth-verify"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -180,7 +181,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = authService.getToken();
         if (token) {
           try {
-            const response = await fetch("/.netlify/functions/auth-verify", {
+            const response = await fetch(getApiEndpoint("auth-verify"), {
               headers: {
                 Authorization: `Bearer ${token}`,
               },

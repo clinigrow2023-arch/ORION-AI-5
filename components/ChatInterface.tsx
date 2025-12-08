@@ -191,7 +191,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const token = authService.getToken();
       if (!token) return;
 
-      const response = await fetch("/.netlify/functions/conversations", {
+      const response = await fetch(getApiEndpoint("conversations"), {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -226,7 +226,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timestamp: msg.timestamp.toISOString(),
       }));
 
-      const response = await fetch("/.netlify/functions/conversations", {
+      const response = await fetch(getApiEndpoint("conversations"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -476,7 +476,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   if (!token) return;
 
                                   const response = await fetch(
-                                    "/.netlify/functions/conversations",
+                                    getApiEndpoint("conversations"),
                                     {
                                       headers: {
                                         Authorization: `Bearer ${token}`,

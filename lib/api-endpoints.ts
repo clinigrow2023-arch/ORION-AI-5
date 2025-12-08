@@ -7,7 +7,7 @@ export function getApiEndpoint(path: string): string {
 
   const hostname = window.location.hostname;
   const isVercel =
-    hostname.includes("vercel.app") || 
+    hostname.includes("vercel.app") ||
     hostname.includes("vercel.com") ||
     hostname.includes("vercel");
   const isNetlify =

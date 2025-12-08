@@ -144,7 +144,25 @@ export async function tryProviders<T>(
     try {
       console.log(`🔄 Trying ${provider.name} for ${operationName}...`);
       const result = await operation(provider);
-      console.log(`✅ ${provider.name} succeeded for ${operationName}`);
+      
+      console.log(`✅ ${provider.name} succeeded for ${operationName}`, {
+        hasResult: !!result,
+        resultType: typeof result,
+        resultLength: result?.length || 0,
+        resultPreview: typeof result === "string" ? result.substring(0, 100) : String(result).substring(0, 100) || "empty"
+      });
+      
+      // Validar que o resultado não está vazio
+      if (result === undefined || result === null) {
+        console.error(`❌ ${provider.name} returned undefined/null result`);
+        throw createProviderError(
+          provider.name,
+          "Provider returned undefined result",
+          undefined,
+          true // Retryable
+        );
+      }
+      
       return { result, provider: provider.name };
     } catch (error: any) {
       const providerError = error as AIProviderError;

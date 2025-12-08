@@ -25,6 +25,9 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    GROK_API_KEY=your_grok_api_key_here
    GROQ_API_KEY=your_groq_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
+   DEEPSEEK_API_KEY=your_deepseek_api_key_here
+   LAOZANG_API_KEY=your_laozang_api_key_here
    DATABASE_URL=mongodb+srv://user:password@cluster.mongodb.net/orionai?appName=OrionIA
    JWT_SECRET=your-secret-key-change-in-production
    SITE_URL=https://your-site.netlify.app
@@ -96,7 +99,9 @@ The app includes a robust fallback system for AI providers to ensure high availa
 - **Primary**: Gemini (Google) - Used first if available
 - **Fallback 1**: Grok (xAI) - Automatically used if Gemini fails or exceeds limits
 - **Fallback 2**: Groq - Automatically used if previous providers fail
-- **Future**: Additional providers can be easily added
+- **Fallback 3**: OpenAI - Automatically used if previous providers fail
+- **Fallback 4**: Deep Seek - Automatically used if previous providers fail
+- **Fallback 5**: Laozang - Automatically used if previous providers fail
 
 The system automatically tries providers in sequence until one succeeds, ensuring the service never goes down due to API limits or failures.
 

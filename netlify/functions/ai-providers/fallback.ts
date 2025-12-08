@@ -2,6 +2,9 @@ import { AIProvider, AIProviderError } from "./base";
 import { GeminiProvider } from "./gemini";
 import { GrokProvider } from "./grok";
 import { GroqProvider } from "./groq";
+import { OpenAIProvider } from "./openai";
+import { DeepSeekProvider } from "./deepseek";
+import { LaozangProvider } from "./laozang";
 
 // System instruction for Orion
 const getSystemInstruction = (): string => {
@@ -85,7 +88,35 @@ export function createProviders(): AIProvider[] {
     }
   }
 
-  // Add more providers here as needed
+  // 4. OpenAI (fallback)
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (openaiKey) {
+    try {
+      providers.push(new OpenAIProvider(openaiKey));
+    } catch (error) {
+      console.warn("⚠️ Failed to initialize OpenAI provider:", error);
+    }
+  }
+
+  // 5. Deep Seek (fallback)
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    try {
+      providers.push(new DeepSeekProvider(deepseekKey));
+    } catch (error) {
+      console.warn("⚠️ Failed to initialize Deep Seek provider:", error);
+    }
+  }
+
+  // 6. Laozang (fallback)
+  const laozangKey = process.env.LAOZANG_API_KEY;
+  if (laozangKey) {
+    try {
+      providers.push(new LaozangProvider(laozangKey));
+    } catch (error) {
+      console.warn("⚠️ Failed to initialize Laozang provider:", error);
+    }
+  }
   // Example:
   // const openaiKey = process.env.OPENAI_API_KEY;
   // if (openaiKey) {

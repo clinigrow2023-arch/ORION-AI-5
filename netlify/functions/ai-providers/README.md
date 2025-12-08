@@ -79,7 +79,9 @@ if (openaiKey) {
 - `GEMINI_API_KEY` - Chave da API do Gemini (obrigatória)
 - `GROK_API_KEY` - Chave da API do Grok/xAI (opcional, fallback)
 - `GROQ_API_KEY` - Chave da API do Groq (opcional, fallback)
-- `OPENAI_API_KEY` - Chave da API do OpenAI (opcional, se adicionar)
+- `OPENAI_API_KEY` - Chave da API do OpenAI (opcional, fallback)
+- `DEEPSEEK_API_KEY` - Chave da API do Deep Seek (opcional, fallback)
+- `LAOZANG_API_KEY` - Chave da API do Laozang (opcional, fallback)
 
 ## Tratamento de Erros
 

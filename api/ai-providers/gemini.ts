@@ -37,6 +37,16 @@ export class GeminiProvider implements AIProvider {
         }
       }
 
+      // Validar se a resposta não está vazia
+      if (!fullText || fullText.trim() === "") {
+        throw createProviderError(
+          this.name,
+          "Empty response from Gemini API",
+          undefined,
+          true // Retryable - pode ser um problema temporário
+        );
+      }
+
       return fullText;
     } catch (error: any) {
       const isRetryable = isRetryableError(error);

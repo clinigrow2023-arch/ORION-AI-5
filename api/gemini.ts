@@ -129,19 +129,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       console.log(`✅ Message sent using ${provider}`, {
         responseLength: fullText?.length || 0,
-        responsePreview: fullText?.substring(0, 100) || "empty"
+        responseType: typeof fullText,
+        responsePreview: fullText?.substring(0, 200) || "empty",
+        hasResponse: !!fullText
       });
 
       // Validar se a resposta não está vazia
-      if (!fullText || fullText.trim() === "") {
-        console.error("❌ Empty response from provider:", provider);
+      if (!fullText || (typeof fullText === "string" && fullText.trim() === "")) {
+        console.error("❌ Empty response from provider:", {
+          provider,
+          fullText,
+          type: typeof fullText,
+          length: fullText?.length
+        });
         return res.status(500).json({
           error: "AI returned an empty response. Please try again.",
         });
       }
 
+      // Garantir que fullText é uma string
+      const responseText = typeof fullText === "string" ? fullText : String(fullText);
+
+      console.log("📤 Sending response to client:", {
+        responseLength: responseText.length,
+        responsePreview: responseText.substring(0, 200)
+      });
+
       return res.status(200).json({
-        response: fullText,
+        response: responseText,
         history: [
           ...(history || []),
           { role: "user", parts: [{ text: message }] },

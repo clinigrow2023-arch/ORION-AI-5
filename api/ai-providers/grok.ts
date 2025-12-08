@@ -88,7 +88,7 @@ export class GrokProvider implements AIProvider {
       }
 
       const content = data.choices[0].message.content || "";
-      
+
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
         throw createProviderError(
@@ -214,7 +214,7 @@ Output strictly valid JSON with the following structure:
       }
 
       const content = data.choices[0].message.content || "";
-      
+
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
         throw createProviderError(

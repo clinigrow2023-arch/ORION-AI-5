@@ -4,7 +4,7 @@ import { prisma } from "./_prisma";
 import {
   sendMessageWithFallback,
   generatePlanWithFallback,
-} from "../netlify/functions/ai-providers/fallback";
+} from "./ai-providers/fallback";
 import { setCorsHeaders, handleOptions, getTokenFromHeader } from "./_helpers";
 
 const JWT_SECRET =

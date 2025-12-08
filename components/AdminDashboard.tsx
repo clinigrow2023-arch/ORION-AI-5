@@ -54,7 +54,8 @@ const AdminDashboard: React.FC = () => {
         throw new Error("No token found");
       }
 
-      const response = await fetch("/.netlify/functions/admin-users", {
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("admin-users"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -94,7 +95,8 @@ const AdminDashboard: React.FC = () => {
         throw new Error("No token found");
       }
 
-      const response = await fetch("/.netlify/functions/admin-users", {
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("admin-users"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -153,7 +155,8 @@ const AdminDashboard: React.FC = () => {
           throw new Error("No token found");
         }
 
-        const response = await fetch("/.netlify/functions/admin-users", {
+        const { getApiEndpoint } = await import("../lib/api-endpoints");
+        const response = await fetch(getApiEndpoint("admin-users"), {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
@@ -195,7 +198,8 @@ const AdminDashboard: React.FC = () => {
           throw new Error("No token found");
         }
 
-        const response = await fetch("/.netlify/functions/admin-users", {
+        const { getApiEndpoint } = await import("../lib/api-endpoints");
+        const response = await fetch(getApiEndpoint("admin-users"), {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

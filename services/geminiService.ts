@@ -1,8 +1,10 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from "../types";
 
-// Netlify Function endpoint
-const NETLIFY_FUNCTION_ENDPOINT = "/.netlify/functions/gemini";
+// API endpoint (compatível com Netlify e Vercel)
+import { getApiEndpoint } from "../lib/api-endpoints";
+
+const NETLIFY_FUNCTION_ENDPOINT = getApiEndpoint("gemini");
 
 // Check if we're in development and Netlify Function is not available
 const isDevelopment =

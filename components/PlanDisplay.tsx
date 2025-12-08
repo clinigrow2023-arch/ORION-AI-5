@@ -49,7 +49,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
         const token = authService.getToken();
         if (!token) return;
 
-        const response = await fetch("/.netlify/functions/conversations", {
+        const { getApiEndpoint } = await import("../lib/api-endpoints");
+        const response = await fetch(getApiEndpoint("conversations"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },

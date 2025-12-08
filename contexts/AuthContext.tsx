@@ -56,7 +56,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Fazer apenas uma chamada direta para auth-verify
-      const response = await fetch("/.netlify/functions/auth-verify", {
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("auth-verify"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },

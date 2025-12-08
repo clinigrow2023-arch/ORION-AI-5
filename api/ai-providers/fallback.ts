@@ -144,14 +144,17 @@ export async function tryProviders<T>(
     try {
       console.log(`🔄 Trying ${provider.name} for ${operationName}...`);
       const result = await operation(provider);
-      
+
       console.log(`✅ ${provider.name} succeeded for ${operationName}`, {
         hasResult: !!result,
         resultType: typeof result,
         resultLength: result?.length || 0,
-        resultPreview: typeof result === "string" ? result.substring(0, 100) : String(result).substring(0, 100) || "empty"
+        resultPreview:
+          typeof result === "string"
+            ? result.substring(0, 100)
+            : String(result).substring(0, 100) || "empty",
       });
-      
+
       // Validar que o resultado não está vazio
       if (result === undefined || result === null) {
         console.error(`❌ ${provider.name} returned undefined/null result`);
@@ -162,7 +165,7 @@ export async function tryProviders<T>(
           true // Retryable
         );
       }
-      
+
       return { result, provider: provider.name };
     } catch (error: any) {
       const providerError = error as AIProviderError;
@@ -228,12 +231,16 @@ export async function sendMessageWithFallback(
   const { result, provider } = await tryProviders(
     providers,
     async (provider) => {
-      const response = await provider.sendMessage(message, history, systemInstruction);
+      const response = await provider.sendMessage(
+        message,
+        history,
+        systemInstruction
+      );
       console.log(`📦 Provider ${provider.name} returned:`, {
         hasResponse: !!response,
         responseType: typeof response,
         responseLength: response?.length || 0,
-        responsePreview: response?.substring(0, 100) || "empty"
+        responsePreview: response?.substring(0, 100) || "empty",
       });
       return response;
     },
@@ -245,12 +252,15 @@ export async function sendMessageWithFallback(
     console.error("❌ sendMessageWithFallback: result is empty:", {
       result,
       type: typeof result,
-      provider
+      provider,
     });
     throw new Error(`Provider ${provider} returned an empty response`);
   }
 
-  return { response: typeof result === "string" ? result : String(result), provider };
+  return {
+    response: typeof result === "string" ? result : String(result),
+    provider,
+  };
 }
 
 // Generate plan with fallback

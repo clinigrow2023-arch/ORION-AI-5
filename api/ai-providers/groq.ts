@@ -68,7 +68,8 @@ export class GroqProvider implements AIProvider {
         hasChoices: !!data.choices,
         choicesLength: data.choices?.length || 0,
         hasMessage: !!data.choices?.[0]?.message,
-        messageContent: data.choices?.[0]?.message?.content?.substring(0, 100) || "empty"
+        messageContent:
+          data.choices?.[0]?.message?.content?.substring(0, 100) || "empty",
       });
 
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
@@ -82,18 +83,18 @@ export class GroqProvider implements AIProvider {
       }
 
       const content = data.choices[0].message.content || "";
-      
+
       console.log(`📝 Groq content extracted:`, {
         hasContent: !!content,
         contentLength: content.length,
-        contentPreview: content.substring(0, 100) || "empty"
+        contentPreview: content.substring(0, 100) || "empty",
       });
-      
+
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
         console.error("❌ Empty content from Groq:", {
           content,
-          message: data.choices[0].message
+          message: data.choices[0].message,
         });
         throw createProviderError(
           this.name,
@@ -198,7 +199,8 @@ Output strictly valid JSON with the following structure:
         hasChoices: !!data.choices,
         choicesLength: data.choices?.length || 0,
         hasMessage: !!data.choices?.[0]?.message,
-        messageContent: data.choices?.[0]?.message?.content?.substring(0, 100) || "empty"
+        messageContent:
+          data.choices?.[0]?.message?.content?.substring(0, 100) || "empty",
       });
 
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
@@ -212,18 +214,18 @@ Output strictly valid JSON with the following structure:
       }
 
       const content = data.choices[0].message.content || "";
-      
+
       console.log(`📝 Groq content extracted:`, {
         hasContent: !!content,
         contentLength: content.length,
-        contentPreview: content.substring(0, 100) || "empty"
+        contentPreview: content.substring(0, 100) || "empty",
       });
-      
+
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
         console.error("❌ Empty content from Groq:", {
           content,
-          message: data.choices[0].message
+          message: data.choices[0].message,
         });
         throw createProviderError(
           this.name,

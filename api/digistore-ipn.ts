@@ -107,24 +107,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // A DigiStore envia dados como application/x-www-form-urlencoded
     const postData: Record<string, string> = {};
 
-    // Vercel já faz parse automático do body
+    // Log do body raw para debug
+    const contentType = req.headers["content-type"] || req.headers["Content-Type"] || "";
+    console.log("DigiStore IPN - Raw request info:", {
+      contentType,
+      bodyType: typeof req.body,
+      bodyIsArray: Array.isArray(req.body),
+      bodyKeys: req.body && typeof req.body === "object" ? Object.keys(req.body) : "N/A",
+      bodyPreview: typeof req.body === "string" ? req.body.substring(0, 200) : JSON.stringify(req.body).substring(0, 200),
+    });
+
+    // Parse do body - Vercel pode não fazer parse automático de form-urlencoded
+    let bodyString = "";
+    
     if (req.body) {
-      if (typeof req.body === "object" && !Array.isArray(req.body)) {
+      if (typeof req.body === "object" && !Array.isArray(req.body) && !Buffer.isBuffer(req.body)) {
+        // Body já parseado como objeto
         Object.assign(postData, req.body);
-      } else if (typeof req.body === "string") {
-        // Parse manual de form-urlencoded se necessário
-        const params = new URLSearchParams(req.body);
-        params.forEach((value, key) => {
-          postData[key] = value;
-        });
+      } else {
+        // Converter para string se necessário
+        if (Buffer.isBuffer(req.body)) {
+          bodyString = req.body.toString("utf-8");
+        } else if (typeof req.body === "string") {
+          bodyString = req.body;
+        } else {
+          bodyString = String(req.body);
+        }
+        
+        // Parse manual de form-urlencoded
+        if (bodyString) {
+          try {
+            const params = new URLSearchParams(bodyString);
+            params.forEach((value, key) => {
+              postData[key] = value;
+            });
+          } catch (parseError) {
+            console.error("Error parsing URLSearchParams:", parseError);
+            // Tentar parse alternativo se URLSearchParams falhar
+            try {
+              const pairs = bodyString.split("&");
+              for (const pair of pairs) {
+                const equalIndex = pair.indexOf("=");
+                if (equalIndex > 0) {
+                  const key = decodeURIComponent(pair.substring(0, equalIndex));
+                  const value = decodeURIComponent(pair.substring(equalIndex + 1));
+                  if (key) {
+                    postData[key] = value || "";
+                  }
+                }
+              }
+            } catch (altParseError) {
+              console.error("Error in alternative parsing:", altParseError);
+            }
+          }
+        }
       }
     }
+    
+    // Fallback: tentar usar query parameters se body estiver vazio
+    if (Object.keys(postData).length === 0 && req.query && Object.keys(req.query).length > 0) {
+      console.warn("DigiStore IPN - Body empty, trying query parameters as fallback");
+      Object.assign(postData, req.query as Record<string, string>);
+    }
+    
+    // Verificar se conseguiu parsear algum dado
+    if (Object.keys(postData).length === 0) {
+      console.error("DigiStore IPN - No data parsed from body or query", {
+        bodyType: typeof req.body,
+        bodyIsBuffer: Buffer.isBuffer(req.body),
+        bodyString: bodyString.substring(0, 500),
+        contentType,
+        queryKeys: req.query ? Object.keys(req.query) : [],
+        headers: Object.keys(req.headers),
+      });
+      return res.status(400).send("ERROR: No data received");
+    }
 
-    // Log para debug
+    // Log detalhado dos dados parseados
     console.log("DigiStore IPN received:", {
-      eventType: postData.event,
-      orderId: postData.order_id,
-      email: postData.email,
+      eventType: postData.event || postData["event"],
+      orderId: postData.order_id || postData["order_id"],
+      email: postData.email || postData["email"],
+      shaSign: postData.sha_sign || postData["sha_sign"] || postData["SHASIGN"],
+      allKeys: Object.keys(postData),
+      postDataSample: Object.keys(postData).slice(0, 10).reduce((acc, key) => {
+        acc[key] = postData[key];
+        return acc;
+      }, {} as Record<string, string>),
     });
 
     const eventType = postedValue(postData, "event");
@@ -133,16 +202,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Validar assinatura se passphrase estiver configurado
     const mustValidateSignature = IPN_PASSPHRASE !== "";
     if (mustValidateSignature) {
-      const receivedSignature = postedValue(postData, "sha_sign");
+      // Tentar diferentes variações do nome do campo de assinatura
+      const receivedSignature = 
+        postedValue(postData, "sha_sign") || 
+        postedValue(postData, "SHASIGN") || 
+        postedValue(postData, "sha_signature") ||
+        "";
+      
+      // Log detalhado antes de calcular assinatura esperada
+      console.log("DigiStore IPN - Signature validation:", {
+        hasPassphrase: !!IPN_PASSPHRASE,
+        receivedSignature,
+        postDataKeys: Object.keys(postData),
+        postDataValues: Object.keys(postData).reduce((acc, key) => {
+          acc[key] = postData[key] ? `${postData[key].substring(0, 20)}...` : "";
+          return acc;
+        }, {} as Record<string, string>),
+      });
+
       const expectedSignature = digistoreSignature(IPN_PASSPHRASE, postData);
 
       if (receivedSignature !== expectedSignature) {
         console.error("Invalid SHA signature", {
           received: receivedSignature,
           expected: expectedSignature,
+          postDataKeys: Object.keys(postData),
+          postDataCount: Object.keys(postData).length,
         });
         return res.status(400).send("ERROR: invalid sha signature");
       }
+      
+      console.log("DigiStore IPN - Signature validated successfully");
+    } else {
+      console.warn("DigiStore IPN - Signature validation skipped (no passphrase configured)");
     }
 
     // Processar eventos

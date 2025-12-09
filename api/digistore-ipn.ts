@@ -354,12 +354,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Detailed log of parsed data
+    // Check for signature fields (case-insensitive search)
+    const signatureFields: Record<string, string> = {};
+    Object.keys(postData).forEach((key) => {
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey.includes("sha") ||
+        lowerKey.includes("sign") ||
+        lowerKey.includes("hash")
+      ) {
+        signatureFields[key] = postData[key];
+      }
+    });
+
     console.log("DigiStore IPN received:", {
       eventType: postData.event || postData["event"],
       orderId: postData.order_id || postData["order_id"],
       email: postData.email || postData["email"],
       shaSign: postData.sha_sign || postData["sha_sign"] || postData["SHASIGN"],
       allKeys: Object.keys(postData),
+      signatureFieldsFound: signatureFields,
+      allFieldsWithValues: Object.entries(postData)
+        .filter(([_, value]) => value && String(value).trim() !== "")
+        .reduce((acc, [key, value]) => {
+          acc[key] =
+            value.length > 50 ? `${value.substring(0, 50)}...` : value;
+          return acc;
+        }, {} as Record<string, string>),
       postDataSample: Object.keys(postData)
         .slice(0, 10)
         .reduce((acc, key) => {
@@ -381,13 +402,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (mustValidateSignature) {
       // Try different variations of signature field name
       // DigiStore may send in different formats
-      const receivedSignature =
-        postedValue(postData, "sha_sign") ||
-        postedValue(postData, "SHASIGN") ||
-        postedValue(postData, "sha_signature") ||
-        postedValue(postData, "SHA_SIGN") ||
-        postedValue(postData, "signature") ||
-        "";
+      // Also search case-insensitively for any field containing "sha" or "sign"
+      let receivedSignature = "";
+      
+      // First try known field names
+      const knownFields = [
+        "sha_sign",
+        "SHASIGN",
+        "sha_signature",
+        "SHA_SIGN",
+        "signature",
+        "SHA_SIGN_DIGISTORE",
+        "sha_sign_digistore",
+      ];
+      
+      for (const field of knownFields) {
+        const value = postedValue(postData, field);
+        if (value && value.trim() !== "") {
+          receivedSignature = value;
+          console.log(`Found signature in field: ${field}`);
+          break;
+        }
+      }
+      
+      // If not found, search case-insensitively
+      if (!receivedSignature) {
+        for (const [key, value] of Object.entries(postData)) {
+          const lowerKey = key.toLowerCase();
+          if (
+            (lowerKey.includes("sha") || lowerKey.includes("sign")) &&
+            value &&
+            String(value).trim() !== ""
+          ) {
+            receivedSignature = String(value);
+            console.log(`Found signature in field (case-insensitive): ${key}`);
+            break;
+          }
+        }
+      }
 
       // Detailed log before calculating expected signature
       console.log("DigiStore IPN - Signature validation:", {
@@ -396,8 +448,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         receivedSignature: receivedSignature
           ? `${receivedSignature.substring(0, 20)}...`
           : "(empty)",
+        receivedSignatureLength: receivedSignature.length,
         postDataKeys: Object.keys(postData),
         postDataCount: Object.keys(postData).length,
+        allFields: Object.keys(postData).map((key) => ({
+          key,
+          hasValue: !!postData[key] && String(postData[key]).trim() !== "",
+          valuePreview: postData[key]
+            ? String(postData[key]).substring(0, 30)
+            : "",
+        })),
       });
 
       const expectedSignature = digistoreSignature(IPN_PASSPHRASE, postData);

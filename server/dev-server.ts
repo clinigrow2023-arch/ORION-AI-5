@@ -58,20 +58,29 @@ const PORT = 8888;
 
 app.use(cors());
 
-// Middleware para capturar body raw antes do parsing (para digistore-ipn)
-app.use("/api/digistore-ipn", (req: any, res: any, next: any) => {
-  let data = "";
-  req.on("data", (chunk: Buffer) => {
-    data += chunk.toString("utf-8");
-  });
-  req.on("end", () => {
-    req.rawBody = data;
-    next();
-  });
+app.use(express.json());
+
+// Para digistore-ipn, capturar body raw e fazer parse manual (não usar express.urlencoded)
+app.use("/api/digistore-ipn", express.raw({ type: "application/x-www-form-urlencoded" }), (req: any, res: any, next: any) => {
+  if (Buffer.isBuffer(req.body)) {
+    req.rawBody = req.body.toString("utf-8");
+    // Fazer parse manual e popular req.body
+    const postData: Record<string, string> = {};
+    try {
+      const params = new URLSearchParams(req.rawBody);
+      params.forEach((value, key) => {
+        postData[key] = value;
+      });
+      req.body = postData;
+    } catch (error) {
+      console.error("Error parsing digistore-ipn body:", error);
+      req.body = {};
+    }
+  }
+  next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Para form-urlencoded (DigiStore IPN)
+app.use(express.urlencoded({ extended: true })); // Para outras rotas que usam form-urlencoded
 
 // OPTIONS for CORS - handle all API routes (must be before other routes)
 app.options("/api/:functionName", (req, res) => {

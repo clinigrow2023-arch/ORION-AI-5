@@ -132,16 +132,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bodyPreview:
         typeof req.body === "string"
           ? req.body.substring(0, 200)
-          : JSON.stringify(req.body).substring(0, 200),
+          : req.body
+          ? (JSON.stringify(req.body) || "").substring(0, 200)
+          : "(empty or undefined)",
     });
 
     // Parse do body - Express já faz parse automático, Vercel não
     let bodyString = "";
-    
+
     // Tentar usar rawBody se disponível (capturado antes do parsing do Express)
     const rawBody = (req as any).rawBody;
     if (rawBody && typeof rawBody === "string") {
-      console.log("DigiStore IPN - Using rawBody (captured before Express parsing)");
+      console.log(
+        "DigiStore IPN - Using rawBody (captured before Express parsing)"
+      );
       bodyString = rawBody;
     }
 
@@ -154,18 +158,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ) {
         // Body já parseado como objeto (Express com express.urlencoded)
         // Log detalhado dos valores recebidos para debug
-        const sampleValues = Object.entries(req.body).slice(0, 5).reduce((acc, [key, value]) => {
-          acc[key] = {
-            type: typeof value,
-            isArray: Array.isArray(value),
-            value: value,
-            stringValue: String(value),
-            length: Array.isArray(value) ? value.length : (typeof value === 'string' ? value.length : 'N/A'),
-          };
-          return acc;
-        }, {} as Record<string, any>);
+        const sampleValues = Object.entries(req.body)
+          .slice(0, 5)
+          .reduce((acc, [key, value]) => {
+            acc[key] = {
+              type: typeof value,
+              isArray: Array.isArray(value),
+              value: value,
+              stringValue: String(value),
+              length: Array.isArray(value)
+                ? value.length
+                : typeof value === "string"
+                ? value.length
+                : "N/A",
+            };
+            return acc;
+          }, {} as Record<string, any>);
         console.log("DigiStore IPN - Body values sample:", sampleValues);
-        
+
         // Converter todos os valores para string (pode vir como array devido ao extended: true)
         for (const [key, value] of Object.entries(req.body)) {
           if (Array.isArray(value)) {
@@ -179,13 +189,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             postData[key] = "";
           }
         }
-        
+
         // Log após processamento para verificar
-        const processedSample = Object.entries(postData).slice(0, 5).reduce((acc, [key, value]) => {
-          acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>);
-        console.log("DigiStore IPN - Processed values sample:", processedSample);
+        const processedSample = Object.entries(postData)
+          .slice(0, 5)
+          .reduce((acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          }, {} as Record<string, string>);
+        console.log(
+          "DigiStore IPN - Processed values sample:",
+          processedSample
+        );
       } else if (bodyString) {
         // Usar rawBody se disponível (melhor para form-urlencoded)
         console.log("DigiStore IPN - Parsing rawBody string");
@@ -195,7 +210,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             postData[key] = value;
           });
         } catch (parseError) {
-          console.error("Error parsing URLSearchParams from rawBody:", parseError);
+          console.error(
+            "Error parsing URLSearchParams from rawBody:",
+            parseError
+          );
           // Tentar parse alternativo
           try {
             const pairs = bodyString.split("&");
@@ -203,7 +221,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               const equalIndex = pair.indexOf("=");
               if (equalIndex > 0) {
                 const key = decodeURIComponent(pair.substring(0, equalIndex));
-                const value = decodeURIComponent(pair.substring(equalIndex + 1));
+                const value = decodeURIComponent(
+                  pair.substring(equalIndex + 1)
+                );
                 if (key) {
                   postData[key] = value || "";
                 }

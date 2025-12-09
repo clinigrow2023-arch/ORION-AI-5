@@ -134,7 +134,19 @@ echo   Iniciando Cloudflare Tunnel...
 echo ========================================
 echo.
 
+REM Verificar novamente antes de iniciar o tunnel
+echo [INFO] Verificacao final antes de iniciar o tunnel...
+netstat -an | findstr ":%SERVER_PORT%" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERRO] Servidor nao esta rodando na porta %SERVER_PORT%!
+    echo [ERRO] Por favor, verifique a janela do servidor para erros.
+    echo.
+    echo Pressione qualquer tecla para tentar iniciar o tunnel mesmo assim...
+    pause >nul
+)
+
 REM Quick tunnel (sem configuracao necessaria - apenas expoe a porta)
+echo.
 echo [INFO] Criando quick tunnel (sem configuracao necessaria)...
 echo [INFO] URL sera exibida abaixo quando o tunnel estiver pronto.
 echo.
@@ -144,6 +156,11 @@ echo ========================================
 echo.
 echo [INFO] Conectando a http://%TUNNEL_HOST%:%TUNNEL_PORT%
 echo [INFO] Use essa URL para configurar webhooks (ex: DigiStore IPN)
+echo.
+echo [DICA] Se o tunnel nao conseguir conectar:
+echo   1. Verifique se o servidor esta rodando na janela separada
+echo   2. Execute check-server.bat para diagnosticar problemas
+echo   3. Certifique-se de que nenhum firewall esta bloqueando a porta %SERVER_PORT%
 echo.
 %CLOUDFLARED_CMD% tunnel --url http://%TUNNEL_HOST%:%TUNNEL_PORT%
 

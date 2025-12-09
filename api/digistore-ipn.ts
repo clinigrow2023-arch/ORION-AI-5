@@ -116,10 +116,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Log do body raw para debug
     const contentType =
       req.headers["content-type"] || req.headers["Content-Type"] || "";
+    const isExpress = typeof req.body === "object" && !Array.isArray(req.body) && !Buffer.isBuffer(req.body);
     console.log("DigiStore IPN - Raw request info:", {
       contentType,
       bodyType: typeof req.body,
       bodyIsArray: Array.isArray(req.body),
+      isExpress: isExpress, // Detecta se está rodando no Express (dev-server)
       bodyKeys:
         req.body && typeof req.body === "object"
           ? Object.keys(req.body)
@@ -130,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : JSON.stringify(req.body).substring(0, 200),
     });
 
-    // Parse do body - Vercel pode não fazer parse automático de form-urlencoded
+    // Parse do body - Express já faz parse automático, Vercel não
     let bodyString = "";
 
     if (req.body) {
@@ -139,10 +141,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         !Array.isArray(req.body) &&
         !Buffer.isBuffer(req.body)
       ) {
-        // Body já parseado como objeto
-        Object.assign(postData, req.body);
+        // Body já parseado como objeto (Express com express.urlencoded)
+        // Converter todos os valores para string (pode vir como array devido ao extended: true)
+        for (const [key, value] of Object.entries(req.body)) {
+          if (Array.isArray(value)) {
+            // Se for array, pegar o primeiro valor (express.urlencoded com extended: true)
+            postData[key] = String(value[0] || "");
+          } else if (value !== null && value !== undefined) {
+            postData[key] = String(value);
+          } else {
+            postData[key] = "";
+          }
+        }
       } else {
-        // Converter para string se necessário
+        // Converter para string se necessário (Vercel - body raw)
         if (Buffer.isBuffer(req.body)) {
           bodyString = req.body.toString("utf-8");
         } else if (typeof req.body === "string") {
@@ -151,7 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           bodyString = String(req.body);
         }
 
-        // Parse manual de form-urlencoded
+        // Parse manual de form-urlencoded (para Vercel)
         if (bodyString) {
           try {
             const params = new URLSearchParams(bodyString);
@@ -198,14 +210,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Verificar se conseguiu parsear algum dado
     // Para connection_test, pode não ter dados, então tratamos de forma especial
     const eventType = postedValue(postData, "event");
-    
+
     if (Object.keys(postData).length === 0) {
       // Se não há dados mas é um POST, pode ser connection_test vazio
       if (eventType === "" || eventType === "connection_test" || !eventType) {
-        console.log("DigiStore IPN - Empty request, treating as connection test");
+        console.log(
+          "DigiStore IPN - Empty request, treating as connection test"
+        );
         return res.status(200).send("OK");
       }
-      
+
       console.error("DigiStore IPN - No data parsed from body or query", {
         bodyType: typeof req.body,
         bodyIsBuffer: Buffer.isBuffer(req.body),
@@ -255,7 +269,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log("DigiStore IPN - Signature validation:", {
         eventType,
         hasPassphrase: !!IPN_PASSPHRASE,
-        receivedSignature: receivedSignature ? `${receivedSignature.substring(0, 20)}...` : "(empty)",
+        receivedSignature: receivedSignature
+          ? `${receivedSignature.substring(0, 20)}...`
+          : "(empty)",
         postDataKeys: Object.keys(postData),
         postDataCount: Object.keys(postData).length,
       });
@@ -264,9 +280,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (receivedSignature !== expectedSignature) {
         // Verificar se está em modo de debug
-        const allowWithoutSignature = process.env.DIGISTORE_ALLOW_WITHOUT_SIGNATURE === "true";
-        const isDebugMode = allowWithoutSignature || process.env.NODE_ENV === "development";
-        
+        const allowWithoutSignature =
+          process.env.DIGISTORE_ALLOW_WITHOUT_SIGNATURE === "true";
+        const isDebugMode =
+          allowWithoutSignature || process.env.NODE_ENV === "development";
+
         console.error("Invalid SHA signature", {
           eventType,
           received: receivedSignature || "(empty)",
@@ -277,19 +295,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           postDataCount: Object.keys(postData).length,
           isDebugMode,
           // Log completo dos dados para debug (sem valores sensíveis)
-          postDataSample: Object.keys(postData).slice(0, 10).reduce((acc, key) => {
-            if (key.toLowerCase().includes("password") || key.toLowerCase().includes("secret") || key.toLowerCase().includes("sign")) {
-              acc[key] = "***HIDDEN***";
-            } else {
-              acc[key] = postData[key] ? `${postData[key].substring(0, 30)}...` : "";
-            }
-            return acc;
-          }, {} as Record<string, string>),
+          postDataSample: Object.keys(postData)
+            .slice(0, 10)
+            .reduce((acc, key) => {
+              if (
+                key.toLowerCase().includes("password") ||
+                key.toLowerCase().includes("secret") ||
+                key.toLowerCase().includes("sign")
+              ) {
+                acc[key] = "***HIDDEN***";
+              } else {
+                acc[key] = postData[key]
+                  ? `${postData[key].substring(0, 30)}...`
+                  : "";
+              }
+              return acc;
+            }, {} as Record<string, string>),
         });
-        
+
         // Se estiver em modo de debug, permitir continuar mas logar aviso
         if (isDebugMode) {
-          console.warn("DigiStore IPN - Allowing request with invalid signature (debug mode)");
+          console.warn(
+            "DigiStore IPN - Allowing request with invalid signature (debug mode)"
+          );
         } else {
           return res.status(400).send("ERROR: invalid sha signature");
         }
@@ -304,7 +332,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Processar eventos
     switch (eventType) {
-
       case "on_payment": {
         const orderId = postedValue(postData, "order_id");
         const productId = postedValue(postData, "product_id");

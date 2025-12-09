@@ -10,6 +10,7 @@ import {
   handleOptions,
   getTokenFromHeader,
 } from "./_helpers.js";
+import { sendSubscriptionExpiredEmail } from "../lib/email.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -50,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       select: {
         id: true,
         email: true,
+        name: true,
         role: true,
         isBlocked: true,
         isActive: true,
@@ -76,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (user.nextPaymentDate && user.subscriptionStatus === "active") {
         const now = new Date();
         const nextPayment = new Date(user.nextPaymentDate);
-        
+
         // Se a data de pagamento passou, bloquear acesso automaticamente
         if (nextPayment < now) {
           console.log("Subscription expired, blocking user:", {
@@ -96,8 +98,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           });
 
+          // Enviar email informando sobre expiração
+          try {
+            await sendSubscriptionExpiredEmail(user.email, user.name || "User");
+          } catch (emailError) {
+            console.error(
+              "Error sending expired subscription email:",
+              emailError
+            );
+            // Não bloquear o processo se email falhar
+          }
+
           return res.status(403).json({
-            error: "Your subscription has expired. Please renew your subscription to continue using the service.",
+            error:
+              "Your subscription has expired. Please renew your subscription to continue using the service.",
             blocked: true,
             expired: true,
           });
@@ -173,16 +187,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         responseLength: fullText?.length || 0,
         responseType: typeof fullText,
         responsePreview: fullText?.substring(0, 200) || "empty",
-        hasResponse: !!fullText
+        hasResponse: !!fullText,
       });
 
       // Validar se a resposta não está vazia
-      if (!fullText || (typeof fullText === "string" && fullText.trim() === "")) {
+      if (
+        !fullText ||
+        (typeof fullText === "string" && fullText.trim() === "")
+      ) {
         console.error("❌ Empty response from provider:", {
           provider,
           fullText,
           type: typeof fullText,
-          length: fullText?.length
+          length: fullText?.length,
         });
         return res.status(500).json({
           error: "AI returned an empty response. Please try again.",
@@ -190,11 +207,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Garantir que fullText é uma string
-      const responseText = typeof fullText === "string" ? fullText : String(fullText);
+      const responseText =
+        typeof fullText === "string" ? fullText : String(fullText);
 
       console.log("📤 Sending response to client:", {
         responseLength: responseText.length,
-        responsePreview: responseText.substring(0, 200)
+        responsePreview: responseText.substring(0, 200),
       });
 
       return res.status(200).json({

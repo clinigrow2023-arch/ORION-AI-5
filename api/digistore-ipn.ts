@@ -519,7 +519,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // If rebillDate is provided, use it; otherwise, calculate 1 month from now
         let nextPaymentDate: Date | null = null;
         const now = new Date();
-        
+
         if (rebillDate) {
           try {
             nextPaymentDate = new Date(rebillDate);
@@ -533,10 +533,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // No rebillDate provided - calculate 1 month from payment date
           nextPaymentDate = new Date(now);
           nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-          console.log("No rebillDate provided, calculating 1 month from payment:", {
-            paymentDate: now,
-            nextPaymentDate: nextPaymentDate,
-          });
+          console.log(
+            "No rebillDate provided, calculating 1 month from payment:",
+            {
+              paymentDate: now,
+              nextPaymentDate: nextPaymentDate,
+            }
+          );
         }
 
         // Check if user already exists (by email or orderId)

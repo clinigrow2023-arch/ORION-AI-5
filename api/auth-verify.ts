@@ -6,6 +6,7 @@ import {
   handleOptions,
   getTokenFromHeader,
 } from "./_helpers.js";
+import { sendSubscriptionExpiredEmail } from "../lib/email.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -88,6 +89,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               subscriptionStatus: "payment_missed",
             },
           });
+
+          // Enviar email informando sobre expiração
+          try {
+            await sendSubscriptionExpiredEmail(user.email, user.name || "User");
+          } catch (emailError) {
+            console.error(
+              "Error sending expired subscription email:",
+              emailError
+            );
+            // Não bloquear o processo se email falhar
+          }
 
           return res.status(403).json({
             error: "Your subscription has expired. Please renew your subscription to continue using the service.",

@@ -198,23 +198,26 @@ BEHAVIORAL RULES:
 
         if (response.ok) {
           const data = await response.json();
-          
-          console.log("API Response Data:", { 
-            hasResponse: !!data.response, 
+
+          console.log("API Response Data:", {
+            hasResponse: !!data.response,
             responseType: typeof data.response,
             responseLength: data.response?.length || 0,
             responsePreview: data.response?.substring(0, 200) || "empty",
-            fullData: data
+            fullData: data,
           });
 
           const fullText = data.response || "";
 
           // Validar se a resposta não está vazia
-          if (!fullText || (typeof fullText === "string" && fullText.trim() === "")) {
+          if (
+            !fullText ||
+            (typeof fullText === "string" && fullText.trim() === "")
+          ) {
             console.error("❌ Empty response from API:", {
               data,
               response: data.response,
-              responseType: typeof data.response
+              responseType: typeof data.response,
             });
             throw new Error("AI returned an empty response. Please try again.");
           }

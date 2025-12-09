@@ -2,25 +2,22 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { prisma } from "./_prisma.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import {
-  sendNewUserEmail,
-  sendExistingUserEmail,
-} from "../lib/email.js";
+import { sendNewUserEmail, sendExistingUserEmail } from "../lib/email.js";
 
-// IPN Passphrase configurado nas configurações IPN da DigiStore
+// IPN Passphrase configured in DigiStore IPN settings
 const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
 
-// URL base do site (para login e thank you page)
+// Site base URL (for login and thank you page)
 const SITE_URL = process.env.SITE_URL || "https://your-site.vercel.app";
 
 /**
- * Modo de debug: Para desabilitar validação de assinatura temporariamente (apenas para debug)
- * Configure a variável de ambiente: DIGISTORE_ALLOW_WITHOUT_SIGNATURE=true
- * ATENÇÃO: NÃO use em produção! Isso desabilita a segurança do IPN.
+ * Debug mode: To temporarily disable signature validation (for debugging only)
+ * Set environment variable: DIGISTORE_ALLOW_WITHOUT_SIGNATURE=true
+ * WARNING: DO NOT use in production! This disables IPN security.
  */
 
 /**
- * Gera assinatura SHA512 conforme especificação da DigiStore
+ * Generates SHA512 signature according to DigiStore specification
  */
 function digistoreSignature(
   shaPassphrase: string,
@@ -35,23 +32,23 @@ function digistoreSignature(
     return "no_signature_passphrase_provided";
   }
 
-  // Remover sha_sign e SHASIGN dos parâmetros
+  // Remove sha_sign and SHASIGN from parameters
   const cleanParams = { ...parameters };
   delete cleanParams["sha_sign"];
   delete cleanParams["SHASIGN"];
 
-  // Ordenar chaves
+  // Sort keys
   const keys = Object.keys(cleanParams);
   const keysToSort = keys.map((key) =>
     sortCaseSensitive ? key : key.toUpperCase()
   );
 
-  // Ordenar mantendo correspondência com valores
+  // Sort maintaining correspondence with values
   const sortedPairs = keys
     .map((key, index) => ({ key, sortKey: keysToSort[index] }))
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
-  // Construir string SHA
+  // Build SHA string
   let shaString = "";
   for (const { key } of sortedPairs) {
     let value: string = String(cleanParams[key] || "");
@@ -82,7 +79,7 @@ function digistoreSignature(
 }
 
 /**
- * Gera senha aleatória segura
+ * Generates secure random password
  */
 function generateRandomPassword(length: number = 12): string {
   const charset =
@@ -98,14 +95,14 @@ function generateRandomPassword(length: number = 12): string {
 }
 
 /**
- * Extrai valor do POST
+ * Extracts value from POST data
  */
 function postedValue(data: Record<string, any>, varname: string): string {
   return data[varname] || "";
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // DigiStore envia dados via POST form-urlencoded
+  // DigiStore sends data via POST form-urlencoded
   res.setHeader("Content-Type", "text/plain");
 
   if (req.method !== "POST") {
@@ -113,11 +110,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Parse dos dados POST (form-urlencoded)
-    // A DigiStore envia dados como application/x-www-form-urlencoded
+    // Parse POST data (form-urlencoded)
+    // DigiStore sends data as application/x-www-form-urlencoded
     const postData: Record<string, string> = {};
 
-    // Log do body raw para debug
+    // Log raw body for debugging
     const contentType =
       req.headers["content-type"] || req.headers["Content-Type"] || "";
     const isExpress =
@@ -128,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contentType,
       bodyType: typeof req.body,
       bodyIsArray: Array.isArray(req.body),
-      isExpress: isExpress, // Detecta se está rodando no Express (dev-server)
+      isExpress: isExpress, // Detects if running on Express (dev-server)
       bodyKeys:
         req.body && typeof req.body === "object"
           ? Object.keys(req.body)
@@ -141,10 +138,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : "(empty or undefined)",
     });
 
-    // Parse do body - Express já faz parse automático, Vercel não
+    // Parse body - Express already does automatic parsing, Vercel doesn't
     let bodyString = "";
 
-    // Tentar usar rawBody se disponível (capturado antes do parsing do Express)
+    // Try to use rawBody if available (captured before Express parsing)
     const rawBody = (req as any).rawBody;
     if (rawBody && typeof rawBody === "string") {
       console.log(
@@ -167,10 +164,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         typeof req.body === "object" &&
         !Array.isArray(req.body) &&
         !Buffer.isBuffer(req.body) &&
-        !bodyString // Só usar body parseado se não tivermos rawBody
+        !bodyString // Only use parsed body if we don't have rawBody
       ) {
-        // Body já parseado como objeto (Express com express.urlencoded)
-        // Log detalhado dos valores recebidos para debug
+        // Body already parsed as object (Express with express.urlencoded)
+        // Detailed log of received values for debugging
         const sampleValues = Object.entries(req.body)
           .slice(0, 5)
           .reduce((acc, [key, value]) => {
@@ -189,21 +186,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }, {} as Record<string, any>);
         console.log("DigiStore IPN - Body values sample:", sampleValues);
 
-        // Converter todos os valores para string (pode vir como array devido ao extended: true)
+        // Convert all values to string (may come as array due to extended: true)
         for (const [key, value] of Object.entries(req.body)) {
           if (Array.isArray(value)) {
-            // Se for array, pegar o primeiro valor (express.urlencoded com extended: true)
+            // If array, get first value (express.urlencoded with extended: true)
             postData[key] = value.length > 0 ? String(value[0]) : "";
           } else if (value !== null && value !== undefined) {
             const strValue = String(value);
-            // Se a string não estiver vazia, usar; caso contrário, manter vazio
+            // If string is not empty, use it; otherwise, keep empty
             postData[key] = strValue;
           } else {
             postData[key] = "";
           }
         }
 
-        // Log após processamento para verificar
+        // Log after processing to verify
         const processedSample = Object.entries(postData)
           .slice(0, 5)
           .reduce((acc, [key, value]) => {
@@ -215,7 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           processedSample
         );
       } else if (bodyString) {
-        // Usar rawBody se disponível (melhor para form-urlencoded)
+        // Use rawBody if available (better for form-urlencoded)
         console.log("DigiStore IPN - Parsing rawBody string");
         try {
           const params = new URLSearchParams(bodyString);
@@ -247,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
       } else {
-        // Converter para string se necessário (Vercel - body raw)
+        // Convert to string if necessary (Vercel - raw body)
         if (Buffer.isBuffer(req.body)) {
           bodyString = req.body.toString("utf-8");
         } else if (typeof req.body === "string") {
@@ -300,17 +297,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       Object.assign(postData, req.query as Record<string, string>);
     }
 
-    // Verificar se conseguiu parsear algum dado
-    // Para connection_test, pode não ter dados, então tratamos de forma especial
+    // Check if any data was parsed
+    // For connection_test, there may be no data, so we treat it specially
     const eventType = postedValue(postData, "event");
 
-    // Verificar se todos os valores estão vazios (pode ser teste de conexão)
+    // Check if all values are empty (may be connection test)
     const hasAnyValue = Object.values(postData).some(
       (value) => value && value.trim() !== ""
     );
     const isEmptyRequest = Object.keys(postData).length === 0 || !hasAnyValue;
 
-    // Log quando detectar dados reais (valores preenchidos)
+    // Log when real data is detected (filled values)
     if (!isEmptyRequest) {
       console.log("DigiStore IPN - Real data detected (not empty test)", {
         eventType,
@@ -327,7 +324,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (isEmptyRequest) {
-      // Se não há dados ou todos estão vazios, pode ser connection_test
+      // If there's no data or all values are empty, may be connection_test
       if (eventType === "" || eventType === "connection_test" || !eventType) {
         console.log(
           "DigiStore IPN - Empty request or all values empty, treating as connection test"
@@ -350,13 +347,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       );
 
-      // Se é um teste mas não é connection_test explícito, retornar OK mesmo assim
-      // (pode ser um teste da DigiStore com campos vazios)
+      // If it's a test but not an explicit connection_test, return OK anyway
+      // (may be a DigiStore test with empty fields)
       console.log("DigiStore IPN - Returning OK for empty test request");
       return res.status(200).send("OK");
     }
 
-    // Log detalhado dos dados parseados
+    // Detailed log of parsed data
     console.log("DigiStore IPN received:", {
       eventType: postData.event || postData["event"],
       orderId: postData.order_id || postData["order_id"],
@@ -373,17 +370,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const apiMode = postedValue(postData, "api_mode"); // 'live' or 'test'
 
-    // connection_test não precisa de validação de assinatura - retornar OK imediatamente
+    // connection_test doesn't need signature validation - return OK immediately
     if (eventType === "connection_test") {
       console.log("DigiStore IPN - Connection test received");
       return res.status(200).send("OK");
     }
 
-    // Validar assinatura se passphrase estiver configurado (exceto para connection_test)
+    // Validate signature if passphrase is configured (except for connection_test)
     const mustValidateSignature = IPN_PASSPHRASE !== "";
     if (mustValidateSignature) {
-      // Tentar diferentes variações do nome do campo de assinatura
-      // A DigiStore pode enviar em diferentes formatos
+      // Try different variations of signature field name
+      // DigiStore may send in different formats
       const receivedSignature =
         postedValue(postData, "sha_sign") ||
         postedValue(postData, "SHASIGN") ||
@@ -392,7 +389,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         postedValue(postData, "signature") ||
         "";
 
-      // Log detalhado antes de calcular assinatura esperada
+      // Detailed log before calculating expected signature
       console.log("DigiStore IPN - Signature validation:", {
         eventType,
         hasPassphrase: !!IPN_PASSPHRASE,
@@ -406,7 +403,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const expectedSignature = digistoreSignature(IPN_PASSPHRASE, postData);
 
       if (receivedSignature !== expectedSignature) {
-        // Verificar se está em modo de debug
+        // Check if in debug mode
         const allowWithoutSignature =
           process.env.DIGISTORE_ALLOW_WITHOUT_SIGNATURE === "true";
         const isDebugMode =
@@ -421,7 +418,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           postDataKeys: Object.keys(postData),
           postDataCount: Object.keys(postData).length,
           isDebugMode,
-          // Log completo dos dados para debug (sem valores sensíveis)
+          // Complete log of data for debugging (without sensitive values)
           postDataSample: Object.keys(postData)
             .slice(0, 10)
             .reduce((acc, key) => {
@@ -440,13 +437,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }, {} as Record<string, string>),
         });
 
-        // Se estiver em modo de debug ou não houver assinatura recebida, permitir continuar
+        // If in debug mode or no signature received, allow to continue
         if (isDebugMode || !receivedSignature) {
           if (!receivedSignature) {
             console.warn(
               "DigiStore IPN - No signature received, allowing in development mode"
             );
-            // Em produção, bloquear se não houver assinatura
+            // In production, block if there's no signature
             if (process.env.NODE_ENV === "production") {
               return res.status(400).send("ERROR: invalid sha signature");
             }
@@ -467,8 +464,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    // Processar eventos
-    // A DigiStore pode enviar "payment" ou "on_payment" - normalizar para "on_payment"
+    // Process events
+    // DigiStore may send "payment" or "on_payment" - normalize to "on_payment"
     const normalizedEventType =
       eventType === "payment" ? "on_payment" : eventType;
 
@@ -478,10 +475,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const productId = postedValue(postData, "product_id");
         const productName = postedValue(postData, "product_name");
         const billingType = postedValue(postData, "billing_type");
-        const rebillDate = postedValue(postData, "rebill_date"); // Data do próximo pagamento recorrente
+        const rebillDate = postedValue(postData, "rebill_date"); // Date of next recurring payment
 
         const email = postedValue(postData, "email");
-        // A DigiStore pode enviar "first_name" ou "address_first_name" - tentar ambos
+        // DigiStore may send "first_name" or "address_first_name" - try both
         const firstName =
           postedValue(postData, "address_first_name") ||
           postedValue(postData, "first_name");
@@ -503,13 +500,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           isTestMode,
         });
 
-        // Validações
+        // Validations
         if (!email || !firstName) {
           console.error("Missing required fields: email or first_name");
           return res.status(400).send("ERROR: Missing required fields");
         }
 
-        // Validar formato de email
+        // Validate email format
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           console.error("Invalid email format:", email);
           return res.status(400).send("ERROR: Invalid email format");
@@ -518,17 +515,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const emailLower = email.toLowerCase().trim();
         const fullName = `${firstName} ${lastName}`.trim() || firstName.trim();
 
-        // Calcular próxima data de pagamento se for recorrente
+        // Calculate next payment date
+        // If rebillDate is provided, use it; otherwise, calculate 1 month from now
         let nextPaymentDate: Date | null = null;
+        const now = new Date();
+        
         if (rebillDate) {
           try {
             nextPaymentDate = new Date(rebillDate);
           } catch (e) {
             console.warn("Invalid rebill_date format:", rebillDate);
+            // Fallback: calculate 1 month from now
+            nextPaymentDate = new Date(now);
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
           }
+        } else {
+          // No rebillDate provided - calculate 1 month from payment date
+          nextPaymentDate = new Date(now);
+          nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+          console.log("No rebillDate provided, calculating 1 month from payment:", {
+            paymentDate: now,
+            nextPaymentDate: nextPaymentDate,
+          });
         }
 
-        // Verificar se usuário já existe (por email ou orderId)
+        // Check if user already exists (by email or orderId)
         let user = await prisma.user.findFirst({
           where: {
             OR: [{ email: emailLower }, { digistoreOrderId: orderId }],
@@ -537,10 +548,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let tempPasswordForDisplay = "";
         const saltRounds = 10;
-        const now = new Date();
 
         if (user) {
-          // Verificar se é usuário legado (sem digistoreOrderId ou subscriptionStatus)
+          // Check if legacy user (without digistoreOrderId or subscriptionStatus)
           const isLegacyUser =
             !user.digistoreOrderId || !user.subscriptionStatus;
 
@@ -586,12 +596,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 "User activated with new temporary password:",
                 user.email
               );
-              
+
               // Enviar email com nova senha temporária
               try {
-                await sendNewUserEmail(user.email, user.name, tempPasswordForDisplay);
+                await sendNewUserEmail(
+                  user.email,
+                  user.name,
+                  tempPasswordForDisplay
+                );
               } catch (emailError) {
-                console.error("Error sending email to reactivated user:", emailError);
+                console.error(
+                  "Error sending email to reactivated user:",
+                  emailError
+                );
                 // Não bloquear o processo se email falhar
               }
             } else {
@@ -614,15 +631,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   : "User subscription updated:",
                 user.email
               );
-              
+
               // Enviar email informando que acesso foi liberado
               try {
                 await sendExistingUserEmail(user.email, user.name);
               } catch (emailError) {
-                console.error("Error sending email to existing user:", emailError);
+                console.error(
+                  "Error sending email to existing user:",
+                  emailError
+                );
                 // Não bloquear o processo se email falhar
               }
-              
+
               // Não retornar senha para usuário já ativo (mantém senha atual)
               return res.status(200).send("OK");
             }
@@ -645,15 +665,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : "User already exists and is active:",
               user.email
             );
-            
+
             // Enviar email informando que acesso foi liberado
             try {
               await sendExistingUserEmail(user.email, user.name);
             } catch (emailError) {
-              console.error("Error sending email to existing user:", emailError);
+              console.error(
+                "Error sending email to existing user:",
+                emailError
+              );
               // Não bloquear o processo se email falhar
             }
-            
+
             return res.status(200).send("OK");
           }
         } else {
@@ -684,10 +707,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
 
           console.log("User created from DigiStore payment:", user.email);
-          
+
           // Enviar email com credenciais para novo usuário
           try {
-            await sendNewUserEmail(user.email, user.name, tempPasswordForDisplay);
+            await sendNewUserEmail(
+              user.email,
+              user.name,
+              tempPasswordForDisplay
+            );
           } catch (emailError) {
             console.error("Error sending email to new user:", emailError);
             // Não bloquear o processo se email falhar
@@ -701,7 +728,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const loginUrl = `${SITE_URL}/#login`;
         const thankyouUrl = `${SITE_URL}/#login`;
 
-        const headline = "Seus dados de acesso";
+        const headline = "Your Access Credentials";
         const showOn = "all"; // Mostrar em todos os lugares
         const hideOn = "none";
 

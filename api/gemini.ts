@@ -52,6 +52,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email: true,
         role: true,
         isBlocked: true,
+        isActive: true,
+        subscriptionStatus: true,
+        nextPaymentDate: true,
       },
     });
 
@@ -60,12 +63,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // IMPORTANTE: Admin sempre tem acesso ilimitado
-    // Verificar apenas se usuário está bloqueado (não verifica mais isActive ou accessExpiresAt)
     if (user.role !== "admin") {
       // Verificar se usuário está bloqueado
       if (user.isBlocked) {
         return res.status(403).json({
           error: "Account blocked. Please contact an administrator.",
+          blocked: true,
+        });
+      }
+
+      // Verificar se assinatura expirou (nextPaymentDate passou sem pagamento)
+      if (user.nextPaymentDate && user.subscriptionStatus === "active") {
+        const now = new Date();
+        const nextPayment = new Date(user.nextPaymentDate);
+        
+        // Se a data de pagamento passou, bloquear acesso automaticamente
+        if (nextPayment < now) {
+          console.log("Subscription expired, blocking user:", {
+            userId: user.id,
+            email: user.email,
+            nextPaymentDate: user.nextPaymentDate,
+            now: now,
+          });
+
+          // Bloquear usuário automaticamente
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isActive: false,
+              isBlocked: true,
+              subscriptionStatus: "payment_missed",
+            },
+          });
+
+          return res.status(403).json({
+            error: "Your subscription has expired. Please renew your subscription to continue using the service.",
+            blocked: true,
+            expired: true,
+          });
+        }
+      }
+
+      // Verificar se usuário está inativo
+      if (!user.isActive) {
+        return res.status(403).json({
+          error: "Account is not active. Please contact an administrator.",
           blocked: true,
         });
       }

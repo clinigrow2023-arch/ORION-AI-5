@@ -22,7 +22,7 @@ const createTransporter = () => {
 };
 
 /**
- * Envia email para novo usuário com credenciais de acesso
+ * Sends email to new user with access credentials
  */
 export async function sendNewUserEmail(
   email: string,
@@ -40,7 +40,7 @@ export async function sendNewUserEmail(
   const mailOptions = {
     from: `"Orion AI" <${GMAIL_USER}>`,
     to: email,
-    subject: "Bem-vindo ao Orion AI - Suas credenciais de acesso",
+    subject: "Welcome to Orion AI - Your Access Credentials",
     html: `
       <!DOCTYPE html>
       <html>
@@ -110,59 +110,59 @@ export async function sendNewUserEmail(
       </head>
       <body>
         <div class="header">
-          <h1>Bem-vindo ao Orion AI!</h1>
+          <h1>Welcome to Orion AI!</h1>
         </div>
         <div class="content">
-          <p>Olá <strong>${name}</strong>,</p>
+          <p>Hello <strong>${name}</strong>,</p>
           
-          <p>Sua compra foi confirmada com sucesso! Sua conta foi criada e está ativa.</p>
+          <p>Your purchase has been confirmed successfully! Your account has been created and is active.</p>
           
           <div class="credentials">
-            <h3 style="margin-top: 0; color: #667eea;">Suas credenciais de acesso:</h3>
+            <h3 style="margin-top: 0; color: #667eea;">Your access credentials:</h3>
             <div class="credential-item">
               <span class="label">Email:</span>
               <span class="value">${email}</span>
             </div>
             <div class="credential-item">
-              <span class="label">Senha temporária:</span>
+              <span class="label">Temporary password:</span>
               <span class="value">${password}</span>
             </div>
           </div>
           
-          <p><strong>Importante:</strong> Por segurança, você precisará alterar esta senha no primeiro login.</p>
+          <p><strong>Important:</strong> For security reasons, you will need to change this password on your first login.</p>
           
           <div style="text-align: center;">
-            <a href="${loginUrl}" class="button">Acessar Orion AI</a>
+            <a href="${loginUrl}" class="button">Access Orion AI</a>
           </div>
           
-          <p>Se você tiver alguma dúvida ou precisar de ajuda, não hesite em entrar em contato conosco.</p>
+          <p>If you have any questions or need help, please don't hesitate to contact us.</p>
           
           <div class="footer">
-            <p>Este é um email automático, por favor não responda.</p>
-            <p>&copy; ${new Date().getFullYear()} Orion AI. Todos os direitos reservados.</p>
+            <p>This is an automated email, please do not reply.</p>
+            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
           </div>
         </div>
       </body>
       </html>
     `,
     text: `
-Bem-vindo ao Orion AI!
+Welcome to Orion AI!
 
-Olá ${name},
+Hello ${name},
 
-Sua compra foi confirmada com sucesso! Sua conta foi criada e está ativa.
+Your purchase has been confirmed successfully! Your account has been created and is active.
 
-Suas credenciais de acesso:
+Your access credentials:
 Email: ${email}
-Senha temporária: ${password}
+Temporary password: ${password}
 
-IMPORTANTE: Por segurança, você precisará alterar esta senha no primeiro login.
+IMPORTANT: For security reasons, you will need to change this password on your first login.
 
-Acesse: ${loginUrl}
+Access: ${loginUrl}
 
-Se você tiver alguma dúvida ou precisar de ajuda, não hesite em entrar em contato conosco.
+If you have any questions or need help, please don't hesitate to contact us.
 
-Este é um email automático, por favor não responda.
+This is an automated email, please do not reply.
     `.trim(),
   };
 
@@ -183,7 +183,7 @@ Este é um email automático, por favor não responda.
 }
 
 /**
- * Envia email para usuário existente informando que acesso foi liberado
+ * Sends email to existing user informing that access has been granted
  */
 export async function sendExistingUserEmail(
   email: string,
@@ -200,7 +200,7 @@ export async function sendExistingUserEmail(
   const mailOptions = {
     from: `"Orion AI" <${GMAIL_USER}>`,
     to: email,
-    subject: "Orion AI - Seu acesso foi liberado!",
+    subject: "Orion AI - Your Access Has Been Granted!",
     html: `
       <!DOCTYPE html>
       <html>
@@ -248,47 +248,47 @@ export async function sendExistingUserEmail(
       </head>
       <body>
         <div class="header">
-          <h1>Seu acesso foi liberado!</h1>
+          <h1>Your Access Has Been Granted!</h1>
         </div>
         <div class="content">
-          <p>Olá <strong>${name}</strong>,</p>
+          <p>Hello <strong>${name}</strong>,</p>
           
-          <p>Ótimas notícias! Seu pagamento foi confirmado e seu acesso ao Orion AI foi liberado.</p>
+          <p>Great news! Your payment has been confirmed and your access to Orion AI has been granted.</p>
           
-          <p>Você já pode usar todas as funcionalidades da plataforma com sua conta existente.</p>
+          <p>You can now use all platform features with your existing account.</p>
           
           <div style="text-align: center;">
-            <a href="${loginUrl}" class="button">Acessar Orion AI</a>
+            <a href="${loginUrl}" class="button">Access Orion AI</a>
           </div>
           
-          <p>Use suas credenciais habituais para fazer login. Se você esqueceu sua senha, pode redefini-la na página de login.</p>
+          <p>Use your usual credentials to log in. If you forgot your password, you can reset it on the login page.</p>
           
-          <p>Se você tiver alguma dúvida ou precisar de ajuda, não hesite em entrar em contato conosco.</p>
+          <p>If you have any questions or need help, please don't hesitate to contact us.</p>
           
           <div class="footer">
-            <p>Este é um email automático, por favor não responda.</p>
-            <p>&copy; ${new Date().getFullYear()} Orion AI. Todos os direitos reservados.</p>
+            <p>This is an automated email, please do not reply.</p>
+            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
           </div>
         </div>
       </body>
       </html>
     `,
     text: `
-Seu acesso foi liberado!
+Your Access Has Been Granted!
 
-Olá ${name},
+Hello ${name},
 
-Ótimas notícias! Seu pagamento foi confirmado e seu acesso ao Orion AI foi liberado.
+Great news! Your payment has been confirmed and your access to Orion AI has been granted.
 
-Você já pode usar todas as funcionalidades da plataforma com sua conta existente.
+You can now use all platform features with your existing account.
 
-Acesse: ${loginUrl}
+Access: ${loginUrl}
 
-Use suas credenciais habituais para fazer login. Se você esqueceu sua senha, pode redefini-la na página de login.
+Use your usual credentials to log in. If you forgot your password, you can reset it on the login page.
 
-Se você tiver alguma dúvida ou precisar de ajuda, não hesite em entrar em contato conosco.
+If you have any questions or need help, please don't hesitate to contact us.
 
-Este é um email automático, por favor não responda.
+This is an automated email, please do not reply.
     `.trim(),
   };
 
@@ -307,4 +307,3 @@ Este é um email automático, por favor não responda.
     return false;
   }
 }
-

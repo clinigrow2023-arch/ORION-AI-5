@@ -72,13 +72,16 @@ app.use(
         preview: req.rawBody.substring(0, 500),
         hasData: req.rawBody.length > 0,
       });
-      
+
       // Fazer parse manual e popular req.body
       const postData: Record<string, string> = {};
       try {
         const params = new URLSearchParams(req.rawBody);
-        console.log("DigiStore IPN - URLSearchParams entries count:", params.size);
-        
+        console.log(
+          "DigiStore IPN - URLSearchParams entries count:",
+          params.size
+        );
+
         params.forEach((value, key) => {
           postData[key] = value;
           // Log primeiros 5 valores para debug
@@ -86,15 +89,21 @@ app.use(
             console.log(`DigiStore IPN - Parsed [${key}]:`, value);
           }
         });
-        
-        console.log("DigiStore IPN - Total parsed keys:", Object.keys(postData).length);
+
+        console.log(
+          "DigiStore IPN - Total parsed keys:",
+          Object.keys(postData).length
+        );
         req.body = postData;
       } catch (error) {
         console.error("Error parsing digistore-ipn body:", error);
         req.body = {};
       }
     } else {
-      console.warn("DigiStore IPN - req.body is not a Buffer:", typeof req.body);
+      console.warn(
+        "DigiStore IPN - req.body is not a Buffer:",
+        typeof req.body
+      );
     }
     next();
   }

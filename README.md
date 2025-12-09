@@ -30,7 +30,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
    LAOZANG_API_KEY=your_laozang_api_key_here
    DATABASE_URL=mongodb+srv://user:password@cluster.mongodb.net/orionai?appName=OrionIA
    JWT_SECRET=your-secret-key-change-in-production
-   SITE_URL=https://your-site.netlify.app
+   SITE_URL=https://your-site.vercel.app
    DIGISTORE_IPN_PASSPHRASE=your_digistore_ipn_passphrase
    ```
 
@@ -48,21 +48,12 @@ View your app in AI Studio: https://ai.studio/apps/drive/1FQL5--RYSQQZqEGTKaEdOp
 
 5. Run the app:
 
-   **Option 1: Development with Netlify Functions (Recommended)**
-
-   ```bash
-   netlify dev
-   ```
-
-   This will start both the Vite dev server and Netlify Functions locally.
-
-   **Option 2: Vite only (Functions won't work)**
-
    ```bash
    npm run dev
    ```
 
-   Note: Authentication and other Netlify Functions won't work with this option. Use `netlify dev` instead.
+   This will start both the Express server (port 8888) and Vite dev server (port 3000) locally.
+   All API routes will be available at `http://localhost:8888/api/`
 
 ## Authentication
 
@@ -80,16 +71,19 @@ The app requires user authentication. Users must:
 - JWT-based authentication
 - Credit system: users start with 10 credits, each message costs 1 credit
 
-## Deployment (Netlify)
+## Deployment (Vercel)
 
-1. Set environment variables in Netlify:
+1. Set environment variables in Vercel:
 
    - `GEMINI_API_KEY` - Your Gemini API key (primary AI provider)
    - `GROK_API_KEY` - Your Grok (xAI) API key (fallback AI provider)
    - `GROQ_API_KEY` - Your Groq API key (fallback AI provider)
+   - `OPENAI_API_KEY` - Your OpenAI API key (fallback AI provider)
+   - `DEEPSEEK_API_KEY` - Your Deep Seek API key (fallback AI provider)
+   - `LAOZANG_API_KEY` - Your Laozang API key (fallback AI provider)
    - `DATABASE_URL` - MongoDB connection string (must include database name)
    - `JWT_SECRET` - Secret key for JWT tokens
-   - `SITE_URL` - Your site URL (e.g., https://your-site.netlify.app)
+   - `SITE_URL` - Your site URL (e.g., https://your-site.vercel.app)
    - `DIGISTORE_IPN_PASSPHRASE` - IPN passphrase from DigiStore settings (optional, for signature validation)
 
 ## AI Providers & Fallback System
@@ -116,12 +110,12 @@ The app includes integration with DigiStore24 for automatic user creation when p
 1. Set up the IPN URL in DigiStore24 settings:
 
    - Go to https://www.digistore24.com/settings/ipn
-   - Set the notify URL to: `https://your-site.netlify.app/.netlify/functions/digistore-ipn`
+   - Set the notify URL to: `https://your-site.vercel.app/api/digistore-ipn`
    - Configure IPN timing to "Before redirect to thankyou page"
    - Set "group by upsells" to NO (important for access data to be sent via email)
 
 2. Set environment variables:
-   - `SITE_URL` - Your site URL (e.g., https://your-site.netlify.app)
+   - `SITE_URL` - Your site URL (e.g., https://your-site.vercel.app)
    - `DIGISTORE_IPN_PASSPHRASE` - IPN passphrase from DigiStore settings (optional, for signature validation)
 
 ### How it works
@@ -196,7 +190,7 @@ For local development with external access and webhook support (e.g., DigiStore 
 4. Copy the tunnel URL shown in the console
 5. Use this URL in webhook configurations (e.g., DigiStore IPN):
    ```
-   https://your-tunnel-url.trycloudflare.com/.netlify/functions/digistore-ipn
+   https://your-tunnel-url.trycloudflare.com/api/digistore-ipn
    ```
 
 ### Notes

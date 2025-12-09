@@ -127,7 +127,7 @@ Isso verifica:
 
 **Servidor (janela separada):**
 - Procure por: `🚀 Development server running`
-- Procure por: `📡 Netlify Functions available`
+- Procure por: `📡 API routes available`
 - Procure por erros em vermelho
 
 **Tunnel (janela atual):**

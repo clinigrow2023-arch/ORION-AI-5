@@ -37,7 +37,7 @@ export const authService = {
           // Se não conseguir fazer parse, usar o texto da resposta
           throw new Error(
             response.status === 404
-              ? 'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+              ? 'Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production.'
               : `Registration failed: ${response.status} ${response.statusText}`
           );
         }
@@ -56,7 +56,7 @@ export const authService = {
         error.message?.includes("Authentication service not available")
       ) {
         throw new Error(
-          'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+          'Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production.'
         );
       }
       throw error;
@@ -108,7 +108,7 @@ export const authService = {
         error.message?.includes("Authentication service not available")
       ) {
         throw new Error(
-          'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+          'Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production.'
         );
       }
       throw error;
@@ -236,7 +236,7 @@ export const authService = {
         error.message?.includes("Authentication service not available")
       ) {
         throw new Error(
-          'Authentication service not available. Please use "netlify dev" to run locally or deploy to production.'
+          'Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production.'
         );
       }
       throw error;

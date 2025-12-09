@@ -159,7 +159,7 @@ Este erro geralmente indica um problema na execução da função serverless. Si
 
 5. **Testar localmente:**
    - Execute `npm run dev` localmente
-   - Teste as funções em `http://localhost:8888/.netlify/functions/auth-login`
+   - Teste as funções em `http://localhost:8888/api/auth-login`
    - Se funcionar localmente, o problema é específico da Vercel (env vars, build, etc.)
 
 ## 📝 Notas Importantes

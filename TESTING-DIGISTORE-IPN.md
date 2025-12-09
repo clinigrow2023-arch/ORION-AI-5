@@ -7,13 +7,16 @@
 A melhor forma de testar é fazer deploy em um ambiente de staging no Vercel:
 
 1. **Criar um projeto de preview no Vercel:**
+
    ```bash
    # Fazer deploy da branch de desenvolvimento
    vercel --prod=false
    ```
+
    Isso criará uma URL temporária como: `https://orion-ai-5-git-feature-digistore-ipn-integration.vercel.app`
 
 2. **Usar a URL de preview para testes:**
+
    - A DigiStore pode aceitar URLs do Vercel (mesmo preview)
    - Configure o IPN com: `https://sua-preview-url.vercel.app/api/digistore-ipn`
    - Teste os eventos de pagamento
@@ -29,17 +32,20 @@ A melhor forma de testar é fazer deploy em um ambiente de staging no Vercel:
 O ngrok pode funcionar melhor que Cloudflare Tunnel para testes com DigiStore:
 
 1. **Instalar ngrok:**
+
    ```bash
    # Windows: Baixe de https://ngrok.com/download
    # Ou use chocolatey: choco install ngrok
    ```
 
 2. **Iniciar servidor local:**
+
    ```bash
    npm run dev
    ```
 
 3. **Criar túnel ngrok:**
+
    ```bash
    ngrok http 3000
    ```
@@ -47,21 +53,24 @@ O ngrok pode funcionar melhor que Cloudflare Tunnel para testes com DigiStore:
 4. **Usar URL do ngrok:**
    - ngrok fornece URLs como: `https://abc123.ngrok.io`
    - **Nota:** A DigiStore pode ainda rejeitar, mas ngrok tem melhor reputação que Cloudflare Tunnel
-   - Configure: `https://sua-url-ngrok.ngrok.io/.netlify/functions/digistore-ipn`
+   - Configure: `https://sua-url-ngrok.ngrok.io/api/digistore-ipn`
 
 ### Opção 3: Teste Manual com cURL/Postman
 
 Você pode simular eventos IPN manualmente para testar a lógica:
 
 1. **Teste de conexão:**
+
    ```bash
    curl -X POST https://seu-site.vercel.app/api/digistore-ipn \
      -H "Content-Type: application/x-www-form-urlencoded" \
      -d "event=connection_test"
    ```
+
    Deve retornar: `OK`
 
 2. **Simular pagamento:**
+
    ```bash
    curl -X POST https://seu-site.vercel.app/api/digistore-ipn \
      -H "Content-Type: application/x-www-form-urlencoded" \
@@ -80,6 +89,7 @@ Você pode simular eventos IPN manualmente para testar a lógica:
 A DigiStore tem um modo de teste que permite simular eventos:
 
 1. **Configurar IPN em modo de teste:**
+
    - No painel DigiStore, configure o IPN com `api_mode=test`
    - Faça um pagamento de teste
    - O IPN será enviado com `api_mode=test`
@@ -166,13 +176,13 @@ Ou via MongoDB:
 
 ```javascript
 // Verificar usuário criado
-db.users.findOne({ email: "teste@example.com" })
+db.users.findOne({ email: "teste@example.com" });
 
 // Verificar status de assinatura
-db.users.find({ subscriptionStatus: "active" })
+db.users.find({ subscriptionStatus: "active" });
 
 // Verificar usuários bloqueados
-db.users.find({ isBlocked: true })
+db.users.find({ isBlocked: true });
 ```
 
 ## Logs para Monitorar

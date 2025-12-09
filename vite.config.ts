@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
         ".ngrok-free.dev",
       ],
       proxy: {
-        "/.netlify/functions": {
+        "/api": {
           target: "http://localhost:8888",
           changeOrigin: true,
         },

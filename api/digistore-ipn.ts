@@ -379,10 +379,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mustValidateSignature = IPN_PASSPHRASE !== "";
     if (mustValidateSignature) {
       // Tentar diferentes variações do nome do campo de assinatura
+      // A DigiStore pode enviar em diferentes formatos
       const receivedSignature =
         postedValue(postData, "sha_sign") ||
         postedValue(postData, "SHASIGN") ||
         postedValue(postData, "sha_signature") ||
+        postedValue(postData, "SHA_SIGN") ||
+        postedValue(postData, "signature") ||
         "";
 
       // Log detalhado antes de calcular assinatura esperada

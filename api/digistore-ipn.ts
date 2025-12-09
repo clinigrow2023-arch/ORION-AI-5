@@ -116,7 +116,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Log do body raw para debug
     const contentType =
       req.headers["content-type"] || req.headers["Content-Type"] || "";
-    const isExpress = typeof req.body === "object" && !Array.isArray(req.body) && !Buffer.isBuffer(req.body);
+    const isExpress =
+      typeof req.body === "object" &&
+      !Array.isArray(req.body) &&
+      !Buffer.isBuffer(req.body);
     console.log("DigiStore IPN - Raw request info:", {
       contentType,
       bodyType: typeof req.body,
@@ -134,23 +137,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Parse do body - Express já faz parse automático, Vercel não
     let bodyString = "";
+    
+    // Tentar usar rawBody se disponível (capturado antes do parsing do Express)
+    const rawBody = (req as any).rawBody;
+    if (rawBody && typeof rawBody === "string") {
+      console.log("DigiStore IPN - Using rawBody (captured before Express parsing)");
+      bodyString = rawBody;
+    }
 
     if (req.body) {
       if (
         typeof req.body === "object" &&
         !Array.isArray(req.body) &&
-        !Buffer.isBuffer(req.body)
+        !Buffer.isBuffer(req.body) &&
+        !bodyString // Só usar body parseado se não tivermos rawBody
       ) {
         // Body já parseado como objeto (Express com express.urlencoded)
+        // Log detalhado dos valores recebidos para debug
+        const sampleValues = Object.entries(req.body).slice(0, 5).reduce((acc, [key, value]) => {
+          acc[key] = {
+            type: typeof value,
+            isArray: Array.isArray(value),
+            value: value,
+            stringValue: String(value),
+            length: Array.isArray(value) ? value.length : (typeof value === 'string' ? value.length : 'N/A'),
+          };
+          return acc;
+        }, {} as Record<string, any>);
+        console.log("DigiStore IPN - Body values sample:", sampleValues);
+        
         // Converter todos os valores para string (pode vir como array devido ao extended: true)
         for (const [key, value] of Object.entries(req.body)) {
           if (Array.isArray(value)) {
             // Se for array, pegar o primeiro valor (express.urlencoded com extended: true)
-            postData[key] = String(value[0] || "");
+            postData[key] = value.length > 0 ? String(value[0]) : "";
           } else if (value !== null && value !== undefined) {
-            postData[key] = String(value);
+            const strValue = String(value);
+            // Se a string não estiver vazia, usar; caso contrário, manter vazio
+            postData[key] = strValue;
           } else {
             postData[key] = "";
+          }
+        }
+        
+        // Log após processamento para verificar
+        const processedSample = Object.entries(postData).slice(0, 5).reduce((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {} as Record<string, string>);
+        console.log("DigiStore IPN - Processed values sample:", processedSample);
+      } else if (bodyString) {
+        // Usar rawBody se disponível (melhor para form-urlencoded)
+        console.log("DigiStore IPN - Parsing rawBody string");
+        try {
+          const params = new URLSearchParams(bodyString);
+          params.forEach((value, key) => {
+            postData[key] = value;
+          });
+        } catch (parseError) {
+          console.error("Error parsing URLSearchParams from rawBody:", parseError);
+          // Tentar parse alternativo
+          try {
+            const pairs = bodyString.split("&");
+            for (const pair of pairs) {
+              const equalIndex = pair.indexOf("=");
+              if (equalIndex > 0) {
+                const key = decodeURIComponent(pair.substring(0, equalIndex));
+                const value = decodeURIComponent(pair.substring(equalIndex + 1));
+                if (key) {
+                  postData[key] = value || "";
+                }
+              }
+            }
+          } catch (altParseError) {
+            console.error("Error in alternative parsing:", altParseError);
           }
         }
       } else {

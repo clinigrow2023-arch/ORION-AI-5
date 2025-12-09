@@ -57,6 +57,19 @@ const app = express();
 const PORT = 8888;
 
 app.use(cors());
+
+// Middleware para capturar body raw antes do parsing (para digistore-ipn)
+app.use("/api/digistore-ipn", (req: any, res: any, next: any) => {
+  let data = "";
+  req.on("data", (chunk: Buffer) => {
+    data += chunk.toString("utf-8");
+  });
+  req.on("end", () => {
+    req.rawBody = data;
+    next();
+  });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Para form-urlencoded (DigiStore IPN)
 
@@ -86,7 +99,5 @@ app.post("/api/digistore-ipn", digistoreIpnHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Development server running on http://localhost:${PORT}`);
-  console.log(
-    `📡 API routes available at http://localhost:${PORT}/api/`
-  );
+  console.log(`📡 API routes available at http://localhost:${PORT}/api/`);
 });

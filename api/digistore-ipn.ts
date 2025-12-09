@@ -451,7 +451,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Processar eventos
-    switch (eventType) {
+    // A DigiStore pode enviar "payment" ou "on_payment" - normalizar para "on_payment"
+    const normalizedEventType = eventType === "payment" ? "on_payment" : eventType;
+    
+    switch (normalizedEventType) {
       case "on_payment": {
         const orderId = postedValue(postData, "order_id");
         const productId = postedValue(postData, "product_id");
@@ -460,8 +463,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const rebillDate = postedValue(postData, "rebill_date"); // Data do próximo pagamento recorrente
 
         const email = postedValue(postData, "email");
-        const firstName = postedValue(postData, "address_first_name");
-        const lastName = postedValue(postData, "address_last_name");
+        // A DigiStore pode enviar "first_name" ou "address_first_name" - tentar ambos
+        const firstName = postedValue(postData, "address_first_name") || postedValue(postData, "first_name");
+        const lastName = postedValue(postData, "address_last_name") || postedValue(postData, "last_name");
 
         const isTestMode = apiMode !== "live";
 
@@ -515,15 +519,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (user) {
           // Verificar se é usuário legado (sem digistoreOrderId ou subscriptionStatus)
-          const isLegacyUser = !user.digistoreOrderId || !user.subscriptionStatus;
-          
+          const isLegacyUser =
+            !user.digistoreOrderId || !user.subscriptionStatus;
+
           if (isLegacyUser) {
-            console.log("DigiStore IPN - Legacy user detected, migrating to automated system:", {
-              email: user.email,
-              hasOrderId: !!user.digistoreOrderId,
-              hasSubscriptionStatus: !!user.subscriptionStatus,
-              isActive: user.isActive,
-            });
+            console.log(
+              "DigiStore IPN - Legacy user detected, migrating to automated system:",
+              {
+                email: user.email,
+                hasOrderId: !!user.digistoreOrderId,
+                hasSubscriptionStatus: !!user.subscriptionStatus,
+                isActive: user.isActive,
+              }
+            );
           }
 
           // Se usuário já existe, atualizar dados de assinatura e ativar
@@ -571,8 +579,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 },
               });
               console.log(
-                isLegacyUser 
-                  ? "Legacy user migrated to automated system:" 
+                isLegacyUser
+                  ? "Legacy user migrated to automated system:"
                   : "User subscription updated:",
                 user.email
               );

@@ -299,26 +299,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Verificar se conseguiu parsear algum dado
     // Para connection_test, pode não ter dados, então tratamos de forma especial
     const eventType = postedValue(postData, "event");
-
-    if (Object.keys(postData).length === 0) {
-      // Se não há dados mas é um POST, pode ser connection_test vazio
+    
+    // Verificar se todos os valores estão vazios (pode ser teste de conexão)
+    const hasAnyValue = Object.values(postData).some(value => value && value.trim() !== "");
+    const isEmptyRequest = Object.keys(postData).length === 0 || !hasAnyValue;
+    
+    if (isEmptyRequest) {
+      // Se não há dados ou todos estão vazios, pode ser connection_test
       if (eventType === "" || eventType === "connection_test" || !eventType) {
         console.log(
-          "DigiStore IPN - Empty request, treating as connection test"
+          "DigiStore IPN - Empty request or all values empty, treating as connection test"
         );
         return res.status(200).send("OK");
       }
-
-      console.error("DigiStore IPN - No data parsed from body or query", {
+      
+      console.warn("DigiStore IPN - Request received but all values are empty", {
         bodyType: typeof req.body,
         bodyIsBuffer: Buffer.isBuffer(req.body),
-        bodyString: bodyString.substring(0, 500),
+        bodyString: bodyString ? bodyString.substring(0, 500) : "(empty)",
         contentType,
         queryKeys: req.query ? Object.keys(req.query) : [],
         headers: Object.keys(req.headers),
         eventType,
+        postDataKeys: Object.keys(postData),
+        postDataKeysCount: Object.keys(postData).length,
       });
-      return res.status(400).send("ERROR: No data received");
+      
+      // Se é um teste mas não é connection_test explícito, retornar OK mesmo assim
+      // (pode ser um teste da DigiStore com campos vazios)
+      console.log("DigiStore IPN - Returning OK for empty test request");
+      return res.status(200).send("OK");
     }
 
     // Log detalhado dos dados parseados

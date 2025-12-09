@@ -137,11 +137,10 @@ You can test the IPN connection using DigiStore's connection test feature. The e
 - **DATABASE_URL**: Must include the database name in the connection string
   - Format: `mongodb+srv://user:pass@cluster.mongodb.net/database_name?appName=AppName`
 - **JWT_SECRET**: Use a strong, random secret in production
-- **Development**: The app includes a local Express server that simulates Netlify Functions
+- **Development**: The app includes a local Express server that simulates Vercel API routes
   - Run `npm run dev` - starts both Express server (port 8888) and Vite (port 3000)
-  - All functions work locally without needing `netlify dev`
-  - In production, Netlify automatically uses the real Functions
-- **Netlify CLI** (Optional): You can also use `netlify dev` if preferred
+  - All API routes work locally at `http://localhost:8888/api/`
+  - In production, Vercel automatically uses the real API routes
 
 ## Cloudflare Tunnel (Development)
 

@@ -117,6 +117,8 @@ The app includes integration with DigiStore24 for automatic user creation when p
 2. Set environment variables:
    - `SITE_URL` - Your site URL (e.g., https://your-site.vercel.app)
    - `DIGISTORE_IPN_PASSPHRASE` - IPN passphrase from DigiStore settings (optional, for signature validation)
+   - `GMAIL_USER` - Your Gmail address for sending emails (e.g., your-email@gmail.com)
+   - `GMAIL_PASS` - Gmail App Password (see GMAIL-SETUP.md for instructions)
 
 ### How it works
 

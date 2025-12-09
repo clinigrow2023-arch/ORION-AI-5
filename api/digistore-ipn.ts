@@ -299,11 +299,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Verificar se conseguiu parsear algum dado
     // Para connection_test, pode não ter dados, então tratamos de forma especial
     const eventType = postedValue(postData, "event");
-    
+
     // Verificar se todos os valores estão vazios (pode ser teste de conexão)
-    const hasAnyValue = Object.values(postData).some(value => value && value.trim() !== "");
+    const hasAnyValue = Object.values(postData).some(
+      (value) => value && value.trim() !== ""
+    );
     const isEmptyRequest = Object.keys(postData).length === 0 || !hasAnyValue;
-    
+
+    // Log quando detectar dados reais (valores preenchidos)
+    if (!isEmptyRequest) {
+      console.log("DigiStore IPN - Real data detected (not empty test)", {
+        eventType,
+        hasValues: hasAnyValue,
+        sampleValues: Object.entries(postData)
+          .filter(([_, value]) => value && value.trim() !== "")
+          .slice(0, 5)
+          .reduce((acc, [key, value]) => {
+            acc[key] = value.length > 50 ? value.substring(0, 50) + "..." : value;
+            return acc;
+          }, {} as Record<string, string>),
+      });
+    }
+
     if (isEmptyRequest) {
       // Se não há dados ou todos estão vazios, pode ser connection_test
       if (eventType === "" || eventType === "connection_test" || !eventType) {
@@ -312,19 +329,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         return res.status(200).send("OK");
       }
-      
-      console.warn("DigiStore IPN - Request received but all values are empty", {
-        bodyType: typeof req.body,
-        bodyIsBuffer: Buffer.isBuffer(req.body),
-        bodyString: bodyString ? bodyString.substring(0, 500) : "(empty)",
-        contentType,
-        queryKeys: req.query ? Object.keys(req.query) : [],
-        headers: Object.keys(req.headers),
-        eventType,
-        postDataKeys: Object.keys(postData),
-        postDataKeysCount: Object.keys(postData).length,
-      });
-      
+
+      console.warn(
+        "DigiStore IPN - Request received but all values are empty",
+        {
+          bodyType: typeof req.body,
+          bodyIsBuffer: Buffer.isBuffer(req.body),
+          bodyString: bodyString ? bodyString.substring(0, 500) : "(empty)",
+          contentType,
+          queryKeys: req.query ? Object.keys(req.query) : [],
+          headers: Object.keys(req.headers),
+          eventType,
+          postDataKeys: Object.keys(postData),
+          postDataKeysCount: Object.keys(postData).length,
+        }
+      );
+
       // Se é um teste mas não é connection_test explícito, retornar OK mesmo assim
       // (pode ser um teste da DigiStore com campos vazios)
       console.log("DigiStore IPN - Returning OK for empty test request");

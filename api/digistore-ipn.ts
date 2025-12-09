@@ -2,6 +2,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { prisma } from "./_prisma.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import {
+  sendNewUserEmail,
+  sendExistingUserEmail,
+} from "../lib/email.js";
 
 // IPN Passphrase configurado nas configurações IPN da DigiStore
 const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
@@ -465,8 +469,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Processar eventos
     // A DigiStore pode enviar "payment" ou "on_payment" - normalizar para "on_payment"
-    const normalizedEventType = eventType === "payment" ? "on_payment" : eventType;
-    
+    const normalizedEventType =
+      eventType === "payment" ? "on_payment" : eventType;
+
     switch (normalizedEventType) {
       case "on_payment": {
         const orderId = postedValue(postData, "order_id");
@@ -477,8 +482,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const email = postedValue(postData, "email");
         // A DigiStore pode enviar "first_name" ou "address_first_name" - tentar ambos
-        const firstName = postedValue(postData, "address_first_name") || postedValue(postData, "first_name");
-        const lastName = postedValue(postData, "address_last_name") || postedValue(postData, "last_name");
+        const firstName =
+          postedValue(postData, "address_first_name") ||
+          postedValue(postData, "first_name");
+        const lastName =
+          postedValue(postData, "address_last_name") ||
+          postedValue(postData, "last_name");
 
         const isTestMode = apiMode !== "live";
 
@@ -577,6 +586,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 "User activated with new temporary password:",
                 user.email
               );
+              
+              // Enviar email com nova senha temporária
+              try {
+                await sendNewUserEmail(user.email, user.name, tempPasswordForDisplay);
+              } catch (emailError) {
+                console.error("Error sending email to reactivated user:", emailError);
+                // Não bloquear o processo se email falhar
+              }
             } else {
               // Usuário já ativo (pode ser legado) - atualizar dados de assinatura SEM alterar senha
               user = await prisma.user.update({
@@ -597,6 +614,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   : "User subscription updated:",
                 user.email
               );
+              
+              // Enviar email informando que acesso foi liberado
+              try {
+                await sendExistingUserEmail(user.email, user.name);
+              } catch (emailError) {
+                console.error("Error sending email to existing user:", emailError);
+                // Não bloquear o processo se email falhar
+              }
+              
               // Não retornar senha para usuário já ativo (mantém senha atual)
               return res.status(200).send("OK");
             }
@@ -619,6 +645,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 : "User already exists and is active:",
               user.email
             );
+            
+            // Enviar email informando que acesso foi liberado
+            try {
+              await sendExistingUserEmail(user.email, user.name);
+            } catch (emailError) {
+              console.error("Error sending email to existing user:", emailError);
+              // Não bloquear o processo se email falhar
+            }
+            
             return res.status(200).send("OK");
           }
         } else {
@@ -649,9 +684,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
 
           console.log("User created from DigiStore payment:", user.email);
+          
+          // Enviar email com credenciais para novo usuário
+          try {
+            await sendNewUserEmail(user.email, user.name, tempPasswordForDisplay);
+          } catch (emailError) {
+            console.error("Error sending email to new user:", emailError);
+            // Não bloquear o processo se email falhar
+          }
         }
 
         // Preparar dados de acesso para retornar à DigiStore
+        // Nota: Email já foi enviado diretamente, mas também retornamos para a DigiStore como backup
         const username = emailLower; // Usar email como username
 
         const loginUrl = `${SITE_URL}/#login`;
@@ -662,10 +706,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const hideOn = "none";
 
         // Retornar resposta no formato esperado pela DigiStore
-        const response = `OK
+        // Só incluir senha se for novo usuário ou usuário reativado (que recebeu nova senha)
+        const response = tempPasswordForDisplay
+          ? `OK
 thankyou_url: ${thankyouUrl}
 username: ${username}
 password: ${tempPasswordForDisplay}
+loginurl: ${loginUrl}
+headline: ${headline}
+show_on: ${showOn}
+hide_on: ${hideOn}`
+          : `OK
+thankyou_url: ${thankyouUrl}
+username: ${username}
 loginurl: ${loginUrl}
 headline: ${headline}
 show_on: ${showOn}

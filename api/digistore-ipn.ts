@@ -315,7 +315,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .filter(([_, value]) => value && value.trim() !== "")
           .slice(0, 5)
           .reduce((acc, [key, value]) => {
-            acc[key] = value.length > 50 ? value.substring(0, 50) + "..." : value;
+            acc[key] =
+              value.length > 50 ? value.substring(0, 50) + "..." : value;
             return acc;
           }, {} as Record<string, string>),
       });
@@ -513,6 +514,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const now = new Date();
 
         if (user) {
+          // Verificar se é usuário legado (sem digistoreOrderId ou subscriptionStatus)
+          const isLegacyUser = !user.digistoreOrderId || !user.subscriptionStatus;
+          
+          if (isLegacyUser) {
+            console.log("DigiStore IPN - Legacy user detected, migrating to automated system:", {
+              email: user.email,
+              hasOrderId: !!user.digistoreOrderId,
+              hasSubscriptionStatus: !!user.subscriptionStatus,
+              isActive: user.isActive,
+            });
+          }
+
           // Se usuário já existe, atualizar dados de assinatura e ativar
           if (!user.isActive || user.subscriptionStatus !== "active") {
             // Gerar nova senha temporária se estiver inativo
@@ -544,7 +557,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 user.email
               );
             } else {
-              // Usuário já ativo, apenas atualizar dados de assinatura
+              // Usuário já ativo (pode ser legado) - atualizar dados de assinatura SEM alterar senha
               user = await prisma.user.update({
                 where: { id: user.id },
                 data: {
@@ -554,14 +567,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   nextPaymentDate: nextPaymentDate,
                   productId: productId || user.productId,
                   billingType: billingType || user.billingType,
+                  isBlocked: false, // Garantir que está desbloqueado
                 },
               });
-              console.log("User subscription updated:", user.email);
-              // Não retornar senha para usuário já ativo
+              console.log(
+                isLegacyUser 
+                  ? "Legacy user migrated to automated system:" 
+                  : "User subscription updated:",
+                user.email
+              );
+              // Não retornar senha para usuário já ativo (mantém senha atual)
               return res.status(200).send("OK");
             }
           } else {
-            // Usuário já ativo e com assinatura ativa - apenas atualizar dados
+            // Usuário já ativo e com assinatura ativa - apenas atualizar dados de pagamento
             user = await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -570,9 +589,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 nextPaymentDate: nextPaymentDate,
                 productId: productId || user.productId,
                 billingType: billingType || user.billingType,
+                isBlocked: false, // Garantir que está desbloqueado
               },
             });
-            console.log("User already exists and is active:", user.email);
+            console.log(
+              isLegacyUser
+                ? "Legacy user payment updated:"
+                : "User already exists and is active:",
+              user.email
+            );
             return res.status(200).send("OK");
           }
         } else {

@@ -96,6 +96,33 @@ SITE_URL=https://your-site.vercel.app
 
 **⚠️ IMPORTANTE:** A DigiStore **NÃO aceita** URLs de túneis temporários (como Cloudflare Tunnel `.trycloudflare.com`). Você **DEVE** usar a URL de produção do Vercel.
 
+## Configuração do IPN Passphrase (Assinatura SHA)
+
+Para segurança, a DigiStore envia uma assinatura SHA512 em cada notificação IPN. Você precisa configurar o **IPN Passphrase** nas configurações da DigiStore.
+
+### Como Configurar:
+
+1. Acesse o painel da DigiStore
+2. Vá em **Configurações** → **IPN Settings** (ou **Notificações IPN**)
+3. Configure o **IPN Passphrase** (pode ser qualquer string segura)
+4. Configure a mesma string na variável de ambiente `DIGISTORE_IPN_PASSPHRASE` na Vercel
+
+### Variável de Ambiente:
+
+```env
+DIGISTORE_IPN_PASSPHRASE=sua-senha-secreta-aqui
+```
+
+### ⚠️ Modo de Desenvolvimento/Teste:
+
+Se você ainda não configurou o IPN Passphrase na DigiStore, pode temporariamente permitir requisições sem assinatura:
+
+```env
+DIGISTORE_ALLOW_WITHOUT_SIGNATURE=true
+```
+
+**ATENÇÃO:** Use isso apenas para testes! Em produção, sempre configure o IPN Passphrase corretamente.
+
 1. Acesse: https://www.digistore24.com/settings/ipn
 2. Configure a URL do IPN com sua URL de **produção do Vercel**:
    ```

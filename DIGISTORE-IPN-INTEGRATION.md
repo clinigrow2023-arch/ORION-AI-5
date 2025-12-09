@@ -7,7 +7,9 @@ A integração com DigiStore IPN permite gerenciar automaticamente o acesso dos 
 ## Funcionalidades Implementadas
 
 ### 1. **on_payment** - Pagamento Recebido
+
 Quando um cliente paga:
+
 - ✅ Cria conta automaticamente (se não existir)
 - ✅ Ativa conta existente (se estiver inativa)
 - ✅ Salva dados de assinatura:
@@ -21,35 +23,45 @@ Quando um cliente paga:
 - ✅ Usuário pode usar a IA imediatamente após pagamento
 
 ### 2. **on_payment_missed** - Pagamento Perdido
+
 Quando um cliente não paga:
+
 - ✅ Desativa a conta (`isActive: false`)
 - ✅ Bloqueia acesso (`isBlocked: true`)
 - ✅ Atualiza status: `subscriptionStatus: "payment_missed"`
 - ✅ Remove próxima data de pagamento
 
 ### 3. **on_refund** - Reembolso
+
 Quando há reembolso:
+
 - ✅ Desativa a conta
 - ✅ Bloqueia acesso
 - ✅ Atualiza status: `subscriptionStatus: "refunded"`
 - ✅ Remove próxima data de pagamento
 
 ### 4. **on_chargeback** - Estorno
+
 Quando há chargeback:
+
 - ✅ Desativa a conta
 - ✅ Bloqueia acesso
 - ✅ Atualiza status: `subscriptionStatus: "chargeback"`
 - ✅ Remove próxima data de pagamento
 
 ### 5. **on_rebill_cancelled** - Assinatura Cancelada
+
 Quando cliente cancela assinatura:
+
 - ✅ Desativa a conta
 - ✅ Bloqueia acesso
 - ✅ Atualiza status: `subscriptionStatus: "cancelled"`
 - ✅ Remove próxima data de pagamento
 
 ### 6. **on_rebill_resumed** - Assinatura Retomada
+
 Quando cliente retoma pagamento:
+
 - ✅ Reativa a conta (`isActive: true`)
 - ✅ Desbloqueia acesso (`isBlocked: false`)
 - ✅ Atualiza status: `subscriptionStatus: "active"`
@@ -82,14 +94,23 @@ SITE_URL=https://your-site.vercel.app
 
 ### 2. Configuração na DigiStore
 
+**⚠️ IMPORTANTE:** A DigiStore **NÃO aceita** URLs de túneis temporários (como Cloudflare Tunnel `.trycloudflare.com`). Você **DEVE** usar a URL de produção do Vercel.
+
 1. Acesse: https://www.digistore24.com/settings/ipn
-2. Configure a URL do IPN:
+2. Configure a URL do IPN com sua URL de **produção do Vercel**:
    ```
    https://your-site.vercel.app/api/digistore-ipn
    ```
+   **❌ NÃO use:** `https://*.trycloudflare.com/api/digistore-ipn` (não será aceito)
+   **✅ USE:** `https://seu-dominio-vercel.vercel.app/api/digistore-ipn`
 3. Configure IPN timing: **"Before redirect to thankyou page"**
 4. Configure "group by upsells": **NO** (importante para enviar dados de acesso por email)
 5. Configure o IPN Passphrase (mesmo valor de `DIGISTORE_IPN_PASSPHRASE`)
+
+**Nota sobre Cloudflare Tunnel:**
+- O Cloudflare Tunnel é apenas para **desenvolvimento/testes locais**
+- Para **produção**, você **DEVE** fazer deploy no Vercel e usar a URL de produção
+- A DigiStore valida o domínio e rejeita domínios temporários por segurança
 
 ### 3. Atualizar Banco de Dados
 
@@ -158,11 +179,21 @@ Todos os eventos são logados no console do Vercel:
 
 ## Troubleshooting
 
+### Erro: "O domínio da URL não é confiável" (DS8-390078)
+
+**Problema:** A DigiStore rejeita URLs de túneis temporários como Cloudflare Tunnel.
+
+**Solução:**
+- ✅ Use a URL de **produção do Vercel**: `https://seu-site.vercel.app/api/digistore-ipn`
+- ❌ **NÃO use** URLs de túneis: `https://*.trycloudflare.com/api/digistore-ipn`
+- Faça deploy no Vercel primeiro, depois configure o IPN com a URL de produção
+
 ### IPN não está sendo recebido
 
-1. Verifique se a URL está correta no painel DigiStore
-2. Verifique se o endpoint está acessível publicamente
+1. Verifique se a URL está correta no painel DigiStore (deve ser URL de produção do Vercel)
+2. Verifique se o endpoint está acessível publicamente (teste acessando a URL no navegador)
 3. Verifique os logs do Vercel para erros
+4. Certifique-se de que fez deploy no Vercel antes de configurar o IPN
 
 ### Usuário não está sendo criado
 

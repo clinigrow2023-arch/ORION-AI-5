@@ -155,6 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const productId = postedValue(postData, "product_id");
         const productName = postedValue(postData, "product_name");
         const billingType = postedValue(postData, "billing_type");
+        const rebillDate = postedValue(postData, "rebill_date"); // Data do próximo pagamento recorrente
 
         const email = postedValue(postData, "email");
         const firstName = postedValue(postData, "address_first_name");
@@ -166,9 +167,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           orderId,
           productId,
           productName,
+          billingType,
           email,
           firstName,
           lastName,
+          rebillDate,
           isTestMode,
         });
 
@@ -187,44 +190,95 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const emailLower = email.toLowerCase().trim();
         const fullName = `${firstName} ${lastName}`.trim() || firstName.trim();
 
-        // Verificar se usuário já existe
-        let user = await prisma.user.findUnique({
-          where: { email: emailLower },
+        // Calcular próxima data de pagamento se for recorrente
+        let nextPaymentDate: Date | null = null;
+        if (rebillDate) {
+          try {
+            nextPaymentDate = new Date(rebillDate);
+          } catch (e) {
+            console.warn("Invalid rebill_date format:", rebillDate);
+          }
+        }
+
+        // Verificar se usuário já existe (por email ou orderId)
+        let user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: emailLower },
+              { digistoreOrderId: orderId },
+            ],
+          },
         });
 
         let tempPasswordForDisplay = "";
         const saltRounds = 10;
+        const now = new Date();
 
         if (user) {
-          // Se usuário já existe, apenas ativar se estiver inativo
-          if (!user.isActive) {
-            // Gerar nova senha temporária para usuário reativado
-            tempPasswordForDisplay = generateRandomPassword(12);
-            const tempPasswordHash = await bcrypt.hash(
-              tempPasswordForDisplay,
-              saltRounds
-            );
+          // Se usuário já existe, atualizar dados de assinatura e ativar
+          if (!user.isActive || user.subscriptionStatus !== "active") {
+            // Gerar nova senha temporária se estiver inativo
+            if (!user.isActive) {
+              tempPasswordForDisplay = generateRandomPassword(12);
+              const tempPasswordHash = await bcrypt.hash(
+                tempPasswordForDisplay,
+                saltRounds
+              );
 
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  isActive: true,
+                  isBlocked: false, // Desbloquear se estava bloqueado
+                  passwordResetRequired: true,
+                  password: tempPasswordHash,
+                  // Atualizar dados de assinatura
+                  digistoreOrderId: orderId,
+                  subscriptionStatus: "active",
+                  lastPaymentDate: now,
+                  nextPaymentDate: nextPaymentDate,
+                  productId: productId || user.productId,
+                  billingType: billingType || user.billingType,
+                },
+              });
+              console.log(
+                "User activated with new temporary password:",
+                user.email
+              );
+            } else {
+              // Usuário já ativo, apenas atualizar dados de assinatura
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  digistoreOrderId: orderId,
+                  subscriptionStatus: "active",
+                  lastPaymentDate: now,
+                  nextPaymentDate: nextPaymentDate,
+                  productId: productId || user.productId,
+                  billingType: billingType || user.billingType,
+                },
+              });
+              console.log("User subscription updated:", user.email);
+              // Não retornar senha para usuário já ativo
+              return res.status(200).send("OK");
+            }
+          } else {
+            // Usuário já ativo e com assinatura ativa - apenas atualizar dados
             user = await prisma.user.update({
               where: { id: user.id },
               data: {
-                isActive: true,
-                passwordResetRequired: true,
-                password: tempPasswordHash, // Atualizar com nova senha temporária
+                digistoreOrderId: orderId,
+                lastPaymentDate: now,
+                nextPaymentDate: nextPaymentDate,
+                productId: productId || user.productId,
+                billingType: billingType || user.billingType,
               },
             });
-            console.log(
-              "User activated with new temporary password:",
-              user.email
-            );
-          } else {
             console.log("User already exists and is active:", user.email);
-            // Usuário já ativo - não retornar senha, apenas OK
             return res.status(200).send("OK");
           }
         } else {
           // Criar novo usuário
-          // Gerar senha aleatória
           tempPasswordForDisplay = generateRandomPassword(12);
           const hashedPassword = await bcrypt.hash(
             tempPasswordForDisplay,
@@ -238,7 +292,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               email: emailLower,
               password: hashedPassword,
               isActive: true, // Ativo automaticamente pois pagou
+              isBlocked: false,
               passwordResetRequired: true, // Precisa trocar a senha no primeiro login
+              // Dados de assinatura
+              digistoreOrderId: orderId,
+              subscriptionStatus: "active",
+              lastPaymentDate: now,
+              nextPaymentDate: nextPaymentDate,
+              productId: productId,
+              billingType: billingType,
             },
           });
 
@@ -270,48 +332,227 @@ hide_on: ${hideOn}`;
 
       case "on_payment_missed": {
         const orderId = postedValue(postData, "order_id");
+        const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Payment missed", { orderId, isTestMode });
+        console.log("DigiStore IPN - Payment missed", {
+          orderId,
+          email,
+          isTestMode,
+        });
+
+        // Buscar usuário por orderId ou email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { digistoreOrderId: orderId },
+              { email: email?.toLowerCase().trim() },
+            ],
+          },
+        });
+
+        if (user) {
+          // Desativar e bloquear usuário quando não pagar
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isActive: false,
+              isBlocked: true, // Bloquear acesso
+              subscriptionStatus: "payment_missed",
+              nextPaymentDate: null, // Remover próxima data de pagamento
+            },
+          });
+          console.log(
+            "User deactivated and blocked due to missed payment:",
+            user.email
+          );
+        } else {
+          console.warn("User not found for payment_missed event:", {
+            orderId,
+            email,
+          });
+        }
 
         return res.status(200).send("OK");
       }
 
       case "on_refund": {
         const orderId = postedValue(postData, "order_id");
+        const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Refund", { orderId, isTestMode });
+        console.log("DigiStore IPN - Refund", {
+          orderId,
+          email,
+          isTestMode,
+        });
+
+        // Buscar usuário por orderId ou email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { digistoreOrderId: orderId },
+              { email: email?.toLowerCase().trim() },
+            ],
+          },
+        });
+
+        if (user) {
+          // Remover acesso quando houver reembolso
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isActive: false,
+              isBlocked: true, // Bloquear acesso
+              subscriptionStatus: "refunded",
+              nextPaymentDate: null,
+            },
+          });
+          console.log("User access removed due to refund:", user.email);
+        } else {
+          console.warn("User not found for refund event:", { orderId, email });
+        }
 
         return res.status(200).send("OK");
       }
 
       case "on_chargeback": {
         const orderId = postedValue(postData, "order_id");
+        const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Chargeback", { orderId, isTestMode });
+        console.log("DigiStore IPN - Chargeback", {
+          orderId,
+          email,
+          isTestMode,
+        });
+
+        // Buscar usuário por orderId ou email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { digistoreOrderId: orderId },
+              { email: email?.toLowerCase().trim() },
+            ],
+          },
+        });
+
+        if (user) {
+          // Remover acesso quando houver chargeback
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isActive: false,
+              isBlocked: true, // Bloquear acesso
+              subscriptionStatus: "chargeback",
+              nextPaymentDate: null,
+            },
+          });
+          console.log("User access removed due to chargeback:", user.email);
+        } else {
+          console.warn("User not found for chargeback event:", {
+            orderId,
+            email,
+          });
+        }
 
         return res.status(200).send("OK");
       }
 
       case "on_rebill_resumed": {
         const orderId = postedValue(postData, "order_id");
+        const email = postedValue(postData, "email");
+        const rebillDate = postedValue(postData, "rebill_date");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Rebill resumed", { orderId, isTestMode });
+        console.log("DigiStore IPN - Rebill resumed", {
+          orderId,
+          email,
+          rebillDate,
+          isTestMode,
+        });
+
+        // Buscar usuário por orderId ou email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { digistoreOrderId: orderId },
+              { email: email?.toLowerCase().trim() },
+            ],
+          },
+        });
+
+        if (user) {
+          // Reativar usuário quando retomar pagamento
+          let nextPaymentDate: Date | null = null;
+          if (rebillDate) {
+            try {
+              nextPaymentDate = new Date(rebillDate);
+            } catch (e) {
+              console.warn("Invalid rebill_date format:", rebillDate);
+            }
+          }
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isActive: true,
+              isBlocked: false, // Desbloquear
+              subscriptionStatus: "active",
+              lastPaymentDate: new Date(),
+              nextPaymentDate: nextPaymentDate,
+            },
+          });
+          console.log("User reactivated - rebill resumed:", user.email);
+        } else {
+          console.warn("User not found for rebill_resumed event:", {
+            orderId,
+            email,
+          });
+        }
 
         return res.status(200).send("OK");
       }
 
       case "on_rebill_cancelled": {
         const orderId = postedValue(postData, "order_id");
+        const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
         console.log("DigiStore IPN - Rebill cancelled", {
           orderId,
+          email,
           isTestMode,
         });
+
+        // Buscar usuário por orderId ou email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { digistoreOrderId: orderId },
+              { email: email?.toLowerCase().trim() },
+            ],
+          },
+        });
+
+        if (user) {
+          // Cancelar assinatura e remover acesso
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isActive: false,
+              isBlocked: true, // Bloquear acesso
+              subscriptionStatus: "cancelled",
+              nextPaymentDate: null,
+            },
+          });
+          console.log("User subscription cancelled and access removed:", user.email);
+        } else {
+          console.warn("User not found for rebill_cancelled event:", {
+            orderId,
+            email,
+          });
+        }
 
         return res.status(200).send("OK");
       }

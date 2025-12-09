@@ -20,12 +20,23 @@ model User {
   isActive            Boolean  @default(false) // Usuário precisa ser liberado manualmente
   accessExpiresAt     DateTime? // Data de expiração do acesso (1 mês após liberação)
   passwordResetRequired Boolean @default(false) // Flag para indicar que senha precisa ser redefinida
+  
+  // Campos de assinatura DigiStore
+  digistoreOrderId    String?  // ID do pedido na DigiStore
+  subscriptionStatus  String?  // "active", "cancelled", "payment_missed", "refunded", "chargeback"
+  lastPaymentDate     DateTime? // Data do último pagamento
+  nextPaymentDate     DateTime? // Próxima data de pagamento (para assinaturas recorrentes)
+  productId           String?  // ID do produto comprado
+  billingType         String?  // "one_time", "recurring", etc
+  
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   
   conversations Conversation[]
 
   @@map("users")
+  @@index([email])
+  @@index([digistoreOrderId])
 }
 
 model Conversation {

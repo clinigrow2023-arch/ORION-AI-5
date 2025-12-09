@@ -10,6 +10,12 @@ const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
 const SITE_URL = process.env.SITE_URL || "https://your-site.vercel.app";
 
 /**
+ * Modo de debug: Para desabilitar validação de assinatura temporariamente (apenas para debug)
+ * Configure a variável de ambiente: DIGISTORE_ALLOW_WITHOUT_SIGNATURE=true
+ * ATENÇÃO: NÃO use em produção! Isso desabilita a segurança do IPN.
+ */
+
+/**
  * Gera assinatura SHA512 conforme especificação da DigiStore
  */
 function digistoreSignature(
@@ -108,20 +114,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const postData: Record<string, string> = {};
 
     // Log do body raw para debug
-    const contentType = req.headers["content-type"] || req.headers["Content-Type"] || "";
+    const contentType =
+      req.headers["content-type"] || req.headers["Content-Type"] || "";
     console.log("DigiStore IPN - Raw request info:", {
       contentType,
       bodyType: typeof req.body,
       bodyIsArray: Array.isArray(req.body),
-      bodyKeys: req.body && typeof req.body === "object" ? Object.keys(req.body) : "N/A",
-      bodyPreview: typeof req.body === "string" ? req.body.substring(0, 200) : JSON.stringify(req.body).substring(0, 200),
+      bodyKeys:
+        req.body && typeof req.body === "object"
+          ? Object.keys(req.body)
+          : "N/A",
+      bodyPreview:
+        typeof req.body === "string"
+          ? req.body.substring(0, 200)
+          : JSON.stringify(req.body).substring(0, 200),
     });
 
     // Parse do body - Vercel pode não fazer parse automático de form-urlencoded
     let bodyString = "";
-    
+
     if (req.body) {
-      if (typeof req.body === "object" && !Array.isArray(req.body) && !Buffer.isBuffer(req.body)) {
+      if (
+        typeof req.body === "object" &&
+        !Array.isArray(req.body) &&
+        !Buffer.isBuffer(req.body)
+      ) {
         // Body já parseado como objeto
         Object.assign(postData, req.body);
       } else {
@@ -133,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else {
           bodyString = String(req.body);
         }
-        
+
         // Parse manual de form-urlencoded
         if (bodyString) {
           try {
@@ -150,7 +167,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const equalIndex = pair.indexOf("=");
                 if (equalIndex > 0) {
                   const key = decodeURIComponent(pair.substring(0, equalIndex));
-                  const value = decodeURIComponent(pair.substring(equalIndex + 1));
+                  const value = decodeURIComponent(
+                    pair.substring(equalIndex + 1)
+                  );
                   if (key) {
                     postData[key] = value || "";
                   }
@@ -163,15 +182,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
     }
-    
+
     // Fallback: tentar usar query parameters se body estiver vazio
-    if (Object.keys(postData).length === 0 && req.query && Object.keys(req.query).length > 0) {
-      console.warn("DigiStore IPN - Body empty, trying query parameters as fallback");
+    if (
+      Object.keys(postData).length === 0 &&
+      req.query &&
+      Object.keys(req.query).length > 0
+    ) {
+      console.warn(
+        "DigiStore IPN - Body empty, trying query parameters as fallback"
+      );
       Object.assign(postData, req.query as Record<string, string>);
     }
-    
+
     // Verificar se conseguiu parsear algum dado
+    // Para connection_test, pode não ter dados, então tratamos de forma especial
+    const eventType = postedValue(postData, "event");
+    
     if (Object.keys(postData).length === 0) {
+      // Se não há dados mas é um POST, pode ser connection_test vazio
+      if (eventType === "" || eventType === "connection_test" || !eventType) {
+        console.log("DigiStore IPN - Empty request, treating as connection test");
+        return res.status(200).send("OK");
+      }
+      
       console.error("DigiStore IPN - No data parsed from body or query", {
         bodyType: typeof req.body,
         bodyIsBuffer: Buffer.isBuffer(req.body),
@@ -179,6 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         contentType,
         queryKeys: req.query ? Object.keys(req.query) : [],
         headers: Object.keys(req.headers),
+        eventType,
       });
       return res.status(400).send("ERROR: No data received");
     }
@@ -190,57 +225,85 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       email: postData.email || postData["email"],
       shaSign: postData.sha_sign || postData["sha_sign"] || postData["SHASIGN"],
       allKeys: Object.keys(postData),
-      postDataSample: Object.keys(postData).slice(0, 10).reduce((acc, key) => {
-        acc[key] = postData[key];
-        return acc;
-      }, {} as Record<string, string>),
+      postDataSample: Object.keys(postData)
+        .slice(0, 10)
+        .reduce((acc, key) => {
+          acc[key] = postData[key];
+          return acc;
+        }, {} as Record<string, string>),
     });
 
-    const eventType = postedValue(postData, "event");
     const apiMode = postedValue(postData, "api_mode"); // 'live' or 'test'
 
-    // Validar assinatura se passphrase estiver configurado
+    // connection_test não precisa de validação de assinatura - retornar OK imediatamente
+    if (eventType === "connection_test") {
+      console.log("DigiStore IPN - Connection test received");
+      return res.status(200).send("OK");
+    }
+
+    // Validar assinatura se passphrase estiver configurado (exceto para connection_test)
     const mustValidateSignature = IPN_PASSPHRASE !== "";
     if (mustValidateSignature) {
       // Tentar diferentes variações do nome do campo de assinatura
-      const receivedSignature = 
-        postedValue(postData, "sha_sign") || 
-        postedValue(postData, "SHASIGN") || 
+      const receivedSignature =
+        postedValue(postData, "sha_sign") ||
+        postedValue(postData, "SHASIGN") ||
         postedValue(postData, "sha_signature") ||
         "";
-      
+
       // Log detalhado antes de calcular assinatura esperada
       console.log("DigiStore IPN - Signature validation:", {
+        eventType,
         hasPassphrase: !!IPN_PASSPHRASE,
-        receivedSignature,
+        receivedSignature: receivedSignature ? `${receivedSignature.substring(0, 20)}...` : "(empty)",
         postDataKeys: Object.keys(postData),
-        postDataValues: Object.keys(postData).reduce((acc, key) => {
-          acc[key] = postData[key] ? `${postData[key].substring(0, 20)}...` : "";
-          return acc;
-        }, {} as Record<string, string>),
+        postDataCount: Object.keys(postData).length,
       });
 
       const expectedSignature = digistoreSignature(IPN_PASSPHRASE, postData);
 
       if (receivedSignature !== expectedSignature) {
+        // Verificar se está em modo de debug
+        const allowWithoutSignature = process.env.DIGISTORE_ALLOW_WITHOUT_SIGNATURE === "true";
+        const isDebugMode = allowWithoutSignature || process.env.NODE_ENV === "development";
+        
         console.error("Invalid SHA signature", {
-          received: receivedSignature,
-          expected: expectedSignature,
+          eventType,
+          received: receivedSignature || "(empty)",
+          expected: expectedSignature.substring(0, 20) + "...",
+          receivedLength: receivedSignature?.length || 0,
+          expectedLength: expectedSignature.length,
           postDataKeys: Object.keys(postData),
           postDataCount: Object.keys(postData).length,
+          isDebugMode,
+          // Log completo dos dados para debug (sem valores sensíveis)
+          postDataSample: Object.keys(postData).slice(0, 10).reduce((acc, key) => {
+            if (key.toLowerCase().includes("password") || key.toLowerCase().includes("secret") || key.toLowerCase().includes("sign")) {
+              acc[key] = "***HIDDEN***";
+            } else {
+              acc[key] = postData[key] ? `${postData[key].substring(0, 30)}...` : "";
+            }
+            return acc;
+          }, {} as Record<string, string>),
         });
-        return res.status(400).send("ERROR: invalid sha signature");
+        
+        // Se estiver em modo de debug, permitir continuar mas logar aviso
+        if (isDebugMode) {
+          console.warn("DigiStore IPN - Allowing request with invalid signature (debug mode)");
+        } else {
+          return res.status(400).send("ERROR: invalid sha signature");
+        }
+      } else {
+        console.log("DigiStore IPN - Signature validated successfully");
       }
-      
-      console.log("DigiStore IPN - Signature validated successfully");
     } else {
-      console.warn("DigiStore IPN - Signature validation skipped (no passphrase configured)");
+      console.warn(
+        "DigiStore IPN - Signature validation skipped (no passphrase configured)"
+      );
     }
 
     // Processar eventos
     switch (eventType) {
-      case "connection_test":
-        return res.status(200).send("OK");
 
       case "on_payment": {
         const orderId = postedValue(postData, "order_id");
@@ -295,10 +358,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Verificar se usuário já existe (por email ou orderId)
         let user = await prisma.user.findFirst({
           where: {
-            OR: [
-              { email: emailLower },
-              { digistoreOrderId: orderId },
-            ],
+            OR: [{ email: emailLower }, { digistoreOrderId: orderId }],
           },
         });
 
@@ -638,7 +698,10 @@ hide_on: ${hideOn}`;
               nextPaymentDate: null,
             },
           });
-          console.log("User subscription cancelled and access removed:", user.email);
+          console.log(
+            "User subscription cancelled and access removed:",
+            user.email
+          );
         } else {
           console.warn("User not found for rebill_cancelled event:", {
             orderId,

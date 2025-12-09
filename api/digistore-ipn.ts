@@ -433,11 +433,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }, {} as Record<string, string>),
         });
 
-        // Se estiver em modo de debug, permitir continuar mas logar aviso
-        if (isDebugMode) {
-          console.warn(
-            "DigiStore IPN - Allowing request with invalid signature (debug mode)"
-          );
+        // Se estiver em modo de debug ou não houver assinatura recebida, permitir continuar
+        if (isDebugMode || !receivedSignature) {
+          if (!receivedSignature) {
+            console.warn(
+              "DigiStore IPN - No signature received, allowing in development mode"
+            );
+            // Em produção, bloquear se não houver assinatura
+            if (process.env.NODE_ENV === "production") {
+              return res.status(400).send("ERROR: invalid sha signature");
+            }
+          } else {
+            console.warn(
+              "DigiStore IPN - Allowing request with invalid signature (debug mode)"
+            );
+          }
         } else {
           return res.status(400).send("ERROR: invalid sha signature");
         }

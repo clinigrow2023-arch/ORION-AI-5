@@ -13,8 +13,16 @@ export function getApiEndpoint(path: string): string {
   const isNetlify =
     hostname.includes("netlify.app") || hostname.includes("netlify.com");
   // Cloudflare Tunnel também é ambiente de desenvolvimento local
-  const isCloudflareTunnel = hostname.includes("trycloudflare.com") || hostname.includes("cloudflare.com");
-  const isDev = hostname === "localhost" || hostname === "127.0.0.1" || isCloudflareTunnel;
+  const isCloudflareTunnel =
+    hostname.includes("trycloudflare.com") ||
+    hostname.includes("cloudflare.com");
+  const isDev =
+    hostname === "localhost" || hostname === "127.0.0.1" || isCloudflareTunnel;
+
+  // Debug em desenvolvimento (apenas no console)
+  if (isDev || isCloudflareTunnel) {
+    console.log(`[API Endpoint] Hostname: ${hostname}, Path: ${path}, Using: /.netlify/functions/${path}`);
+  }
 
   if (isVercel) {
     return `/api/${path}`;

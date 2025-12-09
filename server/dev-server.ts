@@ -61,24 +61,44 @@ app.use(cors());
 app.use(express.json());
 
 // Para digistore-ipn, capturar body raw e fazer parse manual (não usar express.urlencoded)
-app.use("/api/digistore-ipn", express.raw({ type: "application/x-www-form-urlencoded" }), (req: any, res: any, next: any) => {
-  if (Buffer.isBuffer(req.body)) {
-    req.rawBody = req.body.toString("utf-8");
-    // Fazer parse manual e popular req.body
-    const postData: Record<string, string> = {};
-    try {
-      const params = new URLSearchParams(req.rawBody);
-      params.forEach((value, key) => {
-        postData[key] = value;
+app.use(
+  "/api/digistore-ipn",
+  express.raw({ type: "application/x-www-form-urlencoded" }),
+  (req: any, res: any, next: any) => {
+    if (Buffer.isBuffer(req.body)) {
+      req.rawBody = req.body.toString("utf-8");
+      console.log("DigiStore IPN - rawBody content:", {
+        length: req.rawBody.length,
+        preview: req.rawBody.substring(0, 500),
+        hasData: req.rawBody.length > 0,
       });
-      req.body = postData;
-    } catch (error) {
-      console.error("Error parsing digistore-ipn body:", error);
-      req.body = {};
+      
+      // Fazer parse manual e popular req.body
+      const postData: Record<string, string> = {};
+      try {
+        const params = new URLSearchParams(req.rawBody);
+        console.log("DigiStore IPN - URLSearchParams entries count:", params.size);
+        
+        params.forEach((value, key) => {
+          postData[key] = value;
+          // Log primeiros 5 valores para debug
+          if (Object.keys(postData).length <= 5) {
+            console.log(`DigiStore IPN - Parsed [${key}]:`, value);
+          }
+        });
+        
+        console.log("DigiStore IPN - Total parsed keys:", Object.keys(postData).length);
+        req.body = postData;
+      } catch (error) {
+        console.error("Error parsing digistore-ipn body:", error);
+        req.body = {};
+      }
+    } else {
+      console.warn("DigiStore IPN - req.body is not a Buffer:", typeof req.body);
     }
+    next();
   }
-  next();
-});
+);
 
 app.use(express.urlencoded({ extended: true })); // Para outras rotas que usam form-urlencoded
 

@@ -144,9 +144,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rawBody = (req as any).rawBody;
     if (rawBody && typeof rawBody === "string") {
       console.log(
-        "DigiStore IPN - Using rawBody (captured before Express parsing)"
+        "DigiStore IPN - Using rawBody (captured before Express parsing)",
+        {
+          rawBodyLength: rawBody.length,
+          rawBodyPreview: rawBody.substring(0, 200),
+        }
       );
       bodyString = rawBody;
+    } else {
+      console.log("DigiStore IPN - rawBody not available or not string:", {
+        hasRawBody: !!rawBody,
+        rawBodyType: typeof rawBody,
+      });
     }
 
     if (req.body) {

@@ -108,6 +108,7 @@ SITE_URL=https://your-site.vercel.app
 5. Configure o IPN Passphrase (mesmo valor de `DIGISTORE_IPN_PASSPHRASE`)
 
 **Nota sobre Cloudflare Tunnel:**
+
 - O Cloudflare Tunnel é apenas para **desenvolvimento/testes locais**
 - Para **produção**, você **DEVE** fazer deploy no Vercel e usar a URL de produção
 - A DigiStore valida o domínio e rejeita domínios temporários por segurança
@@ -184,6 +185,7 @@ Todos os eventos são logados no console do Vercel:
 **Problema:** A DigiStore rejeita URLs de túneis temporários como Cloudflare Tunnel.
 
 **Solução:**
+
 - ✅ Use a URL de **produção do Vercel**: `https://seu-site.vercel.app/api/digistore-ipn`
 - ❌ **NÃO use** URLs de túneis: `https://*.trycloudflare.com/api/digistore-ipn`
 - Faça deploy no Vercel primeiro, depois configure o IPN com a URL de produção

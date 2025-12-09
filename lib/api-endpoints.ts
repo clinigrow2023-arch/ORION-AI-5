@@ -21,7 +21,9 @@ export function getApiEndpoint(path: string): string {
 
   // Debug em desenvolvimento (apenas no console)
   if (isDev || isCloudflareTunnel) {
-    console.log(`[API Endpoint] Hostname: ${hostname}, Path: ${path}, Using: /.netlify/functions/${path}`);
+    console.log(
+      `[API Endpoint] Hostname: ${hostname}, Path: ${path}, Using: /.netlify/functions/${path}`
+    );
   }
 
   if (isVercel) {

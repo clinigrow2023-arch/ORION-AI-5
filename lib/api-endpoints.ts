@@ -12,7 +12,9 @@ export function getApiEndpoint(path: string): string {
     hostname.includes("vercel");
   const isNetlify =
     hostname.includes("netlify.app") || hostname.includes("netlify.com");
-  const isDev = hostname === "localhost" || hostname === "127.0.0.1";
+  // Cloudflare Tunnel também é ambiente de desenvolvimento local
+  const isCloudflareTunnel = hostname.includes("trycloudflare.com") || hostname.includes("cloudflare.com");
+  const isDev = hostname === "localhost" || hostname === "127.0.0.1" || isCloudflareTunnel;
 
   if (isVercel) {
     return `/api/${path}`;

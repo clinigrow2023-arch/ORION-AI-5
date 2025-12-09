@@ -1,18 +1,18 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from "../types";
 
-// API endpoint (compatível com Netlify e Vercel)
+// API endpoint (Vercel e desenvolvimento local)
 import { getApiEndpoint } from "../lib/api-endpoints";
 
-const NETLIFY_FUNCTION_ENDPOINT = getApiEndpoint("gemini");
+const API_ENDPOINT = getApiEndpoint("gemini");
 
-// Check if we're in development and Netlify Function is not available
+// Check if we're in development
 const isDevelopment =
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1");
 
-// Get API key for development fallback (only used if Netlify Function fails)
+// Get API key for development fallback (only used if API endpoint fails)
 const getDevApiKey = (): string => {
   if (typeof import.meta !== "undefined" && (import.meta as any).env) {
     // Try to get from Vite env (only in dev, not bundled)
@@ -175,7 +175,7 @@ BEHAVIORAL RULES:
       const token =
         typeof window !== "undefined" && localStorage.getItem("auth_token");
 
-      // Try Netlify Function first
+      // Try API endpoint first
       let response: Response | null = null;
       try {
         const headers: Record<string, string> = {
@@ -187,7 +187,7 @@ BEHAVIORAL RULES:
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
+        response = await fetch(API_ENDPOINT, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -198,23 +198,26 @@ BEHAVIORAL RULES:
 
         if (response.ok) {
           const data = await response.json();
-          
-          console.log("API Response Data:", { 
-            hasResponse: !!data.response, 
+
+          console.log("API Response Data:", {
+            hasResponse: !!data.response,
             responseType: typeof data.response,
             responseLength: data.response?.length || 0,
             responsePreview: data.response?.substring(0, 200) || "empty",
-            fullData: data
+            fullData: data,
           });
 
           const fullText = data.response || "";
 
           // Validar se a resposta não está vazia
-          if (!fullText || (typeof fullText === "string" && fullText.trim() === "")) {
+          if (
+            !fullText ||
+            (typeof fullText === "string" && fullText.trim() === "")
+          ) {
             console.error("❌ Empty response from API:", {
               data,
               response: data.response,
-              responseType: typeof data.response
+              responseType: typeof data.response,
             });
             throw new Error("AI returned an empty response. Please try again.");
           }
@@ -245,7 +248,7 @@ BEHAVIORAL RULES:
 
         // If response is 404 and we're in development, throw error to trigger fallback
         if (response.status === 404 && isDevelopment) {
-          throw new Error("404 - Netlify Function not available");
+          throw new Error("404 - API endpoint not available");
         }
 
         // If response is not ok and not 404 in dev, throw error
@@ -255,11 +258,11 @@ BEHAVIORAL RULES:
             errorData.error || `HTTP error! status: ${response.status}`
           );
         }
-      } catch (netlifyError: any) {
-        // If Netlify Function fails and we're in development, fallback to direct API
+      } catch (apiError: any) {
+        // If API endpoint fails and we're in development, fallback to direct API
         const is404Error =
-          netlifyError?.message?.includes("404") ||
-          netlifyError?.message?.includes("Failed to fetch") ||
+          apiError?.message?.includes("404") ||
+          apiError?.message?.includes("Failed to fetch") ||
           (response && response.status === 404);
 
         if (isDevelopment && is404Error) {
@@ -316,7 +319,7 @@ BEHAVIORAL RULES:
           );
         }
 
-        throw netlifyError;
+        throw apiError;
       }
     } catch (error: any) {
       console.error("Gemini Chat Error:", error);
@@ -344,7 +347,7 @@ BEHAVIORAL RULES:
       const token =
         typeof window !== "undefined" && localStorage.getItem("auth_token");
 
-      // Try Netlify Function first
+      // Try API endpoint first
       try {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -355,7 +358,7 @@ BEHAVIORAL RULES:
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        const response = await fetch(NETLIFY_FUNCTION_ENDPOINT, {
+        const response = await fetch(API_ENDPOINT, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -380,7 +383,7 @@ BEHAVIORAL RULES:
         if (response.ok) {
           const data = await response.json();
 
-          // A Netlify Function agora retorna JSON estruturado diretamente em data.response
+          // A API agora retorna JSON estruturado diretamente em data.response
           let parsedPlan: ActionPlan;
 
           if (typeof data.response === "string") {
@@ -410,7 +413,7 @@ BEHAVIORAL RULES:
             throw new Error("Generated plan is missing required properties");
           }
         }
-      } catch (netlifyError) {
+      } catch (apiError) {
         // Fallback to direct API in development
         if (isDevelopment) {
           await this.initializeAI();
@@ -453,7 +456,7 @@ BEHAVIORAL RULES:
             throw new Error("Generated plan is missing required properties");
           }
         }
-        throw netlifyError;
+        throw apiError;
       }
 
       throw new Error("Failed to generate plan");

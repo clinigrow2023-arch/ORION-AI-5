@@ -1,4 +1,4 @@
-// Development server to simulate Netlify Functions locally
+// Development server to simulate Vercel API routes locally
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -42,146 +42,100 @@ if (!process.env.GEMINI_API_KEY) {
   console.log("✅ GEMINI_API_KEY loaded successfully");
 }
 
-// Import Netlify Functions
-import { handler as authRegisterHandler } from "../netlify/functions/auth-register";
-import { handler as authLoginHandler } from "../netlify/functions/auth-login";
-import { handler as authVerifyHandler } from "../netlify/functions/auth-verify";
-import { handler as conversationsHandler } from "../netlify/functions/conversations";
-import { handler as adminUsersHandler } from "../netlify/functions/admin-users";
-import { handler as geminiHandler } from "../netlify/functions/gemini";
-import { handler as changePasswordHandler } from "../netlify/functions/change-password";
-import { handler as setNewPasswordHandler } from "../netlify/functions/set-new-password";
+// Import Vercel API functions
+import authRegisterHandler from "../api/auth-register.js";
+import authLoginHandler from "../api/auth-login.js";
+import authVerifyHandler from "../api/auth-verify.js";
+import conversationsHandler from "../api/conversations.js";
+import adminUsersHandler from "../api/admin-users.js";
+import geminiHandler from "../api/gemini.js";
+import changePasswordHandler from "../api/change-password.js";
+import setNewPasswordHandler from "../api/set-new-password.js";
+import digistoreIpnHandler from "../api/digistore-ipn.js";
 
 const app = express();
 const PORT = 8888;
 
 app.use(cors());
+
 app.use(express.json());
 
-// Helper to convert Express request to Netlify Function event
-const createNetlifyEvent = (req: express.Request): any => ({
-  httpMethod: req.method,
-  path: req.path,
-  headers: req.headers as any,
-  body: req.method !== "GET" ? JSON.stringify(req.body) : undefined,
-  queryStringParameters: req.query as any,
-});
-
-// Helper to convert Netlify Function response to Express response
-const sendNetlifyResponse = async (
-  res: express.Response,
-  handler: any,
-  event: any
-) => {
-  try {
-    const result = await handler(event, {});
-
-    // Set headers
-    if (result.headers) {
-      Object.keys(result.headers).forEach((key) => {
-        res.setHeader(key, result.headers[key]);
+// Para digistore-ipn, capturar body raw e fazer parse manual (não usar express.urlencoded)
+app.use(
+  "/api/digistore-ipn",
+  express.raw({ type: "application/x-www-form-urlencoded" }),
+  (req: any, res: any, next: any) => {
+    if (Buffer.isBuffer(req.body)) {
+      req.rawBody = req.body.toString("utf-8");
+      console.log("DigiStore IPN - rawBody content:", {
+        length: req.rawBody.length,
+        preview: req.rawBody.substring(0, 500),
+        hasData: req.rawBody.length > 0,
       });
-    }
 
-    // Send response
-    res.status(result.statusCode || 200);
+      // Fazer parse manual e popular req.body
+      const postData: Record<string, string> = {};
+      try {
+        const params = new URLSearchParams(req.rawBody);
+        console.log(
+          "DigiStore IPN - URLSearchParams entries count:",
+          params.size
+        );
 
-    if (result.body) {
-      if (typeof result.body === "string") {
-        res.send(result.body);
-      } else {
-        res.json(result.body);
+        params.forEach((value, key) => {
+          postData[key] = value;
+          // Log primeiros 5 valores para debug
+          if (Object.keys(postData).length <= 5) {
+            console.log(`DigiStore IPN - Parsed [${key}]:`, value);
+          }
+        });
+
+        console.log(
+          "DigiStore IPN - Total parsed keys:",
+          Object.keys(postData).length
+        );
+        req.body = postData;
+      } catch (error) {
+        console.error("Error parsing digistore-ipn body:", error);
+        req.body = {};
       }
     } else {
-      res.end();
+      console.warn(
+        "DigiStore IPN - req.body is not a Buffer:",
+        typeof req.body
+      );
     }
-  } catch (error: any) {
-    console.error("Function error:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
+    next();
   }
-};
+);
 
-// OPTIONS for CORS - handle all function routes (must be before other routes)
-app.options("/.netlify/functions/:functionName", (req, res) => {
+app.use(express.urlencoded({ extended: true })); // Para outras rotas que usam form-urlencoded
+
+// OPTIONS for CORS - handle all API routes (must be before other routes)
+app.options("/api/:functionName", (req, res) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.sendStatus(200);
 });
 
-// Routes
-app.post("/.netlify/functions/auth-register", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, authRegisterHandler, event);
-});
-
-app.post("/.netlify/functions/auth-login", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, authLoginHandler, event);
-});
-
-app.get("/.netlify/functions/auth-verify", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, authVerifyHandler, event);
-});
-
-app.get("/.netlify/functions/conversations", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, conversationsHandler, event);
-});
-
-app.post("/.netlify/functions/conversations", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, conversationsHandler, event);
-});
-
-app.delete("/.netlify/functions/conversations", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  // DELETE pode ter body (para deletar conversa específica)
-  if (req.body && Object.keys(req.body).length > 0) {
-    event.body = JSON.stringify(req.body);
-  }
-  await sendNetlifyResponse(res, conversationsHandler, event);
-});
-
-app.get("/.netlify/functions/admin-users", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, adminUsersHandler, event);
-});
-
-app.post("/.netlify/functions/admin-users", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, adminUsersHandler, event);
-});
-
-app.put("/.netlify/functions/admin-users", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, adminUsersHandler, event);
-});
-
-app.delete("/.netlify/functions/admin-users", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, adminUsersHandler, event);
-});
-
-app.post("/.netlify/functions/gemini", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, geminiHandler, event);
-});
-
-app.put("/.netlify/functions/change-password", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, changePasswordHandler, event);
-});
-
-app.post("/.netlify/functions/set-new-password", async (req, res) => {
-  const event = createNetlifyEvent(req);
-  await sendNetlifyResponse(res, setNewPasswordHandler, event);
-});
+// Routes - usando /api/ em vez de /.netlify/functions/
+app.post("/api/auth-register", authRegisterHandler);
+app.post("/api/auth-login", authLoginHandler);
+app.get("/api/auth-verify", authVerifyHandler);
+app.get("/api/conversations", conversationsHandler);
+app.post("/api/conversations", conversationsHandler);
+app.delete("/api/conversations", conversationsHandler);
+app.get("/api/admin-users", adminUsersHandler);
+app.post("/api/admin-users", adminUsersHandler);
+app.put("/api/admin-users", adminUsersHandler);
+app.delete("/api/admin-users", adminUsersHandler);
+app.post("/api/gemini", geminiHandler);
+app.put("/api/change-password", changePasswordHandler);
+app.post("/api/set-new-password", setNewPasswordHandler);
+app.post("/api/digistore-ipn", digistoreIpnHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Development server running on http://localhost:${PORT}`);
-  console.log(
-    `📡 Netlify Functions available at http://localhost:${PORT}/.netlify/functions/`
-  );
+  console.log(`📡 API routes available at http://localhost:${PORT}/api/`);
 });

@@ -14,13 +14,15 @@
     "db:studio": "prisma studio",
     "create-admin": "tsx scripts/create-admin.ts",
     "activate-users": "tsx scripts/activate-all-users.ts",
+    "test:digistore-connection": "curl -X POST http://localhost:8888/api/digistore-ipn -H \"Content-Type: application/x-www-form-urlencoded\" -d \"event=connection_test\"",
     "postinstall": "prisma generate || (echo '⚠️ Prisma generate failed, setting dummy DATABASE_URL and retrying...' && DATABASE_URL='mongodb://localhost:27017/dummy' prisma generate) || echo '⚠️ Prisma generate skipped (this is OK if DATABASE_URL is not set during build)'"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
     "@netlify/functions": "^5.1.0",
-    "@vercel/node": "^3.0.0",
     "@prisma/client": "^6.19.0",
+    "@types/nodemailer": "^7.0.4",
+    "@vercel/node": "^3.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -28,6 +30,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.554.0",
     "mongodb": "^7.0.0",
+    "nodemailer": "^7.0.11",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0"

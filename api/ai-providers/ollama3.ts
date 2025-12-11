@@ -6,7 +6,10 @@ export class Ollama3Provider implements AIProvider {
   private baseUrl: string;
   private model: string;
 
-  constructor(baseUrl: string = "http://31.97.93.86:11434", model: string = "llama3") {
+  constructor(
+    baseUrl: string = "http://31.97.93.86:11434",
+    model: string = "llama3"
+  ) {
     this.baseUrl = baseUrl;
     this.model = model;
   }
@@ -17,40 +20,34 @@ export class Ollama3Provider implements AIProvider {
     systemInstruction: string
   ): Promise<string> {
     try {
-      // Converter histórico para formato Ollama
-      const messages = [];
+      // Construir prompt completo com histórico e system instruction
+      let fullPrompt = "";
       
-      // Adicionar system instruction como primeira mensagem
+      // Adicionar system instruction
       if (systemInstruction) {
-        messages.push({
-          role: "system",
-          content: systemInstruction,
-        });
+        fullPrompt += `${systemInstruction}\n\n`;
       }
 
-      // Converter histórico
+      // Converter histórico para formato conversacional
       for (const h of history) {
-        const role = h.role === "user" ? "user" : "assistant";
+        const role = h.role === "user" ? "User" : "Assistant";
         const content = h.parts.map((p) => p.text).join(" ");
         if (content.trim()) {
-          messages.push({ role, content });
+          fullPrompt += `${role}: ${content}\n\n`;
         }
       }
 
       // Adicionar mensagem atual
-      messages.push({
-        role: "user",
-        content: message,
-      });
+      fullPrompt += `User: ${message}\n\nAssistant:`;
 
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: this.model,
-          messages: messages,
+          prompt: fullPrompt,
           stream: false,
           options: {
             temperature: 0.7,
@@ -60,9 +57,9 @@ export class Ollama3Provider implements AIProvider {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const isRetryable = isRetryableError({ 
+        const isRetryable = isRetryableError({
           message: errorData.error || `HTTP ${response.status}`,
-          status: response.status 
+          status: response.status,
         });
         throw createProviderError(
           this.name,
@@ -74,7 +71,7 @@ export class Ollama3Provider implements AIProvider {
 
       const data = await response.json();
 
-      if (!data.message || !data.message.content) {
+      if (!data.response) {
         throw createProviderError(
           this.name,
           "Invalid response format from Ollama API",
@@ -83,7 +80,7 @@ export class Ollama3Provider implements AIProvider {
         );
       }
 
-      const content = data.message.content || "";
+      const content = data.response || "";
 
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
@@ -116,7 +113,7 @@ export class Ollama3Provider implements AIProvider {
     systemInstruction: string
   ): Promise<string> {
     try {
-      const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
+      const prompt = `${systemInstruction}\n\nBased on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
 
 HISTORY:
 ${contextHistory}
@@ -140,25 +137,14 @@ Output strictly valid JSON with the following structure:
   "neurologicalTriggers": "string"
 }`;
 
-      const messages = [
-        {
-          role: "system",
-          content: systemInstruction,
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ];
-
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: this.model,
-          messages: messages,
+          prompt: prompt,
           stream: false,
           format: "json",
           options: {
@@ -169,9 +155,9 @@ Output strictly valid JSON with the following structure:
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const isRetryable = isRetryableError({ 
+        const isRetryable = isRetryableError({
           message: errorData.error || `HTTP ${response.status}`,
-          status: response.status 
+          status: response.status,
         });
         throw createProviderError(
           this.name,
@@ -183,7 +169,7 @@ Output strictly valid JSON with the following structure:
 
       const data = await response.json();
 
-      if (!data.message || !data.message.content) {
+      if (!data.response) {
         throw createProviderError(
           this.name,
           "Invalid response format from Ollama API",
@@ -192,7 +178,7 @@ Output strictly valid JSON with the following structure:
         );
       }
 
-      const jsonText = data.message.content || "";
+      const jsonText = data.response || "";
 
       if (!jsonText) {
         throw createProviderError(
@@ -219,4 +205,3 @@ Output strictly valid JSON with the following structure:
     }
   }
 }
-

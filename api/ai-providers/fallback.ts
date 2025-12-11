@@ -95,78 +95,34 @@ Language: ALL OUTPUT MUST BE IN ENGLISH.
     `;
 };
 
-// Create providers based on available API keys
+// Create providers based on available configuration
 export function createProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
-  // 1. Gemini (primary)
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (geminiKey) {
-    try {
-      providers.push(new GeminiProvider(geminiKey));
-    } catch (error) {
-      console.warn("⚠️ Failed to initialize Gemini provider:", error);
-    }
+  // 1. Ollama3 (primary) - VPS
+  const ollamaUrl = process.env.OLLAMA_URL || "http://31.97.93.86:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
+  try {
+    providers.push(new Ollama3Provider(ollamaUrl, ollamaModel));
+    console.log(`✅ Ollama3 provider initialized: ${ollamaUrl} (model: ${ollamaModel})`);
+  } catch (error) {
+    console.warn("⚠️ Failed to initialize Ollama3 provider:", error);
   }
 
-  // 2. Grok (fallback)
-  const grokKey = process.env.GROK_API_KEY;
-  if (grokKey) {
-    try {
-      providers.push(new GrokProvider(grokKey));
-    } catch (error) {
-      console.warn("⚠️ Failed to initialize Grok provider:", error);
-    }
-  }
-
-  // 3. Groq (fallback)
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
-    try {
-      providers.push(new GroqProvider(groqKey));
-    } catch (error) {
-      console.warn("⚠️ Failed to initialize Groq provider:", error);
-    }
-  }
-
-  // 4. OpenAI (fallback)
+  // 2. OpenAI (fallback only)
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
     try {
       providers.push(new OpenAIProvider(openaiKey));
+      console.log("✅ OpenAI provider initialized as fallback");
     } catch (error) {
       console.warn("⚠️ Failed to initialize OpenAI provider:", error);
     }
   }
 
-  // 5. Deep Seek (fallback)
-  const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  if (deepseekKey) {
-    try {
-      providers.push(new DeepSeekProvider(deepseekKey));
-    } catch (error) {
-      console.warn("⚠️ Failed to initialize Deep Seek provider:", error);
-    }
-  }
-
-  // 6. Laozang (fallback)
-  const laozangKey = process.env.LAOZANG_API_KEY;
-  if (laozangKey) {
-    try {
-      providers.push(new LaozangProvider(laozangKey));
-    } catch (error) {
-      console.warn("⚠️ Failed to initialize Laozang provider:", error);
-    }
-  }
-  // Example:
-  // const openaiKey = process.env.OPENAI_API_KEY;
-  // if (openaiKey) {
-  //   providers.push(new OpenAIProvider(openaiKey));
-  // }
-
   if (providers.length === 0) {
     throw new Error(
-      "No AI providers available. Please configure at least one API key."
+      "No AI providers available. Please configure Ollama URL or OpenAI API key."
     );
   }
 

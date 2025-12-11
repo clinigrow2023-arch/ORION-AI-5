@@ -79,12 +79,12 @@ export class Ollama3Provider implements AIProvider {
         model: this.model,
         prompt: fullPrompt,
         stream: false,
-        // Limitar contexto total (tokens de entrada) - acelera processamento
-        num_ctx: 1024, // Máximo de tokens no contexto (reduzido para velocidade ULTRA)
+        // Aumentar contexto para suportar respostas completas
+        num_ctx: 4096, // Máximo de tokens no contexto (aumentado para respostas completas)
         options: {
           temperature: 0.7,
-          // Limitar tokens gerados para resposta mais rápida
-          num_predict: 100, // Máximo de tokens na resposta (VELOCIDADE ULTRA - respostas mais curtas mas instantâneas)
+          // Aumentar tokens gerados para respostas completas (sem cortar)
+          num_predict: 4096, // Máximo de tokens na resposta (aumentado para gerar respostas completas)
           top_p: 0.9, // Nucleus sampling (mais rápido que top_k)
           repeat_penalty: 1.1, // Reduz repetição
         },
@@ -92,9 +92,9 @@ export class Ollama3Provider implements AIProvider {
 
       // Logs removidos por segurança (não expor modelo, URL, ou detalhes de requisição)
 
-      // Timeout otimizado: 90 segundos (com otimizações, deve ser suficiente)
+      // Timeout aumentado: 180 segundos (respostas completas podem demorar mais)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      const timeoutId = setTimeout(() => controller.abort(), 180000);
 
       const startTime = Date.now();
       let response: Response;
@@ -249,16 +249,22 @@ Output strictly valid JSON with the following structure:
         prompt: prompt,
         stream: false,
         format: "json",
+        // Aumentar contexto para suportar planos completos
+        num_ctx: 8192, // Máximo de tokens no contexto (aumentado para planos completos)
         options: {
           temperature: 0.7,
+          // Aumentar tokens gerados para planos completos (sem cortar)
+          num_predict: 8192, // Máximo de tokens na resposta (aumentado para gerar planos completos)
+          top_p: 0.9,
+          repeat_penalty: 1.1,
         },
       };
 
       // Log removido por segurança
 
-      // Adicionar timeout de 90 segundos (plan generation pode demorar mais)
+      // Timeout aumentado: 180 segundos (planos completos podem demorar mais)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      const timeoutId = setTimeout(() => controller.abort(), 180000);
 
       let response: Response;
       try {

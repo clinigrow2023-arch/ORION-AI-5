@@ -235,6 +235,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const { getApiEndpoint } = await import("../lib/api-endpoints");
 
       // Se já existe uma conversa, atualizar (PUT) em vez de criar nova (POST)
+      // IMPORTANTE: Se não existe conversa atual, validar limite ANTES de criar
+      if (!currentConversationId && conversations.length >= 3) {
+        const errorMsg: Message = {
+          id: generateUniqueId(),
+          text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+          sender: Sender.Bot,
+          timestamp: new Date(),
+        };
+        addMessage(errorMsg);
+        return;
+      }
+
       const method = currentConversationId ? "PUT" : "POST";
       const url = getApiEndpoint("conversations");
 

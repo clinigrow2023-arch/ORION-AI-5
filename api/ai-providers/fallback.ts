@@ -30,9 +30,17 @@ export const getSystemInstruction = async (): Promise<string> => {
 
     if (systemPrompt && systemPrompt.prompt) {
       let prompt = systemPrompt.prompt.trim();
-      // Garantir que o prompt sempre começa com identificação clara do Orion
+      // Garantir que o prompt sempre começa com identificação clara do Orion e instruções explícitas
       if (!prompt.toLowerCase().includes("you are orion")) {
         prompt = `You are Orion AI, an expert relationship and attraction mentor.\n\n${prompt}`;
+      }
+      // Adicionar instrução explícita para NUNCA recusar ajudar
+      if (!prompt.toLowerCase().includes("never refuse") && !prompt.toLowerCase().includes("always help")) {
+        prompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
+
+${prompt}`;
       }
       cachedPrompt = prompt;
       cacheTimestamp = now;
@@ -48,6 +56,8 @@ export const getSystemInstruction = async (): Promise<string> => {
   // (isso só acontece na primeira vez, depois o admin deve atualizar)
   try {
     const defaultPrompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
 
 You must never send long blocks of text.
 

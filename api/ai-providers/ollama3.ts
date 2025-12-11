@@ -5,13 +5,17 @@ export class Ollama3Provider implements AIProvider {
   name = "Ollama3";
   private baseUrl: string;
   private model: string;
+  private apiKey: string;
 
   constructor(
     baseUrl: string = "http://31.97.93.86:11434",
-    model: string = "llama3"
+    model: string = "llama3",
+    apiKey?: string
   ) {
     this.baseUrl = baseUrl;
     this.model = model;
+    // Usar token secreto para proteger a VPS
+    this.apiKey = apiKey || process.env.OLLAMA_API_KEY || "";
   }
 
   async sendMessage(
@@ -22,7 +26,7 @@ export class Ollama3Provider implements AIProvider {
     try {
       // Construir prompt completo com histórico e system instruction
       let fullPrompt = "";
-      
+
       // Adicionar system instruction
       if (systemInstruction) {
         fullPrompt += `${systemInstruction}\n\n`;
@@ -40,11 +44,20 @@ export class Ollama3Provider implements AIProvider {
       // Adicionar mensagem atual
       fullPrompt += `User: ${message}\n\nAssistant:`;
 
+      // Preparar headers com autenticação
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Adicionar token de autenticação se configurado
+      if (this.apiKey) {
+        headers["X-API-Key"] = this.apiKey;
+        headers["Authorization"] = `Bearer ${this.apiKey}`;
+      }
+
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           model: this.model,
           prompt: fullPrompt,
@@ -137,11 +150,20 @@ Output strictly valid JSON with the following structure:
   "neurologicalTriggers": "string"
 }`;
 
+      // Preparar headers com autenticação
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Adicionar token de autenticação se configurado
+      if (this.apiKey) {
+        headers["X-API-Key"] = this.apiKey;
+        headers["Authorization"] = `Bearer ${this.apiKey}`;
+      }
+
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           model: this.model,
           prompt: prompt,

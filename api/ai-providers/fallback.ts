@@ -102,8 +102,9 @@ export function createProviders(): AIProvider[] {
   // 1. Ollama3 (primary) - VPS
   const ollamaUrl = process.env.OLLAMA_URL || "http://31.97.93.86:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
+  const ollamaApiKey = process.env.OLLAMA_API_KEY;
   try {
-    providers.push(new Ollama3Provider(ollamaUrl, ollamaModel));
+    providers.push(new Ollama3Provider(ollamaUrl, ollamaModel, ollamaApiKey));
     console.log(`✅ Ollama3 provider initialized: ${ollamaUrl} (model: ${ollamaModel})`);
   } catch (error) {
     console.warn("⚠️ Failed to initialize Ollama3 provider:", error);

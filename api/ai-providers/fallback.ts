@@ -152,7 +152,7 @@ const getSystemInstructionSync = (): string => {
   if (cachedPrompt) {
     return cachedPrompt;
   }
-  
+
   // Fallback padrão
   return `You are Orion AI, an expert relationship and attraction mentor.
 

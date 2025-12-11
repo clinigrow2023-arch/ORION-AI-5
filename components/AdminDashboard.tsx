@@ -167,8 +167,14 @@ const AdminDashboard: React.FC = () => {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to save system prompt");
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+        }
+        throw new Error(errorData.error || "Failed to save system prompt");
       }
 
       const data = await response.json();
@@ -187,8 +193,10 @@ const AdminDashboard: React.FC = () => {
         setPromptSuccess(null);
       }, 5000);
     } catch (err: any) {
-      setError(err.message || "Failed to save system prompt");
+      const errorMessage = err.message || "Failed to save system prompt";
+      setError(errorMessage);
       setPromptSuccess(null);
+      console.error("Error saving prompt:", err);
     } finally {
       setPromptSaving(false);
     }

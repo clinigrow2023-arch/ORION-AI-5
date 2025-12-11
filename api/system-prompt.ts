@@ -187,31 +187,37 @@ Language: ALL OUTPUT MUST BE IN ENGLISH.`;
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      // Buscar prompt atual para incrementar versão
-      const currentPrompt = await prisma.systemPrompt.findFirst({
-        orderBy: { updatedAt: "desc" },
-      });
+      try {
+        // Buscar prompt atual para incrementar versão
+        const currentPrompt = await prisma.systemPrompt.findFirst({
+          orderBy: { updatedAt: "desc" },
+        });
 
-      const newVersion = currentPrompt ? currentPrompt.version + 1 : 1;
+        const newVersion = currentPrompt ? currentPrompt.version + 1 : 1;
 
-      // Criar novo registro (manter histórico)
-      const updatedPrompt = await prisma.systemPrompt.create({
-        data: {
-          prompt: prompt.trim(),
-          version: newVersion,
-          updatedBy: admin.userId,
-        },
-      });
+        // Criar novo registro (manter histórico)
+        const updatedPrompt = await prisma.systemPrompt.create({
+          data: {
+            prompt: prompt.trim(),
+            version: newVersion,
+            updatedBy: admin.userId,
+          },
+        });
 
-      // Limpar cache para forçar reload do novo prompt
-      clearPromptCache();
+        // Limpar cache para forçar reload do novo prompt
+        clearPromptCache();
 
-      return res.status(200).json({
-        prompt: updatedPrompt.prompt,
-        version: updatedPrompt.version,
-        updatedAt: updatedPrompt.updatedAt,
-        message: "System prompt updated successfully",
-      });
+        return res.status(200).json({
+          prompt: updatedPrompt.prompt,
+          version: updatedPrompt.version,
+          updatedAt: updatedPrompt.updatedAt,
+          message: "System prompt updated successfully",
+        });
+      } catch (dbError: any) {
+        return res.status(500).json({
+          error: `Database error: ${dbError.message || "Failed to save prompt"}`,
+        });
+      }
     }
 
     return res.status(405).json({ error: "Method not allowed" });

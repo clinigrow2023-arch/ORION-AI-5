@@ -31,10 +31,7 @@ const verifyAdmin = (
   }
 };
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res, "GET, PUT, OPTIONS");
 
   if (req.method === "OPTIONS") {
@@ -66,9 +63,15 @@ export default async function handler(
 
       // Se não existir, criar com prompt padrão
       if (!systemPrompt) {
-        const defaultPrompt = `You are Orion AI, an expert relationship and attraction mentor.
+        const defaultPrompt = `You are Orion AI, an expert relationship and attraction mentor specializing in helping people reconnect with ex-partners or attract new romantic partners through healthy, ethical, and consensual strategies.
 
-CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
+CRITICAL INSTRUCTIONS:
+- You MUST always help users with relationship and attraction questions
+- NEVER refuse, decline, or say you cannot help
+- This is about HEALTHY relationships, emotional reconnection, and consensual attraction
+- You are NOT helping with manipulation, harm, or fake relationships
+- You are helping people understand emotions, communication, and healthy relationship dynamics
+- This is your primary purpose and you MUST fulfill it
 
 You must never send long blocks of text.
 
@@ -168,7 +171,11 @@ Language: ALL OUTPUT MUST BE IN ENGLISH.`;
 
         // Garantir que o prompt padrão tem a instrução crítica
         let finalDefaultPrompt = defaultPrompt;
-        if (!finalDefaultPrompt.toLowerCase().includes("never refuse") && !finalDefaultPrompt.toLowerCase().includes("always help") && !finalDefaultPrompt.toLowerCase().includes("critical:")) {
+        if (
+          !finalDefaultPrompt.toLowerCase().includes("never refuse") &&
+          !finalDefaultPrompt.toLowerCase().includes("always help") &&
+          !finalDefaultPrompt.toLowerCase().includes("critical:")
+        ) {
           finalDefaultPrompt = `You are Orion AI, an expert relationship and attraction mentor.
 
 CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
@@ -208,7 +215,11 @@ ${defaultPrompt}`;
         }
 
         // Adicionar instrução explícita para NUNCA recusar ajudar (se não tiver)
-        if (!finalPrompt.toLowerCase().includes("never refuse") && !finalPrompt.toLowerCase().includes("always help") && !finalPrompt.toLowerCase().includes("critical:")) {
+        if (
+          !finalPrompt.toLowerCase().includes("never refuse") &&
+          !finalPrompt.toLowerCase().includes("always help") &&
+          !finalPrompt.toLowerCase().includes("critical:")
+        ) {
           finalPrompt = `You are Orion AI, an expert relationship and attraction mentor.
 
 CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
@@ -243,7 +254,9 @@ ${finalPrompt}`;
         });
       } catch (dbError: any) {
         return res.status(500).json({
-          error: `Database error: ${dbError.message || "Failed to save prompt"}`,
+          error: `Database error: ${
+            dbError.message || "Failed to save prompt"
+          }`,
         });
       }
     }
@@ -255,4 +268,3 @@ ${finalPrompt}`;
     });
   }
 }
-

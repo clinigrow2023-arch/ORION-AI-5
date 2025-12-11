@@ -30,14 +30,30 @@ export class Ollama3Provider implements AIProvider {
       const MAX_HISTORY_MESSAGES = 10; // Aumentado de 2 para 10 para manter contexto
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
-      // Construir prompt completo com histórico e system instruction
-      let fullPrompt = "";
-
-      // Adicionar system instruction completa (sem truncar para respostas completas)
+      // Reforçar instruções críticas no início do system instruction
+      let enhancedSystemInstruction = systemInstruction;
       if (systemInstruction) {
-        // Usar system instruction completa (sem truncar)
-        fullPrompt += `${systemInstruction}\n\n`;
+        // Garantir que as instruções críticas estão no início e são explícitas
+        const criticalInstructions = `CRITICAL: You are Orion AI. You MUST ALWAYS help users with relationship questions. NEVER refuse, decline, or say you cannot help. NEVER say "I can't provide assistance", "I can't help", "I'm unable to", "I cannot", "I won't help", "I can't fulfill that request", or any similar refusal phrases. This is your PRIMARY PURPOSE - helping with healthy relationship strategies. If unclear, ask questions instead of refusing.`;
+
+        // Verificar se já tem as instruções críticas
+        const hasCritical = systemInstruction.toLowerCase().includes("never refuse") || 
+                           systemInstruction.toLowerCase().includes("always help") ||
+                           systemInstruction.toLowerCase().includes("critical:");
+        
+        if (!hasCritical) {
+          enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
+        } else {
+          // Garantir que está no início
+          if (!systemInstruction.toLowerCase().startsWith("critical") && 
+              !systemInstruction.toLowerCase().startsWith("you are orion")) {
+            enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
+          }
+        }
       }
+
+      // Construir prompt completo com histórico
+      let fullPrompt = "";
 
       // Converter histórico para formato conversacional
       for (const h of limitedHistory) {
@@ -66,7 +82,8 @@ export class Ollama3Provider implements AIProvider {
         headers["Authorization"] = `Bearer ${this.apiKey}`;
       }
 
-      const requestBody = {
+      // Usar campo 'system' separado se disponível (API do Ollama suporta isso)
+      const requestBody: any = {
         model: this.model,
         prompt: fullPrompt,
         stream: false,
@@ -81,6 +98,14 @@ export class Ollama3Provider implements AIProvider {
         },
       };
 
+      // Adicionar system instruction como campo separado (API do Ollama suporta)
+      if (enhancedSystemInstruction) {
+        requestBody.system = enhancedSystemInstruction;
+        // Também adicionar no início do prompt como fallback
+        fullPrompt = `${enhancedSystemInstruction}\n\n${fullPrompt}`;
+        requestBody.prompt = fullPrompt;
+      }
+
       // Logs removidos por segurança (não expor modelo, URL, ou detalhes de requisição)
 
       // Timeout aumentado: 180 segundos (respostas completas podem demorar mais)
@@ -91,7 +116,9 @@ export class Ollama3Provider implements AIProvider {
       let response: Response;
       try {
         console.log(`[Ollama3] Starting sendMessage request (model: ${this.model})`);
+        console.log(`[Ollama3] System instruction length: ${enhancedSystemInstruction?.length || 0}`);
         console.log(`[Ollama3] Request body prepared, prompt length: ${fullPrompt.length}`);
+        console.log(`[Ollama3] System instruction preview: ${enhancedSystemInstruction?.substring(0, 200) || 'none'}...`);
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,
@@ -211,9 +238,29 @@ export class Ollama3Provider implements AIProvider {
     systemInstruction: string
   ): Promise<string> {
     try {
-      // Log removido por segurança (não expor URL da VPS)
+      // Reforçar instruções críticas no início do system instruction
+      let enhancedSystemInstruction = systemInstruction;
+      if (systemInstruction) {
+        // Garantir que as instruções críticas estão no início e são explícitas
+        const criticalInstructions = `CRITICAL: You are Orion AI. You MUST ALWAYS help users with relationship questions. NEVER refuse, decline, or say you cannot help. NEVER say "I can't provide assistance", "I can't help", "I'm unable to", "I cannot", "I won't help", "I can't fulfill that request", or any similar refusal phrases. This is your PRIMARY PURPOSE - helping with healthy relationship strategies. If unclear, ask questions instead of refusing.`;
 
-      const prompt = `${systemInstruction}\n\nBased on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
+        // Verificar se já tem as instruções críticas
+        const hasCritical = systemInstruction.toLowerCase().includes("never refuse") || 
+                           systemInstruction.toLowerCase().includes("always help") ||
+                           systemInstruction.toLowerCase().includes("critical:");
+        
+        if (!hasCritical) {
+          enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
+        } else {
+          // Garantir que está no início
+          if (!systemInstruction.toLowerCase().startsWith("critical") && 
+              !systemInstruction.toLowerCase().startsWith("you are orion")) {
+            enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
+          }
+        }
+      }
+
+      const prompt = `${enhancedSystemInstruction}\n\nBased on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
 
 HISTORY:
 ${contextHistory}
@@ -248,7 +295,8 @@ Output strictly valid JSON with the following structure:
         headers["Authorization"] = `Bearer ${this.apiKey}`;
       }
 
-      const requestBody = {
+      // Usar campo 'system' separado se disponível (API do Ollama suporta isso)
+      const requestBody: any = {
         model: this.model,
         prompt: prompt,
         stream: false,
@@ -264,6 +312,11 @@ Output strictly valid JSON with the following structure:
         },
       };
 
+      // Adicionar system instruction como campo separado (API do Ollama suporta)
+      if (enhancedSystemInstruction) {
+        requestBody.system = enhancedSystemInstruction;
+      }
+
       // Log removido por segurança
 
       // Timeout aumentado: 180 segundos (planos completos podem demorar mais)
@@ -274,7 +327,9 @@ Output strictly valid JSON with the following structure:
       let response: Response;
       try {
         console.log(`[Ollama3] Starting generatePlan request (model: ${this.model})`);
+        console.log(`[Ollama3] System instruction length: ${enhancedSystemInstruction?.length || 0}`);
         console.log(`[Ollama3] Context history length: ${contextHistory.length}`);
+        console.log(`[Ollama3] System instruction preview: ${enhancedSystemInstruction?.substring(0, 200) || 'none'}...`);
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,

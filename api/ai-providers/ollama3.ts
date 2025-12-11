@@ -26,27 +26,20 @@ export class Ollama3Provider implements AIProvider {
     try {
       // Log removido por segurança (não expor URL da VPS)
 
-      // Otimização ULTRA EXTREMA: Limitar histórico às últimas 2 mensagens (1 turno)
-      // Para velocidade máxima, apenas contexto imediato
-      const MAX_HISTORY_MESSAGES = 2;
+      // Aumentar histórico para manter contexto completo (respostas completas precisam de mais contexto)
+      const MAX_HISTORY_MESSAGES = 10; // Aumentado de 2 para 10 para manter contexto
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
-
-      // Log removido por segurança
 
       // Construir prompt completo com histórico e system instruction
       let fullPrompt = "";
 
-      // Adicionar system instruction (resumida se muito longa)
+      // Adicionar system instruction completa (sem truncar para respostas completas)
       if (systemInstruction) {
-        // Limitar system instruction a 300 caracteres para velocidade ULTRA
-        const systemInst =
-          systemInstruction.length > 300
-            ? systemInstruction.substring(0, 300) + "..."
-            : systemInstruction;
-        fullPrompt += `${systemInst}\n\n`;
+        // Usar system instruction completa (sem truncar)
+        fullPrompt += `${systemInstruction}\n\n`;
       }
 
-      // Converter histórico para formato conversacional (mais compacto)
+      // Converter histórico para formato conversacional
       for (const h of limitedHistory) {
         const role = h.role === "user" ? "User" : "Assistant";
         const content = h.parts
@@ -54,10 +47,8 @@ export class Ollama3Provider implements AIProvider {
           .join(" ")
           .trim();
         if (content) {
-          // Limitar cada mensagem do histórico a 150 caracteres para velocidade ULTRA
-          const truncatedContent =
-            content.length > 150 ? content.substring(0, 150) + "..." : content;
-          fullPrompt += `${role}: ${truncatedContent}\n`;
+          // Usar mensagens completas (sem truncar para manter contexto)
+          fullPrompt += `${role}: ${content}\n`;
         }
       }
 
@@ -113,7 +104,7 @@ export class Ollama3Provider implements AIProvider {
         if (fetchError.name === "AbortError") {
           throw createProviderError(
             this.name,
-            "Request timeout after 90 seconds",
+            "Request timeout after 180 seconds",
             "TIMEOUT",
             true
           );
@@ -280,7 +271,7 @@ Output strictly valid JSON with the following structure:
         if (fetchError.name === "AbortError") {
           throw createProviderError(
             this.name,
-            "Plan generation timeout after 90 seconds",
+            "Plan generation timeout after 180 seconds",
             "TIMEOUT",
             true
           );

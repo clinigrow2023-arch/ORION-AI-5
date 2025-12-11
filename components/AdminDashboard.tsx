@@ -57,6 +57,8 @@ const AdminDashboard: React.FC = () => {
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptSaving, setPromptSaving] = useState(false);
   const [promptVersion, setPromptVersion] = useState(0);
+  const [promptUpdatedAt, setPromptUpdatedAt] = useState<string | null>(null);
+  const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -101,6 +103,7 @@ const AdminDashboard: React.FC = () => {
     try {
       setPromptLoading(true);
       setError(null);
+      setPromptSuccess(null);
       const token = authService.getToken();
       if (!token) {
         throw new Error("No token found");
@@ -123,6 +126,12 @@ const AdminDashboard: React.FC = () => {
       const data = await response.json();
       setSystemPrompt(data.prompt || "");
       setPromptVersion(data.version || 0);
+      if (data.updatedAt) {
+        const date = new Date(data.updatedAt);
+        setPromptUpdatedAt(date.toLocaleString());
+      } else {
+        setPromptUpdatedAt(null);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load system prompt");
     } finally {
@@ -139,6 +148,7 @@ const AdminDashboard: React.FC = () => {
     try {
       setPromptSaving(true);
       setError(null);
+      setPromptSuccess(null);
       const token = authService.getToken();
       if (!token) {
         throw new Error("No token found");
@@ -163,10 +173,22 @@ const AdminDashboard: React.FC = () => {
 
       const data = await response.json();
       setPromptVersion(data.version);
+      if (data.updatedAt) {
+        const date = new Date(data.updatedAt);
+        setPromptUpdatedAt(date.toLocaleString());
+      }
+      setPromptSuccess(
+        `✅ Prompt saved successfully! Version ${data.version} is now active. All AI providers (Ollama, Groq, OpenAI, etc.) will use this prompt.`
+      );
       setError(null);
-      alert("System prompt updated successfully! All AI providers will use the new prompt.");
+      
+      // Limpar mensagem de sucesso após 5 segundos
+      setTimeout(() => {
+        setPromptSuccess(null);
+      }, 5000);
     } catch (err: any) {
       setError(err.message || "Failed to save system prompt");
+      setPromptSuccess(null);
     } finally {
       setPromptSaving(false);
     }
@@ -665,7 +687,7 @@ const AdminDashboard: React.FC = () => {
 
         {error && (
           <div className="mb-4 md:mb-6 p-3 md:p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm md:text-base">
-            <AlertCircle size={18} className="md:w-5 md:h-5 flex-shrink-0" />
+            <AlertCircle size={18} className="md:w-5 md:h-5 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -707,7 +729,7 @@ const AdminDashboard: React.FC = () => {
                   >
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center gap-2 lg:gap-3">
-                        <div className="w-8 h-8 lg:w-10 lg:h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 lg:w-10 lg:h-10 bg-indigo-600 rounded-full flex items-center justify-center shrink-0">
                           <Users
                             size={16}
                             className="lg:w-5 lg:h-5 text-white"
@@ -836,7 +858,7 @@ const AdminDashboard: React.FC = () => {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center shrink-0">
                     <Users size={20} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -851,7 +873,7 @@ const AdminDashboard: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
                       user.role === "admin"
@@ -957,7 +979,7 @@ const AdminDashboard: React.FC = () => {
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
             <div className="flex items-center gap-3 mb-4">
               <div
-                className={`w-12 h-12 rounded-lg flex items-center justify-center border flex-shrink-0 ${
+                className={`w-12 h-12 rounded-lg flex items-center justify-center border shrink-0 ${
                   blockConfirm.isBlocked
                     ? "bg-green-500/20 border-green-500/30"
                     : "bg-red-500/20 border-red-500/30"
@@ -1029,7 +1051,7 @@ const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center border border-red-500/30 flex-shrink-0">
+              <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center border border-red-500/30 shrink-0">
                 <Trash2 size={24} className="text-red-400" />
               </div>
               <div>
@@ -1083,7 +1105,7 @@ const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center border border-yellow-500/30 flex-shrink-0">
+              <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center border border-yellow-500/30 shrink-0">
                 <KeyRound size={24} className="text-yellow-400" />
               </div>
               <div>

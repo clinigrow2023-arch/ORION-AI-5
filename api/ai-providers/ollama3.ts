@@ -90,7 +90,8 @@ export class Ollama3Provider implements AIProvider {
       const startTime = Date.now();
       let response: Response;
       try {
-        // Log removido por segurança
+        console.log(`[Ollama3] Starting sendMessage request (model: ${this.model})`);
+        console.log(`[Ollama3] Request body prepared, prompt length: ${fullPrompt.length}`);
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,
@@ -98,7 +99,8 @@ export class Ollama3Provider implements AIProvider {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
-        // Log removido por segurança (não expor tempo de resposta)
+        const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`[Ollama3] Response received after ${elapsedTime} seconds`);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === "AbortError") {
@@ -140,7 +142,8 @@ export class Ollama3Provider implements AIProvider {
       }
 
       const data = await response.json();
-      // Log removido por segurança
+      console.log(`[Ollama3] Response status: ${response.status} ${response.statusText}`);
+      console.log(`[Ollama3] Response keys:`, Object.keys(data));
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
       let content = "";
@@ -151,7 +154,7 @@ export class Ollama3Provider implements AIProvider {
       } else if (data.text) {
         content = data.text;
       } else {
-        // Log removido por segurança
+        console.error(`[Ollama3] Invalid response format. Keys:`, Object.keys(data));
         throw createProviderError(
           this.name,
           `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
@@ -164,7 +167,7 @@ export class Ollama3Provider implements AIProvider {
 
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
-        // Log removido por segurança
+        console.error(`[Ollama3] Empty response received`);
         throw createProviderError(
           this.name,
           "Empty response from Ollama API",
@@ -173,7 +176,17 @@ export class Ollama3Provider implements AIProvider {
         );
       }
 
-      // Log removido por segurança
+      console.log(`[Ollama3] Success! Response length: ${content.length}`);
+      console.log(`[Ollama3] Response preview: ${content.substring(0, 200)}...`);
+      if (data.total_duration) {
+        console.log(`[Ollama3] Total duration: ${data.total_duration / 1e9}s`);
+      }
+      if (data.eval_duration) {
+        console.log(`[Ollama3] Eval duration: ${data.eval_duration / 1e9}s`);
+      }
+      if (data.prompt_eval_duration) {
+        console.log(`[Ollama3] Prompt eval duration: ${data.prompt_eval_duration / 1e9}s`);
+      }
       return content;
     } catch (error: any) {
       if (error.provider) {
@@ -257,8 +270,11 @@ Output strictly valid JSON with the following structure:
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000);
 
+      const startTime = Date.now();
       let response: Response;
       try {
+        console.log(`[Ollama3] Starting generatePlan request (model: ${this.model})`);
+        console.log(`[Ollama3] Context history length: ${contextHistory.length}`);
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,
@@ -266,6 +282,8 @@ Output strictly valid JSON with the following structure:
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
+        const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`[Ollama3] Plan generation response received after ${elapsedTime} seconds`);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === "AbortError") {
@@ -307,7 +325,8 @@ Output strictly valid JSON with the following structure:
       }
 
       const data = await response.json();
-      // Log removido por segurança
+      console.log(`[Ollama3] Plan generation response status: ${response.status} ${response.statusText}`);
+      console.log(`[Ollama3] Plan generation response keys:`, Object.keys(data));
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
       let jsonText = "";
@@ -318,7 +337,7 @@ Output strictly valid JSON with the following structure:
       } else if (data.text) {
         jsonText = data.text;
       } else {
-        // Log removido por segurança
+        console.error(`[Ollama3] Invalid plan response format. Keys:`, Object.keys(data));
         throw createProviderError(
           this.name,
           `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
@@ -330,7 +349,7 @@ Output strictly valid JSON with the following structure:
       }
 
       if (!jsonText || jsonText.trim() === "") {
-        // Log removido por segurança
+        console.error(`[Ollama3] Empty plan response received`);
         throw createProviderError(
           this.name,
           "No data received from plan generation",
@@ -342,9 +361,20 @@ Output strictly valid JSON with the following structure:
       // Tentar validar se é JSON válido
       try {
         JSON.parse(jsonText);
-        // Log removido por segurança
+        console.log(`[Ollama3] Plan generation success! JSON length: ${jsonText.length}`);
+        console.log(`[Ollama3] Plan preview: ${jsonText.substring(0, 200)}...`);
       } catch (parseError) {
-        // Log removido por segurança
+        console.error(`[Ollama3] Plan response is not valid JSON:`, parseError);
+      }
+
+      if (data.total_duration) {
+        console.log(`[Ollama3] Plan total duration: ${data.total_duration / 1e9}s`);
+      }
+      if (data.eval_duration) {
+        console.log(`[Ollama3] Plan eval duration: ${data.eval_duration / 1e9}s`);
+      }
+      if (data.prompt_eval_duration) {
+        console.log(`[Ollama3] Plan prompt eval duration: ${data.prompt_eval_duration / 1e9}s`);
       }
 
       return jsonText;

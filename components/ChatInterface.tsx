@@ -292,7 +292,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // CRÍTICO: Verificar acesso ANTES de qualquer processamento (para não gastar tokens)
     // IMPORTANTE: Usuários bloqueados já foram deslogados, então não chegam aqui
     if (!user) {
-      alert("Por favor, faça login para usar o chat.");
+      alert("Please log in to use the chat.");
       return;
     }
 
@@ -302,7 +302,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Verificar se usuário está bloqueado (não deveria chegar aqui, mas verificar por segurança)
       if (user.isBlocked) {
         alert(
-          "Sua conta foi bloqueada. Entre em contato com um administrador."
+          "Your account has been blocked. Please contact an administrator."
         );
         authService.logout();
         window.location.reload();
@@ -321,7 +321,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (updatedUser && updatedUser.role !== "admin") {
       if (updatedUser.isBlocked) {
         alert(
-          "Sua conta foi bloqueada. Por favor, entre em contato com um administrador."
+          "Your account has been blocked. Please contact an administrator."
         );
         return;
       }
@@ -425,9 +425,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         error?.message?.includes("leaked") ||
         error?.code === 403
       ) {
-        errorText = `🔒 **Erro de Segurança Detectado**\n\nSua chave API foi reportada como vazada pelo Google.\n\n**Para resolver:**\n1. Acesse [Google AI Studio](https://aistudio.google.com/apikey)\n2. Gere uma nova chave API\n3. Atualize o arquivo \`.env\` com a nova chave:\n   \`GEMINI_API_KEY=sua_nova_chave_aqui\`\n4. Reinicie o servidor (\`npm run dev\`)`;
+        errorText = `🔒 **Security Error Detected**\n\nYour API key has been reported as leaked by Google.\n\n**To resolve:**\n1. Visit [Google AI Studio](https://aistudio.google.com/apikey)\n2. Generate a new API key\n3. Update the \`.env\` file with the new key:\n   \`GEMINI_API_KEY=your_new_key_here\`\n4. Restart the server (\`npm run dev\`)`;
       } else if (error?.message?.includes("API key is missing")) {
-        errorText = `⚠️ **Chave API não encontrada**\n\nPor favor, adicione sua chave API do Gemini no arquivo \`.env\`:\n\`GEMINI_API_KEY=sua_chave_aqui\`\n\nDepois, reinicie o servidor.`;
+        errorText = `⚠️ **API Key Not Found**\n\nPlease add your Gemini API key to the \`.env\` file:\n\`GEMINI_API_KEY=your_key_here\`\n\nThen, restart the server.`;
       } else if (
         error?.message?.includes("access not granted") ||
         error?.message?.includes("access has expired")

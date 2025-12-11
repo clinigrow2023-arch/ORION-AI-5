@@ -48,7 +48,7 @@ const WaitingActivation: React.FC = () => {
           // Usuário bloqueado - fazer logout
           authService.logout();
           alert(
-            "Sua conta foi bloqueada. Entre em contato com um administrador."
+            "Your account has been blocked. Please contact an administrator."
           );
           window.location.reload();
         } else if (data.notActive || data.expired) {
@@ -72,14 +72,14 @@ const WaitingActivation: React.FC = () => {
 
         <h1 className="text-2xl font-bold text-white mb-3">
           {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
-            ? "Acesso Expirado"
-            : "Aguardando Ativação"}
+            ? "Access Expired"
+            : "Waiting for Activation"}
         </h1>
 
         <p className="text-slate-400 mb-6 leading-relaxed">
           {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
-            ? "Seu acesso expirou. Entre em contato com um administrador para renovar seu acesso."
-            : "Seu acesso ainda não foi liberado. Entre em contato com um administrador para liberar seu acesso ao chat."}
+            ? "Your access has expired. Please contact an administrator to renew your access."
+            : "Your access has not been granted yet. Please contact an administrator to grant access to the chat."}
         </p>
 
         <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">
@@ -87,7 +87,7 @@ const WaitingActivation: React.FC = () => {
             <Mail className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-slate-300 mb-1">
-                Email cadastrado:
+                Registered email:
               </p>
               <p className="text-sm text-slate-400 break-all">{user?.email}</p>
             </div>
@@ -103,12 +103,12 @@ const WaitingActivation: React.FC = () => {
             {refreshing ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                <span>Verificando...</span>
+                <span>Checking...</span>
               </>
             ) : (
               <>
                 <RefreshCw className="w-5 h-5" />
-                <span>Verificar Ativação</span>
+                <span>Check Activation</span>
               </>
             )}
           </button>
@@ -118,12 +118,12 @@ const WaitingActivation: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-colors"
           >
             <LogOut className="w-5 h-5" />
-            <span>Sair</span>
+            <span>Sign Out</span>
           </button>
         </div>
 
         <p className="text-xs text-slate-500 mt-6">
-          Você receberá acesso assim que um administrador liberar sua conta.
+          You will receive access once an administrator grants your account access.
         </p>
       </div>
     </div>

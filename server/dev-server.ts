@@ -44,6 +44,7 @@ import geminiHandler from "../api/gemini.js";
 import changePasswordHandler from "../api/change-password.js";
 import setNewPasswordHandler from "../api/set-new-password.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
+import systemPromptHandler from "../api/system-prompt.js";
 
 const app = express();
 const PORT = 8888;
@@ -110,6 +111,8 @@ app.post("/api/gemini", geminiHandler);
 app.put("/api/change-password", changePasswordHandler);
 app.post("/api/set-new-password", setNewPasswordHandler);
 app.post("/api/digistore-ipn", digistoreIpnHandler);
+app.get("/api/system-prompt", systemPromptHandler);
+app.put("/api/system-prompt", systemPromptHandler);
 
 app.listen(PORT, () => {
   // Logs removidos por segurança (não expor informações de servidor)

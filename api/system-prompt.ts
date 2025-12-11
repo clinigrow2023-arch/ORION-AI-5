@@ -178,7 +178,11 @@ ${defaultPrompt}`;
 
       // Garantir que o prompt retornado sempre tem as instruções críticas
       let returnPrompt = systemPrompt.prompt;
-      if (!returnPrompt.toLowerCase().includes("never refuse") && !returnPrompt.toLowerCase().includes("always help") && !returnPrompt.toLowerCase().includes("critical")) {
+      if (
+        !returnPrompt.toLowerCase().includes("never refuse") &&
+        !returnPrompt.toLowerCase().includes("always help") &&
+        !returnPrompt.toLowerCase().includes("critical")
+      ) {
         returnPrompt = `You are Orion AI, an expert relationship and attraction mentor specializing in helping people reconnect with ex-partners or attract new romantic partners through healthy, ethical, and consensual strategies.
 
 CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE:

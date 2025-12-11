@@ -249,7 +249,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           addMessage(errorMsg);
           return;
         }
-        
+
         // Se não há conversa atual mas há mensagens, criar uma nova
         // Isso acontece na primeira mensagem do chat
         if (allMessages.length > 0) {
@@ -568,7 +568,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           className="p-1 text-slate-400 hover:text-slate-200"
                         >
                           <X size={16} />
-
                         </button>
                       </div>
                       <div className="p-2 space-y-1">
@@ -678,7 +677,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               className="p-1 text-slate-400 hover:text-red-400 transition-opacity "
                               title="Delete conversation"
                             >
-                              <Trash2  className="w-5" />
+                              <Trash2 className="w-5" />
                             </button>
                           </div>
                         ))}

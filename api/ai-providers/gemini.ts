@@ -46,7 +46,7 @@ export class GeminiProvider implements AIProvider {
         history: history,
       });
 
-      const result = await chat.sendMessageStream({ 
+      const result = await chat.sendMessageStream({
         message,
         // Aplicar safety settings também na mensagem
         config: {

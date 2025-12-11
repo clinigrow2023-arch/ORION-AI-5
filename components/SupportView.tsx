@@ -9,12 +9,7 @@ const SupportView: React.FC = () => {
   const handleContactSupport = () => {
     const subject = encodeURIComponent("Orion AI Support Request");
     const body = encodeURIComponent(
-      `Hello,\n\n` +
-        `I need assistance with:\n\n` +
-        `[Please describe your issue or question here]\n\n` +
-        `---\n` +
-        `User: ${user?.name || "Unknown"}\n` +
-        `Email: ${user?.email || "Not provided"}`
+      `describe your problem`
     );
 
     window.open(

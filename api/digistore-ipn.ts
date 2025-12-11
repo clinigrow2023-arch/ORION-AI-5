@@ -326,7 +326,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // DigiStore may send in different formats
       // Also search case-insensitively for any field containing "sha" or "sign"
       let receivedSignature = "";
-      
+
       // First try known field names
       const knownFields = [
         "sha_sign",
@@ -337,7 +337,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "SHA_SIGN_DIGISTORE",
         "sha_sign_digistore",
       ];
-      
+
       for (const field of knownFields) {
         const value = postedValue(postData, field);
         if (value && value.trim() !== "") {
@@ -346,7 +346,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           break;
         }
       }
-      
+
       // If not found, search case-insensitively
       if (!receivedSignature) {
         for (const [key, value] of Object.entries(postData)) {

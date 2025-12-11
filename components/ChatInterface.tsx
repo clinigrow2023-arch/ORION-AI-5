@@ -171,8 +171,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       if (response.ok) {
         const data = await response.json();
-        if (data.conversations) {
-          setConversations(data.conversations);
+        if (data.conversations && Array.isArray(data.conversations)) {
+          // Garantir que só carregamos conversas válidas (com id e messages)
+          const validConversations = data.conversations.filter(
+            (conv: any) => conv.id && conv.messages && Array.isArray(conv.messages)
+          );
+          setConversations(validConversations);
         }
       }
     } catch (error) {
@@ -228,15 +232,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }));
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("conversations"), {
-        method: "POST",
+      
+      // Se já existe uma conversa, atualizar (PUT) em vez de criar nova (POST)
+      const method = currentConversationId ? "PUT" : "POST";
+      const url = getApiEndpoint("conversations");
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          messages: messagesToSave,
           conversationId: currentConversationId || undefined,
+          messages: messagesToSave,
         }),
       });
 
@@ -634,15 +643,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   )}
                 </div>
 
-                {messages.length > 0 && (
-                  <button
-                    onClick={() => setShowResetModal(true)}
-                    className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
-                    title="Reset current chat"
-                  >
-                    <RotateCcw size={18} />
-                  </button>
-                )}
+                {/* Botões sempre visíveis no mobile */}
+                <div className="flex items-center gap-2">
+                  {conversations.length < 3 && (
+                    <button
+                      onClick={() => {
+                        setCurrentConversationId(null);
+                        onResetChat();
+                        setShowConversationsList(false);
+                      }}
+                      className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors md:hidden"
+                      title="New Conversation"
+                    >
+                      <MessageSquare size={18} />
+                    </button>
+                  )}
+                  {messages.length > 0 && (
+                    <button
+                      onClick={() => setShowResetModal(true)}
+                      className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                      title="Reset current chat"
+                    >
+                      <RotateCcw size={18} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

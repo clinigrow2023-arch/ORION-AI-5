@@ -116,5 +116,6 @@ app.get("/api/system-prompt", systemPromptHandler);
 app.put("/api/system-prompt", systemPromptHandler);
 
 app.listen(PORT, () => {
-  // Logs removidos por segurança (não expor informações de servidor)
+  console.log(`✅ Development server running on http://localhost:${PORT}`);
+  console.log(`📡 API routes available at http://localhost:${PORT}/api/`);
 });

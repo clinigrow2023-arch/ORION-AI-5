@@ -37,13 +37,13 @@ O erro que você está vendo:
 **Atual:**
 
 ```
-JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ0ZXN0LXVzZXItaWQiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjM4NjM3OTUsImV4cCI6MTc2NDQ2ODU5NX0.3VhgzkCsV9dEQfvd2UdGFZNr4uAF93tkxoEqCkLjGFQ
+JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... (JWT token completo - INCORRETO)
 ```
 
 **Correção:**
 
 ```
-JWT_SECRET=31e7ac8bcc1971ec32533dabdef770163e7e954f42722f2f37f847ae54291fc0
+JWT_SECRET=your_generated_secret_here (gerar com comando abaixo)
 ```
 
 **Como gerar um novo:**
@@ -63,13 +63,13 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 **Correção aplicada:**
 
 ```
-OLLAMA_URL=http://31.97.93.86:11434
+OLLAMA_URL=http://your-ollama-server:11434
 ```
 
 **⚠️ IMPORTANTE:** O servidor precisa ser **REINICIADO** para carregar esta mudança!
 
 ```
-OLLAMA_URL=http://31.97.93.86:11434
+OLLAMA_URL=http://your-ollama-server:11434
 ```
 
 **Motivo:** Com a URL atual, o sistema tentaria acessar `http://31.97.93.86/api/generate/api/generate`, que não existe.
@@ -85,13 +85,13 @@ OLLAMA_URL=http://31.97.93.86:11434
 **Atual:**
 
 ```
-SITE_URL=https://shimmery-transcendentally-collen.ngrok-free.dev/
+SITE_URL=https://your-site-url.com/
 ```
 
 **Correção:**
 
 ```
-SITE_URL=https://shimmery-transcendentally-collen.ngrok-free.dev
+SITE_URL=https://your-site-url.com
 ```
 
 ---
@@ -103,13 +103,13 @@ SITE_URL=https://shimmery-transcendentally-collen.ngrok-free.dev
 **Atual:**
 
 ```
-GMAIL_PASS=hctl qvwh qnjp pdov
+GMAIL_PASS=xxxx xxxx xxxx xxxx (com espaços)
 ```
 
 **Correção:**
 
 ```
-GMAIL_PASS=hctlqvwhqnjppdov
+GMAIL_PASS=xxxxxxxxxxxxxxxx (sem espaços)
 ```
 
 **Nota:** App Passwords do Gmail têm 16 caracteres SEM espaços. Remova todos os espaços.
@@ -162,25 +162,25 @@ Não é obrigatória, mas é bom deixar explícita.
 
 ```env
 # Database
-DATABASE_URL=mongodb+srv://gabrielpg269_db_user:HtuvJxaESwTQGCVL@orionia.z9uvars.mongodb.net/orionai?appName=OrionIA
+DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/database?appName=AppName
 
 # JWT Secret (gerar novo com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-JWT_SECRET=31e7ac8bcc1971ec32533dabdef770163e7e954f42722f2f37f847ae54291fc0
+JWT_SECRET=your_jwt_secret_here
 
 # Site URL (sem barra final)
-SITE_URL=https://shimmery-transcendentally-collen.ngrok-free.dev
+SITE_URL=https://your-site-url.com
 
 # Ollama
-OLLAMA_URL=http://31.97.93.86:11434
+OLLAMA_URL=http://your-ollama-server:11434
 OLLAMA_MODEL=llama3:8b
-OLLAMA_API_KEY=gm@orion
+OLLAMA_API_KEY=your_ollama_api_key_here
 
 # DigiStore
-DIGISTORE_IPN_PASSPHRASE=1539585-CvONJRt4EU60eUGq4uYCk40JiwBdzSFIkuq5WZ0s
+DIGISTORE_IPN_PASSPHRASE=your_digistore_passphrase_here
 
 # Gmail
-GMAIL_USER=gmrelationship@gmail.com
-GMAIL_PASS=hctlqvwhqnjppdov
+GMAIL_USER=your_email@gmail.com
+GMAIL_PASS=your_gmail_app_password_here
 
 # API Keys (Opcional - Fallback)
 # GEMINI_API_KEY=your_gemini_api_key_here

@@ -365,16 +365,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Detailed log before calculating expected signature
       // Log removido por segurança (não expor informações de assinatura)
-        postDataKeys: Object.keys(postData),
-        postDataCount: Object.keys(postData).length,
-        allFields: Object.keys(postData).map((key) => ({
-          key,
-          hasValue: !!postData[key] && String(postData[key]).trim() !== "",
-          valuePreview: postData[key]
-            ? String(postData[key]).substring(0, 30)
-            : "",
-        })),
-      });
 
       const expectedSignature = digistoreSignature(IPN_PASSPHRASE, postData);
 
@@ -386,32 +376,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           allowWithoutSignature || process.env.NODE_ENV === "development";
 
         // Log removido por segurança
-          eventType,
-          received: receivedSignature || "(empty)",
-          expected: expectedSignature.substring(0, 20) + "...",
-          receivedLength: receivedSignature?.length || 0,
-          expectedLength: expectedSignature.length,
-          postDataKeys: Object.keys(postData),
-          postDataCount: Object.keys(postData).length,
-          isDebugMode,
-          // Complete log of data for debugging (without sensitive values)
-          postDataSample: Object.keys(postData)
-            .slice(0, 10)
-            .reduce((acc, key) => {
-              if (
-                key.toLowerCase().includes("password") ||
-                key.toLowerCase().includes("secret") ||
-                key.toLowerCase().includes("sign")
-              ) {
-                acc[key] = "***HIDDEN***";
-              } else {
-                acc[key] = postData[key]
-                  ? `${postData[key].substring(0, 30)}...`
-                  : "";
-              }
-              return acc;
-            }, {} as Record<string, string>),
-        });
 
         // If in debug mode or no signature received, allow to continue
         if (isDebugMode || !receivedSignature) {
@@ -459,11 +423,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isTestMode = apiMode !== "live";
 
         // Log removido por segurança (não expor dados de pagamento)
-          firstName,
-          lastName,
-          rebillDate,
-          isTestMode,
-        });
 
         // Validations
         if (!email || !firstName) {
@@ -695,10 +654,6 @@ hide_on: ${hideOn}`;
         const isTestMode = apiMode !== "live";
 
         // Log removido por segurança (não expor dados de pagamento)
-          orderId,
-          email,
-          isTestMode,
-        });
 
         // Buscar usuário por orderId ou email
         const user = await prisma.user.findFirst({
@@ -735,10 +690,6 @@ hide_on: ${hideOn}`;
         const isTestMode = apiMode !== "live";
 
         // Log removido por segurança (não expor dados de pagamento)
-          orderId,
-          email,
-          isTestMode,
-        });
 
         // Buscar usuário por orderId ou email
         const user = await prisma.user.findFirst({
@@ -775,10 +726,6 @@ hide_on: ${hideOn}`;
         const isTestMode = apiMode !== "live";
 
         // Log removido por segurança (não expor dados de pagamento)
-          orderId,
-          email,
-          isTestMode,
-        });
 
         // Buscar usuário por orderId ou email
         const user = await prisma.user.findFirst({
@@ -816,11 +763,6 @@ hide_on: ${hideOn}`;
         const isTestMode = apiMode !== "live";
 
         // Log removido por segurança (não expor dados de pagamento)
-          orderId,
-          email,
-          rebillDate,
-          isTestMode,
-        });
 
         // Buscar usuário por orderId ou email
         const user = await prisma.user.findFirst({

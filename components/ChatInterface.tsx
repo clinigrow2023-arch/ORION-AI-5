@@ -234,30 +234,69 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
 
-      // Se já existe uma conversa, atualizar (PUT) em vez de criar nova (POST)
+      // CRÍTICO: Sempre usar a conversa atual se existir
+      // Se não existe conversa atual, criar uma nova apenas se houver mensagens
       // IMPORTANTE: Se não existe conversa atual, validar limite ANTES de criar
-      if (!currentConversationId && conversations.length >= 3) {
-        const errorMsg: Message = {
-          id: generateUniqueId(),
-          text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-          sender: Sender.Bot,
-          timestamp: new Date(),
-        };
-        addMessage(errorMsg);
-        return;
+      if (!currentConversationId) {
+        // Se não há conversa atual, verificar se pode criar uma nova
+        if (conversations.length >= 3) {
+          const errorMsg: Message = {
+            id: generateUniqueId(),
+            text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+            sender: Sender.Bot,
+            timestamp: new Date(),
+          };
+          addMessage(errorMsg);
+          return;
+        }
+        
+        // Se não há conversa atual mas há mensagens, criar uma nova
+        // Isso acontece na primeira mensagem do chat
+        if (allMessages.length > 0) {
+          const response = await fetch(getApiEndpoint("conversations"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              messages: messagesToSave,
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.conversation) {
+              // CRÍTICO: Setar o ID da conversa criada para usar nas próximas mensagens
+              setCurrentConversationId(data.conversation.id);
+              await loadConversations();
+            }
+          } else if (response.status === 403) {
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.maxConversations) {
+              const errorMsg: Message = {
+                id: generateUniqueId(),
+                text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+                sender: Sender.Bot,
+                timestamp: new Date(),
+              };
+              addMessage(errorMsg);
+            }
+          }
+          return;
+        }
+        return; // Se não há mensagens, não fazer nada
       }
 
-      const method = currentConversationId ? "PUT" : "POST";
-      const url = getApiEndpoint("conversations");
-
-      const response = await fetch(url, {
-        method,
+      // Se já existe conversa atual, SEMPRE atualizar (PUT)
+      const response = await fetch(getApiEndpoint("conversations"), {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          conversationId: currentConversationId || undefined,
+          conversationId: currentConversationId,
           messages: messagesToSave,
         }),
       });
@@ -265,8 +304,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (response.ok) {
         const data = await response.json();
         if (data.conversation) {
-          setCurrentConversationId(data.conversation.id);
-          await loadConversations(); // Atualizar lista de conversas
+          // Garantir que o ID está setado (pode já estar, mas garantir)
+          if (!currentConversationId) {
+            setCurrentConversationId(data.conversation.id);
+          }
+          await loadConversations();
         }
       } else if (response.status === 403) {
         const errorData = await response.json().catch(() => ({}));

@@ -14,6 +14,8 @@ import {
   Search,
   UserPlus,
   Mail,
+  Bot,
+  Save,
 } from "lucide-react";
 
 interface User {
@@ -46,11 +48,15 @@ const AdminDashboard: React.FC = () => {
     userName: string;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "create">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "create" | "prompt">("users");
   const [createUserEmail, setCreateUserEmail] = useState("");
   const [createUserName, setCreateUserName] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [createUserSuccess, setCreateUserSuccess] = useState<string | null>(null);
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptSaving, setPromptSaving] = useState(false);
+  const [promptVersion, setPromptVersion] = useState(0);
 
   const fetchUsers = async () => {
     try {
@@ -86,7 +92,85 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+    if (activeTab === "prompt") {
+      fetchSystemPrompt();
+    }
+  }, [activeTab]);
+
+  const fetchSystemPrompt = async () => {
+    try {
+      setPromptLoading(true);
+      setError(null);
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error("No token found");
+      }
+
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("system-prompt"), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Access denied. Admin privileges required.");
+        }
+        throw new Error("Failed to fetch system prompt");
+      }
+
+      const data = await response.json();
+      setSystemPrompt(data.prompt || "");
+      setPromptVersion(data.version || 0);
+    } catch (err: any) {
+      setError(err.message || "Failed to load system prompt");
+    } finally {
+      setPromptLoading(false);
+    }
+  };
+
+  const saveSystemPrompt = async () => {
+    if (!systemPrompt.trim()) {
+      setError("Prompt cannot be empty");
+      return;
+    }
+
+    try {
+      setPromptSaving(true);
+      setError(null);
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error("No token found");
+      }
+
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("system-prompt"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          prompt: systemPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to save system prompt");
+      }
+
+      const data = await response.json();
+      setPromptVersion(data.version);
+      setError(null);
+      alert("System prompt updated successfully! All AI providers will use the new prompt.");
+    } catch (err: any) {
+      setError(err.message || "Failed to save system prompt");
+    } finally {
+      setPromptSaving(false);
+    }
+  };
 
   const updateUser = async (
     userId: string,
@@ -376,6 +460,19 @@ const AdminDashboard: React.FC = () => {
               Create User
             </span>
           </button>
+          <button
+            onClick={() => setActiveTab("prompt")}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "prompt"
+                ? "text-indigo-400 border-b-2 border-indigo-400"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Bot size={18} />
+              AI Prompt
+            </span>
+          </button>
         </div>
 
         {/* Create User Tab */}
@@ -465,6 +562,70 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* AI Prompt Tab */}
+        {activeTab === "prompt" && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 flex-1 min-h-0 flex flex-col">
+            <div className="mb-6">
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                System Prompt Management
+              </h2>
+              <p className="text-sm md:text-base text-slate-400">
+                Edit the system instruction that all AI providers (Ollama, Groq, OpenAI, etc.) will use. Changes apply globally to all AI responses.
+              </p>
+              {promptVersion > 0 && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Current version: {promptVersion}
+                </p>
+              )}
+            </div>
+
+            {promptLoading ? (
+              <div className="flex items-center justify-center flex-1">
+                <div className="text-center">
+                  <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={48} />
+                  <p className="text-slate-400">Loading prompt...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0 mb-4">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    System Instruction
+                  </label>
+                  <textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    className="w-full h-full min-h-[400px] p-4 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Enter the system instruction for all AI providers..."
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                  <div className="text-xs text-slate-500">
+                    {systemPrompt.length} characters
+                  </div>
+                  <button
+                    onClick={saveSystemPrompt}
+                    disabled={promptSaving || !systemPrompt.trim()}
+                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+                  >
+                    {promptSaving ? (
+                      <>
+                        <Loader2 className="animate-spin" size={18} />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={18} />
+                        Save Prompt
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

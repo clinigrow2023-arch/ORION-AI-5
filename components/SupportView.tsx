@@ -8,9 +8,7 @@ const SupportView: React.FC = () => {
 
   const handleContactSupport = () => {
     const subject = encodeURIComponent("Orion AI Support Request");
-    const body = encodeURIComponent(
-      `describe your problem`
-    );
+    const body = encodeURIComponent(`describe your problem`);
 
     window.open(
       `mailto:${supportEmail}?subject=${subject}&body=${body}`,

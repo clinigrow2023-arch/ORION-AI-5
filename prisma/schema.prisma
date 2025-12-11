@@ -49,3 +49,14 @@ model Conversation {
   @@map("conversations")
   @@index([userId])
 }
+
+model SystemPrompt {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  prompt    String   // System instruction para todas as IAs
+  version   Int      @default(1) // Versão do prompt para controle
+  updatedBy String?  // ID do admin que atualizou
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_prompts")
+}

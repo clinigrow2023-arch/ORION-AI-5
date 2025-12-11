@@ -14,7 +14,8 @@ let cacheTimestamp: number = 0;
 const CACHE_TTL = 10000; // 10 segundos (reduzido para garantir atualização)
 
 // System instruction for Orion - busca do banco de dados
-const getSystemInstruction = async (): Promise<string> => {
+// EXPORTADO para uso em outros serviços (geminiService, etc)
+export const getSystemInstruction = async (): Promise<string> => {
   // Verificar cache
   const now = Date.now();
   if (cachedPrompt && now - cacheTimestamp < CACHE_TTL) {

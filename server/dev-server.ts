@@ -60,40 +60,26 @@ app.use(
     if (Buffer.isBuffer(req.body)) {
       req.rawBody = req.body.toString("utf-8");
       // Log removido por segurança (não expor conteúdo de requisições)
-        hasData: req.rawBody.length > 0,
-      });
 
       // Fazer parse manual e popular req.body
       const postData: Record<string, string> = {};
       try {
         const params = new URLSearchParams(req.rawBody);
-        console.log(
-          "DigiStore IPN - URLSearchParams entries count:",
-          params.size
-        );
+        // Log removido por segurança
 
         params.forEach((value, key) => {
           postData[key] = value;
-          // Log primeiros 5 valores para debug
-          if (Object.keys(postData).length <= 5) {
-            console.log(`DigiStore IPN - Parsed [${key}]:`, value);
-          }
+          // Log removido por segurança
         });
 
-        console.log(
-          "DigiStore IPN - Total parsed keys:",
-          Object.keys(postData).length
-        );
+        // Log removido por segurança
         req.body = postData;
       } catch (error) {
-        console.error("Error parsing digistore-ipn body:", error);
+        // Log removido por segurança
         req.body = {};
       }
     } else {
-      console.warn(
-        "DigiStore IPN - req.body is not a Buffer:",
-        typeof req.body
-      );
+      // Log removido por segurança
     }
     next();
   }

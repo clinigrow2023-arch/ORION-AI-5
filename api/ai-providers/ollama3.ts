@@ -26,8 +26,9 @@ export class Ollama3Provider implements AIProvider {
     try {
       // Log removido por segurança (não expor URL da VPS)
 
-      // Aumentar histórico para manter contexto completo (respostas completas precisam de mais contexto)
-      const MAX_HISTORY_MESSAGES = 10; // Aumentado de 2 para 10 para manter contexto
+      // Histórico otimizado: 4 mensagens (2 turnos) para velocidade
+      // Modelo 3b precisa de menos contexto para ser rápido
+      const MAX_HISTORY_MESSAGES = 4; // Reduzido de 10 para 4 para velocidade
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
       // SEMPRE reforçar instruções críticas no início do system instruction
@@ -58,7 +59,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
         // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
         // Modelos pequenos precisam de reforço constante
-        if (!systemInstruction.toLowerCase().startsWith("critical instructions")) {
+        if (
+          !systemInstruction.toLowerCase().startsWith("critical instructions")
+        ) {
           enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         } else {
           // Se já começa com CRITICAL, ainda adicionar reforço
@@ -69,15 +72,19 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
       // Construir prompt completo com histórico
       let fullPrompt = "";
 
-      // Converter histórico para formato conversacional
+      // Converter histórico para formato conversacional (com truncamento para velocidade)
+      const MAX_MESSAGE_LENGTH = 300; // Limitar cada mensagem a 300 caracteres para velocidade
       for (const h of limitedHistory) {
         const role = h.role === "user" ? "User" : "Assistant";
-        const content = h.parts
+        let content = h.parts
           .map((p) => p.text)
           .join(" ")
           .trim();
         if (content) {
-          // Usar mensagens completas (sem truncar para manter contexto)
+          // Truncar mensagens muito longas para reduzir prompt
+          if (content.length > MAX_MESSAGE_LENGTH) {
+            content = content.substring(0, MAX_MESSAGE_LENGTH) + "...";
+          }
           fullPrompt += `${role}: ${content}\n`;
         }
       }
@@ -101,13 +108,13 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         model: this.model,
         prompt: fullPrompt,
         stream: false,
-        // Aumentar contexto para suportar respostas completas
-        num_ctx: 4096, // Máximo de tokens no contexto (aumentado para respostas completas)
+        // Contexto otimizado para velocidade (modelo 3b)
+        num_ctx: 2048, // Reduzido de 4096 para 2048 - mais rápido
         options: {
-          temperature: 0.8, // Aumentado de 0.7 para 0.8 - modelos pequenos precisam de mais flexibilidade
-          // Aumentar tokens gerados para respostas completas (sem cortar)
-          num_predict: 4096, // Máximo de tokens na resposta (aumentado para gerar respostas completas)
-          top_p: 0.95, // Aumentado de 0.9 para 0.95 - mais flexibilidade
+          temperature: 0.8, // Mantido para flexibilidade
+          // Tokens gerados otimizados: 1024 é suficiente para respostas completas
+          num_predict: 1024, // Reduzido de 4096 para 1024 - muito mais rápido (suficiente para respostas)
+          top_p: 0.95, // Mantido para flexibilidade
           repeat_penalty: 1.1, // Reduz repetição
         },
       };
@@ -129,10 +136,22 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
       const startTime = Date.now();
       let response: Response;
       try {
-        console.log(`[Ollama3] Starting sendMessage request (model: ${this.model})`);
-        console.log(`[Ollama3] System instruction length: ${enhancedSystemInstruction?.length || 0}`);
-        console.log(`[Ollama3] Request body prepared, prompt length: ${fullPrompt.length}`);
-        console.log(`[Ollama3] System instruction preview: ${enhancedSystemInstruction?.substring(0, 200) || 'none'}...`);
+        console.log(
+          `[Ollama3] Starting sendMessage request (model: ${this.model})`
+        );
+        console.log(
+          `[Ollama3] System instruction length: ${
+            enhancedSystemInstruction?.length || 0
+          }`
+        );
+        console.log(
+          `[Ollama3] Request body prepared, prompt length: ${fullPrompt.length}`
+        );
+        console.log(
+          `[Ollama3] System instruction preview: ${
+            enhancedSystemInstruction?.substring(0, 200) || "none"
+          }...`
+        );
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,
@@ -183,7 +202,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
       }
 
       const data = await response.json();
-      console.log(`[Ollama3] Response status: ${response.status} ${response.statusText}`);
+      console.log(
+        `[Ollama3] Response status: ${response.status} ${response.statusText}`
+      );
       console.log(`[Ollama3] Response keys:`, Object.keys(data));
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
@@ -195,7 +216,10 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
       } else if (data.text) {
         content = data.text;
       } else {
-        console.error(`[Ollama3] Invalid response format. Keys:`, Object.keys(data));
+        console.error(
+          `[Ollama3] Invalid response format. Keys:`,
+          Object.keys(data)
+        );
         throw createProviderError(
           this.name,
           `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
@@ -218,7 +242,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
       }
 
       console.log(`[Ollama3] Success! Response length: ${content.length}`);
-      console.log(`[Ollama3] Response preview: ${content.substring(0, 200)}...`);
+      console.log(
+        `[Ollama3] Response preview: ${content.substring(0, 200)}...`
+      );
       if (data.total_duration) {
         console.log(`[Ollama3] Total duration: ${data.total_duration / 1e9}s`);
       }
@@ -226,7 +252,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         console.log(`[Ollama3] Eval duration: ${data.eval_duration / 1e9}s`);
       }
       if (data.prompt_eval_duration) {
-        console.log(`[Ollama3] Prompt eval duration: ${data.prompt_eval_duration / 1e9}s`);
+        console.log(
+          `[Ollama3] Prompt eval duration: ${data.prompt_eval_duration / 1e9}s`
+        );
       }
       return content;
     } catch (error: any) {
@@ -280,7 +308,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
         // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
         // Modelos pequenos precisam de reforço constante
-        if (!systemInstruction.toLowerCase().startsWith("critical instructions")) {
+        if (
+          !systemInstruction.toLowerCase().startsWith("critical instructions")
+        ) {
           enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         } else {
           // Se já começa com CRITICAL, ainda adicionar reforço
@@ -329,13 +359,13 @@ Output strictly valid JSON with the following structure:
         prompt: prompt,
         stream: false,
         format: "json",
-        // Aumentar contexto para suportar planos completos
-        num_ctx: 8192, // Máximo de tokens no contexto (aumentado para planos completos)
+        // Contexto otimizado para velocidade (modelo 3b)
+        num_ctx: 3072, // Reduzido de 8192 para 3072 - mais rápido (suficiente para planos)
         options: {
-          temperature: 0.8, // Aumentado de 0.7 para 0.8 - modelos pequenos precisam de mais flexibilidade
-          // Aumentar tokens gerados para planos completos (sem cortar)
-          num_predict: 8192, // Máximo de tokens na resposta (aumentado para gerar planos completos)
-          top_p: 0.95, // Aumentado de 0.9 para 0.95 - mais flexibilidade
+          temperature: 0.8, // Mantido para flexibilidade
+          // Tokens gerados otimizados: 2048 é suficiente para planos completos
+          num_predict: 2048, // Reduzido de 8192 para 2048 - muito mais rápido (suficiente para planos JSON)
+          top_p: 0.95, // Mantido para flexibilidade
           repeat_penalty: 1.1,
         },
       };
@@ -354,10 +384,22 @@ Output strictly valid JSON with the following structure:
       const startTime = Date.now();
       let response: Response;
       try {
-        console.log(`[Ollama3] Starting generatePlan request (model: ${this.model})`);
-        console.log(`[Ollama3] System instruction length: ${enhancedSystemInstruction?.length || 0}`);
-        console.log(`[Ollama3] Context history length: ${contextHistory.length}`);
-        console.log(`[Ollama3] System instruction preview: ${enhancedSystemInstruction?.substring(0, 200) || 'none'}...`);
+        console.log(
+          `[Ollama3] Starting generatePlan request (model: ${this.model})`
+        );
+        console.log(
+          `[Ollama3] System instruction length: ${
+            enhancedSystemInstruction?.length || 0
+          }`
+        );
+        console.log(
+          `[Ollama3] Context history length: ${contextHistory.length}`
+        );
+        console.log(
+          `[Ollama3] System instruction preview: ${
+            enhancedSystemInstruction?.substring(0, 200) || "none"
+          }...`
+        );
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,
@@ -366,7 +408,9 @@ Output strictly valid JSON with the following structure:
         });
         clearTimeout(timeoutId);
         const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`[Ollama3] Plan generation response received after ${elapsedTime} seconds`);
+        console.log(
+          `[Ollama3] Plan generation response received after ${elapsedTime} seconds`
+        );
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === "AbortError") {
@@ -408,8 +452,13 @@ Output strictly valid JSON with the following structure:
       }
 
       const data = await response.json();
-      console.log(`[Ollama3] Plan generation response status: ${response.status} ${response.statusText}`);
-      console.log(`[Ollama3] Plan generation response keys:`, Object.keys(data));
+      console.log(
+        `[Ollama3] Plan generation response status: ${response.status} ${response.statusText}`
+      );
+      console.log(
+        `[Ollama3] Plan generation response keys:`,
+        Object.keys(data)
+      );
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
       let jsonText = "";
@@ -420,7 +469,10 @@ Output strictly valid JSON with the following structure:
       } else if (data.text) {
         jsonText = data.text;
       } else {
-        console.error(`[Ollama3] Invalid plan response format. Keys:`, Object.keys(data));
+        console.error(
+          `[Ollama3] Invalid plan response format. Keys:`,
+          Object.keys(data)
+        );
         throw createProviderError(
           this.name,
           `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
@@ -444,20 +496,30 @@ Output strictly valid JSON with the following structure:
       // Tentar validar se é JSON válido
       try {
         JSON.parse(jsonText);
-        console.log(`[Ollama3] Plan generation success! JSON length: ${jsonText.length}`);
+        console.log(
+          `[Ollama3] Plan generation success! JSON length: ${jsonText.length}`
+        );
         console.log(`[Ollama3] Plan preview: ${jsonText.substring(0, 200)}...`);
       } catch (parseError) {
         console.error(`[Ollama3] Plan response is not valid JSON:`, parseError);
       }
 
       if (data.total_duration) {
-        console.log(`[Ollama3] Plan total duration: ${data.total_duration / 1e9}s`);
+        console.log(
+          `[Ollama3] Plan total duration: ${data.total_duration / 1e9}s`
+        );
       }
       if (data.eval_duration) {
-        console.log(`[Ollama3] Plan eval duration: ${data.eval_duration / 1e9}s`);
+        console.log(
+          `[Ollama3] Plan eval duration: ${data.eval_duration / 1e9}s`
+        );
       }
       if (data.prompt_eval_duration) {
-        console.log(`[Ollama3] Plan prompt eval duration: ${data.prompt_eval_duration / 1e9}s`);
+        console.log(
+          `[Ollama3] Plan prompt eval duration: ${
+            data.prompt_eval_duration / 1e9
+          }s`
+        );
       }
 
       return jsonText;

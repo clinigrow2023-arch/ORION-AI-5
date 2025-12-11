@@ -114,7 +114,11 @@ export class GeminiService {
       const response = await fetch("/api/system-prompt");
       if (response.ok) {
         const data = await response.json();
-        if (data.prompt && typeof data.prompt === "string" && data.prompt.trim().length > 0) {
+        if (
+          data.prompt &&
+          typeof data.prompt === "string" &&
+          data.prompt.trim().length > 0
+        ) {
           // Garantir que o prompt começa com identificação clara
           const prompt = data.prompt.trim();
           // Se não começar com "You are Orion", adicionar
@@ -576,6 +580,25 @@ Do not overwhelm the user with all secret signals — release selectively.`;
               responseMimeType: "application/json",
               responseSchema: planSchema,
               systemInstruction: systemInstruction,
+              // Configurações de segurança mais permissivas para permitir conteúdo de relacionamento
+              safetySettings: [
+                {
+                  category: "HARM_CATEGORY_HARASSMENT",
+                  threshold: "BLOCK_NONE",
+                },
+                {
+                  category: "HARM_CATEGORY_HATE_SPEECH",
+                  threshold: "BLOCK_NONE",
+                },
+                {
+                  category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                },
+                {
+                  category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                },
+              ],
             },
           });
 

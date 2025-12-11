@@ -279,9 +279,7 @@ Output strictly valid JSON with the following structure:
         throw fetchError;
       }
 
-      console.log(
-        `[Ollama3] Plan response status: ${response.status} ${response.statusText}`
-      );
+      // Log removido por segurança
 
       if (!response.ok) {
         let errorData: any = {};

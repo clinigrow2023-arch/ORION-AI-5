@@ -1,11 +1,5 @@
 import { AIProvider, AIProviderError, createProviderError } from "./base.js";
 import { Ollama3Provider } from "./ollama3.js";
-import { GroqProvider } from "./groq.js";
-import { OpenAIProvider } from "./openai.js";
-import { GrokProvider } from "./grok.js";
-import { DeepSeekProvider } from "./deepseek.js";
-import { LaozangProvider } from "./laozang.js";
-import { GeminiProvider } from "./gemini.js";
 import { prisma } from "../_prisma.js";
 
 // Cache do prompt para evitar múltiplas queries
@@ -497,91 +491,23 @@ Do not overwhelm the user with all secret signals — release selectively.
 };
 
 // Create providers based on available configuration
+// APENAS OLLAMA3 - todos os outros provedores foram removidos
 export function createProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
-  // 1. Ollama3 (PRIMARY - sempre primeiro, máxima prioridade)
+  // Ollama3 (ÚNICO PROVEDOR)
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "llama3:8b";
   const ollamaApiKey = process.env.OLLAMA_API_KEY;
   try {
     providers.push(new Ollama3Provider(ollamaUrl, ollamaModel, ollamaApiKey));
-    // Log removido por segurança (não expor URL/modelo)
   } catch (error) {
-    // Log removido por segurança
+    // Se falhar ao criar, não adicionar
   }
-
-  // 2. Groq (fallback principal - MUITO RÁPIDO: 1-3 segundos)
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
-    try {
-      providers.push(new GroqProvider(groqKey));
-      // Log removido por segurança
-    } catch (error) {
-      // Log removido por segurança
-    }
-  }
-
-  // 3. Outros providers (fallback secundário - ordem aleatória)
-  // OpenAI
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
-    try {
-      providers.push(new OpenAIProvider(openaiKey));
-      // Log removido por segurança
-    } catch (error) {
-      // Log removido por segurança
-    }
-  }
-
-  // Grok
-  const grokKey = process.env.GROK_API_KEY;
-  if (grokKey) {
-    try {
-      providers.push(new GrokProvider(grokKey));
-      // Log removido por segurança
-    } catch (error) {
-      // Log removido por segurança
-    }
-  }
-
-  // DeepSeek
-  const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  if (deepseekKey) {
-    try {
-      providers.push(new DeepSeekProvider(deepseekKey));
-      // Log removido por segurança
-    } catch (error) {
-      // Log removido por segurança
-    }
-  }
-
-  // Laozang
-  const laozangKey = process.env.LAOZANG_API_KEY;
-  if (laozangKey) {
-    try {
-      providers.push(new LaozangProvider(laozangKey));
-      // Log removido por segurança
-    } catch (error) {
-      // Log removido por segurança
-    }
-  }
-
-  // Gemini - TEMPORARIAMENTE DESABILITADO devido a bloqueios de segurança
-  // Descomente quando as safety settings estiverem funcionando corretamente
-  // const geminiKey = process.env.GEMINI_API_KEY;
-  // if (geminiKey) {
-  //   try {
-  //     providers.push(new GeminiProvider(geminiKey));
-  //     // Log removido por segurança
-  //   } catch (error) {
-  //     // Log removido por segurança
-  //   }
-  // }
 
   if (providers.length === 0) {
     throw new Error(
-      "No AI providers available. Please configure Ollama URL or OpenAI API key."
+      "Ollama3 provider not available. Please configure OLLAMA_URL and OLLAMA_MODEL."
     );
   }
 

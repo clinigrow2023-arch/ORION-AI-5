@@ -1,5 +1,6 @@
 import { AIProvider, AIProviderError, createProviderError } from "./base.js";
 import { Ollama3Provider } from "./ollama3.js";
+import { GroqProvider } from "./groq.js";
 import { prisma } from "../_prisma.js";
 
 // Cache do prompt para evitar múltiplas queries
@@ -495,7 +496,7 @@ Do not overwhelm the user with all secret signals — release selectively.
 export function createProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
-  // Ollama3 (ÚNICO PROVEDOR)
+  // Ollama3 (PRINCIPAL)
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "llama3:8b";
   const ollamaApiKey = process.env.OLLAMA_API_KEY;
@@ -505,9 +506,19 @@ export function createProviders(): AIProvider[] {
     // Se falhar ao criar, não adicionar
   }
 
+  // Groq (FALLBACK SECUNDÁRIO - se houver chave)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    try {
+      providers.push(new GroqProvider(groqKey));
+    } catch (error) {
+      // Se não conseguir instanciar Groq, não adiciona
+    }
+  }
+
   if (providers.length === 0) {
     throw new Error(
-      "Ollama3 provider not available. Please configure OLLAMA_URL and OLLAMA_MODEL."
+      "Nenhum AI provider disponível. Configure OLLAMA_URL/modelo ou GROQ_API_KEY."
     );
   }
 

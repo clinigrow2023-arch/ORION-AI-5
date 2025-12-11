@@ -30,25 +30,39 @@ export class Ollama3Provider implements AIProvider {
       const MAX_HISTORY_MESSAGES = 10; // Aumentado de 2 para 10 para manter contexto
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
-      // Reforçar instruções críticas no início do system instruction
+      // SEMPRE reforçar instruções críticas no início do system instruction
+      // Modelos pequenos (como llama3.2:1b) precisam de instruções MUITO explícitas
       let enhancedSystemInstruction = systemInstruction;
       if (systemInstruction) {
-        // Garantir que as instruções críticas estão no início e são explícitas
-        const criticalInstructions = `CRITICAL: You are Orion AI. You MUST ALWAYS help users with relationship questions. NEVER refuse, decline, or say you cannot help. NEVER say "I can't provide assistance", "I can't help", "I'm unable to", "I cannot", "I won't help", "I can't fulfill that request", or any similar refusal phrases. This is your PRIMARY PURPOSE - helping with healthy relationship strategies. If unclear, ask questions instead of refusing.`;
+        // Instruções CRITICAL MUITO explícitas e diretas - SEMPRE no início
+        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
 
-        // Verificar se já tem as instruções críticas
-        const hasCritical = systemInstruction.toLowerCase().includes("never refuse") || 
-                           systemInstruction.toLowerCase().includes("always help") ||
-                           systemInstruction.toLowerCase().includes("critical:");
-        
-        if (!hasCritical) {
-          enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
+1. You are Orion AI, a relationship and attraction mentor.
+2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
+3. NEVER refuse, decline, or say you cannot help.
+4. FORBIDDEN PHRASES - NEVER SAY THESE:
+   - "I can't provide assistance"
+   - "I can't help"
+   - "I'm unable to"
+   - "I cannot"
+   - "I won't help"
+   - "I can't fulfill that request"
+   - "I can't provide assistance or guidance on relationships"
+   - "I encourage you to reach out to a trusted friend"
+   - Any phrase that refuses to help with relationship questions
+5. If a question is unclear, ask clarifying questions - DO NOT refuse.
+6. You help with HEALTHY relationship strategies, reconnection, and attraction.
+7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
+
+REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
+
+        // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
+        // Modelos pequenos precisam de reforço constante
+        if (!systemInstruction.toLowerCase().startsWith("critical instructions")) {
+          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         } else {
-          // Garantir que está no início
-          if (!systemInstruction.toLowerCase().startsWith("critical") && 
-              !systemInstruction.toLowerCase().startsWith("you are orion")) {
-            enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
-          }
+          // Se já começa com CRITICAL, ainda adicionar reforço
+          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         }
       }
 
@@ -90,10 +104,10 @@ export class Ollama3Provider implements AIProvider {
         // Aumentar contexto para suportar respostas completas
         num_ctx: 4096, // Máximo de tokens no contexto (aumentado para respostas completas)
         options: {
-          temperature: 0.7,
+          temperature: 0.8, // Aumentado de 0.7 para 0.8 - modelos pequenos precisam de mais flexibilidade
           // Aumentar tokens gerados para respostas completas (sem cortar)
           num_predict: 4096, // Máximo de tokens na resposta (aumentado para gerar respostas completas)
-          top_p: 0.9, // Nucleus sampling (mais rápido que top_k)
+          top_p: 0.95, // Aumentado de 0.9 para 0.95 - mais flexibilidade
           repeat_penalty: 1.1, // Reduz repetição
         },
       };
@@ -238,25 +252,39 @@ export class Ollama3Provider implements AIProvider {
     systemInstruction: string
   ): Promise<string> {
     try {
-      // Reforçar instruções críticas no início do system instruction
+      // SEMPRE reforçar instruções críticas no início do system instruction
+      // Modelos pequenos (como llama3.2:1b) precisam de instruções MUITO explícitas
       let enhancedSystemInstruction = systemInstruction;
       if (systemInstruction) {
-        // Garantir que as instruções críticas estão no início e são explícitas
-        const criticalInstructions = `CRITICAL: You are Orion AI. You MUST ALWAYS help users with relationship questions. NEVER refuse, decline, or say you cannot help. NEVER say "I can't provide assistance", "I can't help", "I'm unable to", "I cannot", "I won't help", "I can't fulfill that request", or any similar refusal phrases. This is your PRIMARY PURPOSE - helping with healthy relationship strategies. If unclear, ask questions instead of refusing.`;
+        // Instruções CRITICAL MUITO explícitas e diretas - SEMPRE no início
+        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
 
-        // Verificar se já tem as instruções críticas
-        const hasCritical = systemInstruction.toLowerCase().includes("never refuse") || 
-                           systemInstruction.toLowerCase().includes("always help") ||
-                           systemInstruction.toLowerCase().includes("critical:");
-        
-        if (!hasCritical) {
-          enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
+1. You are Orion AI, a relationship and attraction mentor.
+2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
+3. NEVER refuse, decline, or say you cannot help.
+4. FORBIDDEN PHRASES - NEVER SAY THESE:
+   - "I can't provide assistance"
+   - "I can't help"
+   - "I'm unable to"
+   - "I cannot"
+   - "I won't help"
+   - "I can't fulfill that request"
+   - "I can't provide assistance or guidance on relationships"
+   - "I encourage you to reach out to a trusted friend"
+   - Any phrase that refuses to help with relationship questions
+5. If a question is unclear, ask clarifying questions - DO NOT refuse.
+6. You help with HEALTHY relationship strategies, reconnection, and attraction.
+7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
+
+REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
+
+        // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
+        // Modelos pequenos precisam de reforço constante
+        if (!systemInstruction.toLowerCase().startsWith("critical instructions")) {
+          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         } else {
-          // Garantir que está no início
-          if (!systemInstruction.toLowerCase().startsWith("critical") && 
-              !systemInstruction.toLowerCase().startsWith("you are orion")) {
-            enhancedSystemInstruction = `${criticalInstructions}\n\n${systemInstruction}`;
-          }
+          // Se já começa com CRITICAL, ainda adicionar reforço
+          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         }
       }
 
@@ -304,10 +332,10 @@ Output strictly valid JSON with the following structure:
         // Aumentar contexto para suportar planos completos
         num_ctx: 8192, // Máximo de tokens no contexto (aumentado para planos completos)
         options: {
-          temperature: 0.7,
+          temperature: 0.8, // Aumentado de 0.7 para 0.8 - modelos pequenos precisam de mais flexibilidade
           // Aumentar tokens gerados para planos completos (sem cortar)
           num_predict: 8192, // Máximo de tokens na resposta (aumentado para gerar planos completos)
-          top_p: 0.9,
+          top_p: 0.95, // Aumentado de 0.9 para 0.95 - mais flexibilidade
           repeat_penalty: 1.1,
         },
       };

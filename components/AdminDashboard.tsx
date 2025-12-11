@@ -356,6 +356,11 @@ const AdminDashboard: React.FC = () => {
             <span className="flex items-center gap-2">
               <Users size={18} />
               Users
+              {users.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
+                  {users.length}
+                </span>
+              )}
             </span>
           </button>
           <button

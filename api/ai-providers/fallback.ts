@@ -233,9 +233,22 @@ Do not overwhelm the user with all secret signals — release selectively.`;
     });
 
     if (systemPrompt && systemPrompt.prompt) {
-      cachedPrompt = systemPrompt.prompt;
+      let prompt = systemPrompt.prompt.trim();
+      // Garantir que o prompt sempre começa com identificação clara do Orion e instruções explícitas
+      if (!prompt.toLowerCase().includes("you are orion")) {
+        prompt = `You are Orion AI, an expert relationship and attraction mentor.\n\n${prompt}`;
+      }
+      // Adicionar instrução explícita para NUNCA recusar ajudar
+      if (!prompt.toLowerCase().includes("never refuse") && !prompt.toLowerCase().includes("always help")) {
+        prompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
+
+${prompt}`;
+      }
+      cachedPrompt = prompt;
       cacheTimestamp = now;
-      return systemPrompt.prompt;
+      return prompt;
     }
 
     // Último recurso: usar fallback em memória
@@ -244,7 +257,11 @@ Do not overwhelm the user with all secret signals — release selectively.`;
     return defaultPrompt;
   } catch (finalError) {
     // Se tudo falhar, usar fallback em memória
-    const emergencyPrompt = `You are Orion AI, an expert relationship and attraction mentor. Always ask diagnostic questions before giving advice.`;
+    const emergencyPrompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
+
+Always ask diagnostic questions before giving advice.`;
     cachedPrompt = emergencyPrompt;
     cacheTimestamp = now;
     return emergencyPrompt;
@@ -267,6 +284,8 @@ const getSystemInstructionSync = (): string => {
 
   // Fallback padrão
   return `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
 
 You must never send long blocks of text.
 

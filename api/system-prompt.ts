@@ -200,6 +200,22 @@ ${defaultPrompt}`;
       }
 
       try {
+        let finalPrompt = prompt.trim();
+
+        // Garantir que o prompt sempre começa com identificação clara do Orion
+        if (!finalPrompt.toLowerCase().includes("you are orion")) {
+          finalPrompt = `You are Orion AI, an expert relationship and attraction mentor.\n\n${finalPrompt}`;
+        }
+
+        // Adicionar instrução explícita para NUNCA recusar ajudar (se não tiver)
+        if (!finalPrompt.toLowerCase().includes("never refuse") && !finalPrompt.toLowerCase().includes("always help") && !finalPrompt.toLowerCase().includes("critical:")) {
+          finalPrompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
+
+${finalPrompt}`;
+        }
+
         // Buscar prompt atual para incrementar versão
         const currentPrompt = await prisma.systemPrompt.findFirst({
           orderBy: { updatedAt: "desc" },
@@ -210,7 +226,7 @@ ${defaultPrompt}`;
         // Criar novo registro (manter histórico)
         const updatedPrompt = await prisma.systemPrompt.create({
           data: {
-            prompt: prompt.trim(),
+            prompt: finalPrompt,
             version: newVersion,
             updatedBy: admin.userId,
           },

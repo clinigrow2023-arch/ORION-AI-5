@@ -413,10 +413,30 @@ Do not overwhelm the user with all secret signals — release selectively.`;
               );
             }
 
+            const systemInstruction = await this.getSystemInstruction();
             const chat = this.ai.chats.create({
               model: this.modelName,
               config: {
-                systemInstruction: await this.getSystemInstruction(),
+                systemInstruction: systemInstruction,
+                // Configurações de segurança mais permissivas para permitir conteúdo de relacionamento
+                safetySettings: [
+                  {
+                    category: "HARM_CATEGORY_HARASSMENT" as any,
+                    threshold: "BLOCK_NONE" as any,
+                  },
+                  {
+                    category: "HARM_CATEGORY_HATE_SPEECH" as any,
+                    threshold: "BLOCK_NONE" as any,
+                  },
+                  {
+                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+                  },
+                  {
+                    category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+                  },
+                ],
               },
               history: this.chatHistory,
             });
@@ -580,25 +600,25 @@ Do not overwhelm the user with all secret signals — release selectively.`;
               responseMimeType: "application/json",
               responseSchema: planSchema,
               systemInstruction: systemInstruction,
-                // Configurações de segurança mais permissivas para permitir conteúdo de relacionamento
-                safetySettings: [
-                  {
-                    category: "HARM_CATEGORY_HARASSMENT" as any,
-                    threshold: "BLOCK_NONE" as any,
-                  },
-                  {
-                    category: "HARM_CATEGORY_HATE_SPEECH" as any,
-                    threshold: "BLOCK_NONE" as any,
-                  },
-                  {
-                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
-                  },
-                  {
-                    category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
-                    threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
-                  },
-                ],
+              // Configurações de segurança mais permissivas para permitir conteúdo de relacionamento
+              safetySettings: [
+                {
+                  category: "HARM_CATEGORY_HARASSMENT" as any,
+                  threshold: "BLOCK_NONE" as any,
+                },
+                {
+                  category: "HARM_CATEGORY_HATE_SPEECH" as any,
+                  threshold: "BLOCK_NONE" as any,
+                },
+                {
+                  category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+                },
+                {
+                  category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+                },
+              ],
             },
           });
 

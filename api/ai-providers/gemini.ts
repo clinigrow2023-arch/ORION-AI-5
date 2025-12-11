@@ -46,7 +46,30 @@ export class GeminiProvider implements AIProvider {
         history: history,
       });
 
-      const result = await chat.sendMessageStream({ message });
+      const result = await chat.sendMessageStream({ 
+        message,
+        // Aplicar safety settings também na mensagem
+        config: {
+          safetySettings: [
+            {
+              category: "HARM_CATEGORY_HARASSMENT" as any,
+              threshold: "BLOCK_NONE" as any,
+            },
+            {
+              category: "HARM_CATEGORY_HATE_SPEECH" as any,
+              threshold: "BLOCK_NONE" as any,
+            },
+            {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
+              threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+            },
+            {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
+              threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+            },
+          ],
+        },
+      });
 
       let fullText = "";
       for await (const chunk of result) {

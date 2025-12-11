@@ -8,7 +8,7 @@ export class Ollama3Provider implements AIProvider {
   private apiKey: string;
 
   constructor(
-    baseUrl: string = "http://31.97.93.86:11434",
+    baseUrl: string = process.env.OLLAMA_URL || "http://localhost:11434",
     model: string = "llama3:8b",
     apiKey?: string
   ) {

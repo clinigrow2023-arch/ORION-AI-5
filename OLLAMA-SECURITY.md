@@ -20,7 +20,7 @@ Crie o arquivo `/etc/nginx/sites-available/ollama-proxy`:
 ```nginx
 server {
     listen 80;
-    server_name 31.97.93.86;
+    server_name your-server-ip-or-domain;
 
     location /api/ {
         # Validar token no header
@@ -55,7 +55,7 @@ sudo systemctl reload nginx
 No seu projeto, adicione no `.env`:
 
 ```
-OLLAMA_URL=http://31.97.93.86
+OLLAMA_URL=http://your-ollama-server:11434
 OLLAMA_API_KEY=SEU_TOKEN_SECRETO_AQUI
 ```
 

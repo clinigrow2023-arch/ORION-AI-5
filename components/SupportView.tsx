@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 const SupportView: React.FC = () => {
   const { user } = useAuth();
-  const supportEmail = "gmrelationship@gmail.com";
+  const supportEmail = process.env.VITE_SUPPORT_EMAIL || "support@example.com";
 
   const handleContactSupport = () => {
     const subject = encodeURIComponent("Orion AI Support Request");

@@ -105,7 +105,7 @@ export function createProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
   // 1. Ollama3 (PRIMARY - sempre primeiro, máxima prioridade)
-  const ollamaUrl = process.env.OLLAMA_URL || "http://31.97.93.86:11434";
+  const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "llama3:8b";
   const ollamaApiKey = process.env.OLLAMA_API_KEY;
   try {

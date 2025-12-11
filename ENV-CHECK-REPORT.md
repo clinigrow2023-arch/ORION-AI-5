@@ -5,7 +5,7 @@
 O erro que você está vendo:
 
 ```
-[0] ✅ Ollama3 provider initialized: http://31.97.93.86:11434 (model: llama3)
+[0] ✅ Ollama3 provider initialized: http://your-ollama-server:11434 (model: llama3)
 [0] [Ollama3] Error response body: {"error":"model 'llama3' not found"}
 ```
 
@@ -72,7 +72,7 @@ OLLAMA_URL=http://your-ollama-server:11434
 OLLAMA_URL=http://your-ollama-server:11434
 ```
 
-**Motivo:** Com a URL atual, o sistema tentaria acessar `http://31.97.93.86/api/generate/api/generate`, que não existe.
+**Motivo:** Com a URL atual, o sistema tentaria acessar `http://your-ollama-server/api/generate/api/generate`, que não existe.
 
 ---
 
@@ -151,7 +151,7 @@ Não é obrigatória, mas é bom deixar explícita.
 ## ✅ RESUMO DAS CORREÇÕES NECESSÁRIAS
 
 1. ⚠️ **JWT_SECRET** - Gerar novo secret (não usar JWT token) - **PENDENTE**
-2. ✅ **OLLAMA_URL** - Remover `/api/generate`, usar apenas `http://31.97.93.86:11434` - **CORRIGIDO**
+2. ✅ **OLLAMA_URL** - Remover `/api/generate`, usar apenas `http://your-ollama-server:11434` - **CORRIGIDO**
 3. ✅ **OLLAMA_MODEL** - Atualizar para `llama3:8b` - **CORRIGIDO**
 4. ⚠️ **SITE_URL** - Remover barra final - **PENDENTE**
 5. ⚠️ **GMAIL_PASS** - Remover espaços - **PENDENTE**

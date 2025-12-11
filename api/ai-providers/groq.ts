@@ -64,16 +64,10 @@ export class GroqProvider implements AIProvider {
 
       const data = await response.json();
 
-      console.log(`📥 Groq API response:`, {
-        hasChoices: !!data.choices,
-        choicesLength: data.choices?.length || 0,
-        hasMessage: !!data.choices?.[0]?.message,
-        messageContent:
-          data.choices?.[0]?.message?.content?.substring(0, 100) || "empty",
-      });
+      // Log removido por segurança
 
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        console.error("❌ Invalid Groq response format:", data);
+        // Log removido por segurança
         throw createProviderError(
           this.name,
           "Invalid response format from Groq API",
@@ -84,18 +78,11 @@ export class GroqProvider implements AIProvider {
 
       const content = data.choices[0].message.content || "";
 
-      console.log(`📝 Groq content extracted:`, {
-        hasContent: !!content,
-        contentLength: content.length,
-        contentPreview: content.substring(0, 100) || "empty",
-      });
+      // Log removido por segurança
 
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
-        console.error("❌ Empty content from Groq:", {
-          content,
-          message: data.choices[0].message,
-        });
+        // Log removido por segurança
         throw createProviderError(
           this.name,
           "Empty response from Groq API",
@@ -195,16 +182,10 @@ Output strictly valid JSON with the following structure:
 
       const data = await response.json();
 
-      console.log(`📥 Groq API response:`, {
-        hasChoices: !!data.choices,
-        choicesLength: data.choices?.length || 0,
-        hasMessage: !!data.choices?.[0]?.message,
-        messageContent:
-          data.choices?.[0]?.message?.content?.substring(0, 100) || "empty",
-      });
+      // Log removido por segurança
 
       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        console.error("❌ Invalid Groq response format:", data);
+        // Log removido por segurança
         throw createProviderError(
           this.name,
           "Invalid response format from Groq API",
@@ -215,18 +196,11 @@ Output strictly valid JSON with the following structure:
 
       const content = data.choices[0].message.content || "";
 
-      console.log(`📝 Groq content extracted:`, {
-        hasContent: !!content,
-        contentLength: content.length,
-        contentPreview: content.substring(0, 100) || "empty",
-      });
+      // Log removido por segurança
 
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
-        console.error("❌ Empty content from Groq:", {
-          content,
-          message: data.choices[0].message,
-        });
+        // Log removido por segurança
         throw createProviderError(
           this.name,
           "Empty response from Groq API",

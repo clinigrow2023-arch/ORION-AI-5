@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    console.error("Set new password error:", error);
+    // Log removido por segurança
     return res.status(500).json({
       error: error.message || "Internal server error",
     });

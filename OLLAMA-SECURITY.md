@@ -27,7 +27,7 @@ server {
         if ($http_x_api_key != "SEU_TOKEN_SECRETO_AQUI") {
             return 403;
         }
-        
+
         if ($http_authorization != "Bearer SEU_TOKEN_SECRETO_AQUI") {
             return 403;
         }
@@ -77,13 +77,14 @@ Configure autenticação básica no Nginx:
 location /api/ {
     auth_basic "Ollama API";
     auth_basic_user_file /etc/nginx/.htpasswd;
-    
+
     proxy_pass http://localhost:11434/api/;
     proxy_set_header Host $host;
 }
 ```
 
 Criar arquivo de senha:
+
 ```bash
 sudo htpasswd -c /etc/nginx/.htpasswd ollama_user
 ```
@@ -93,4 +94,3 @@ sudo htpasswd -c /etc/nginx/.htpasswd ollama_user
 Mantenha o Ollama apenas em localhost e crie um endpoint na sua aplicação que valida autenticação antes de chamar o Ollama.
 
 **Recomendação:** Use a Opção 1 (Proxy Reverso com Nginx) - é a mais segura e flexível.
-

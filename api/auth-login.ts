@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Verificar se DATABASE_URL está configurada
     if (!process.env.DATABASE_URL) {
-      console.error("DATABASE_URL not configured");
+      // Log removido por segurança
       return res.status(500).json({
         error: "Database configuration error",
         details: "DATABASE_URL environment variable is not set",
@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Verificar se Prisma Client está disponível
     if (!prisma) {
-      console.error("Prisma Client not initialized");
+      // Log removido por segurança
       return res.status(500).json({
         error: "Database client error",
         details: "Prisma Client is not available",
@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const emailLower = email.toLowerCase().trim();
-    console.log("Login attempt for email:", emailLower);
+    // Log removido por segurança (não expor emails)
 
     // Buscar usuário
     const user = await prisma.user.findUnique({
@@ -93,9 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (error: any) {
-    console.error("Login error:", error);
-    console.error("Error stack:", error.stack);
-    console.error("Error name:", error.name);
+    // Logs removidos por segurança (não expor stack trace ou detalhes de erro)
 
     // Verificar se é erro de Prisma
     if (error.code === "P2002") {

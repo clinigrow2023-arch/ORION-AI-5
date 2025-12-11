@@ -121,22 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       typeof req.body === "object" &&
       !Array.isArray(req.body) &&
       !Buffer.isBuffer(req.body);
-    console.log("DigiStore IPN - Raw request info:", {
-      contentType,
-      bodyType: typeof req.body,
-      bodyIsArray: Array.isArray(req.body),
-      isExpress: isExpress, // Detects if running on Express (dev-server)
-      bodyKeys:
-        req.body && typeof req.body === "object"
-          ? Object.keys(req.body)
-          : "N/A",
-      bodyPreview:
-        typeof req.body === "string"
-          ? req.body.substring(0, 200)
-          : req.body
-          ? (JSON.stringify(req.body) || "").substring(0, 200)
-          : "(empty or undefined)",
-    });
+    // Log removido por segurança (não expor informações de requisição)
 
     // Parse body - Express already does automatic parsing, Vercel doesn't
     let bodyString = "";
@@ -144,19 +129,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Try to use rawBody if available (captured before Express parsing)
     const rawBody = (req as any).rawBody;
     if (rawBody && typeof rawBody === "string") {
-      console.log(
-        "DigiStore IPN - Using rawBody (captured before Express parsing)",
-        {
-          rawBodyLength: rawBody.length,
-          rawBodyPreview: rawBody.substring(0, 200),
-        }
-      );
+      // Log removido por segurança
       bodyString = rawBody;
     } else {
-      console.log("DigiStore IPN - rawBody not available or not string:", {
-        hasRawBody: !!rawBody,
-        rawBodyType: typeof rawBody,
-      });
+      // Log removido por segurança
     }
 
     if (req.body) {
@@ -184,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             };
             return acc;
           }, {} as Record<string, any>);
-        console.log("DigiStore IPN - Body values sample:", sampleValues);
+        // Log removido por segurança
 
         // Convert all values to string (may come as array due to extended: true)
         for (const [key, value] of Object.entries(req.body)) {
@@ -207,23 +183,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             acc[key] = value;
             return acc;
           }, {} as Record<string, string>);
-        console.log(
-          "DigiStore IPN - Processed values sample:",
-          processedSample
-        );
+        // Log removido por segurança
       } else if (bodyString) {
         // Use rawBody if available (better for form-urlencoded)
-        console.log("DigiStore IPN - Parsing rawBody string");
+        // Log removido por segurança
         try {
           const params = new URLSearchParams(bodyString);
           params.forEach((value, key) => {
             postData[key] = value;
           });
         } catch (parseError) {
-          console.error(
-            "Error parsing URLSearchParams from rawBody:",
-            parseError
-          );
+          // Log removido por segurança
           // Tentar parse alternativo
           try {
             const pairs = bodyString.split("&");
@@ -240,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               }
             }
           } catch (altParseError) {
-            console.error("Error in alternative parsing:", altParseError);
+            // Log removido por segurança
           }
         }
       } else {
@@ -261,7 +231,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               postData[key] = value;
             });
           } catch (parseError) {
-            console.error("Error parsing URLSearchParams:", parseError);
+            // Log removido por segurança
             // Tentar parse alternativo se URLSearchParams falhar
             try {
               const pairs = bodyString.split("&");
@@ -278,7 +248,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
               }
             } catch (altParseError) {
-              console.error("Error in alternative parsing:", altParseError);
+              // Log removido por segurança
             }
           }
         }
@@ -291,9 +261,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       req.query &&
       Object.keys(req.query).length > 0
     ) {
-      console.warn(
-        "DigiStore IPN - Body empty, trying query parameters as fallback"
-      );
+      // Log removido por segurança
       Object.assign(postData, req.query as Record<string, string>);
     }
 
@@ -309,47 +277,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Log when real data is detected (filled values)
     if (!isEmptyRequest) {
-      console.log("DigiStore IPN - Real data detected (not empty test)", {
-        eventType,
-        hasValues: hasAnyValue,
-        sampleValues: Object.entries(postData)
-          .filter(([_, value]) => value && value.trim() !== "")
-          .slice(0, 5)
-          .reduce((acc, [key, value]) => {
-            acc[key] =
-              value.length > 50 ? value.substring(0, 50) + "..." : value;
-            return acc;
-          }, {} as Record<string, string>),
-      });
+      // Log removido por segurança (não expor dados de pagamento)
     }
 
     if (isEmptyRequest) {
       // If there's no data or all values are empty, may be connection_test
       if (eventType === "" || eventType === "connection_test" || !eventType) {
-        console.log(
-          "DigiStore IPN - Empty request or all values empty, treating as connection test"
-        );
+        // Log removido por segurança
         return res.status(200).send("OK");
       }
 
-      console.warn(
-        "DigiStore IPN - Request received but all values are empty",
-        {
-          bodyType: typeof req.body,
-          bodyIsBuffer: Buffer.isBuffer(req.body),
-          bodyString: bodyString ? bodyString.substring(0, 500) : "(empty)",
-          contentType,
-          queryKeys: req.query ? Object.keys(req.query) : [],
-          headers: Object.keys(req.headers),
-          eventType,
-          postDataKeys: Object.keys(postData),
-          postDataKeysCount: Object.keys(postData).length,
-        }
-      );
+      // Log removido por segurança (não expor informações de requisição)
 
       // If it's a test but not an explicit connection_test, return OK anyway
       // (may be a DigiStore test with empty fields)
-      console.log("DigiStore IPN - Returning OK for empty test request");
+      // Log removido por segurança
       return res.status(200).send("OK");
     }
 
@@ -367,13 +309,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    console.log("DigiStore IPN received:", {
-      eventType: postData.event || postData["event"],
-      orderId: postData.order_id || postData["order_id"],
-      email: postData.email || postData["email"],
-      shaSign: postData.sha_sign || postData["sha_sign"] || postData["SHASIGN"],
-      allKeys: Object.keys(postData),
-      signatureFieldsFound: signatureFields,
+    // Log removido por segurança (não expor orderId, email, ou assinatura)
       allFieldsWithValues: Object.entries(postData)
         .filter(([_, value]) => value && String(value).trim() !== "")
         .reduce((acc, [key, value]) => {
@@ -393,7 +329,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // connection_test doesn't need signature validation - return OK immediately
     if (eventType === "connection_test") {
-      console.log("DigiStore IPN - Connection test received");
+      // Log removido por segurança
       return res.status(200).send("OK");
     }
 
@@ -420,7 +356,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const value = postedValue(postData, field);
         if (value && value.trim() !== "") {
           receivedSignature = value;
-          console.log(`Found signature in field: ${field}`);
+          // Log removido por segurança
           break;
         }
       }
@@ -435,20 +371,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             String(value).trim() !== ""
           ) {
             receivedSignature = String(value);
-            console.log(`Found signature in field (case-insensitive): ${key}`);
+            // Log removido por segurança
             break;
           }
         }
       }
 
       // Detailed log before calculating expected signature
-      console.log("DigiStore IPN - Signature validation:", {
-        eventType,
-        hasPassphrase: !!IPN_PASSPHRASE,
-        receivedSignature: receivedSignature
-          ? `${receivedSignature.substring(0, 20)}...`
-          : "(empty)",
-        receivedSignatureLength: receivedSignature.length,
+      // Log removido por segurança (não expor informações de assinatura)
         postDataKeys: Object.keys(postData),
         postDataCount: Object.keys(postData).length,
         allFields: Object.keys(postData).map((key) => ({
@@ -469,7 +399,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isDebugMode =
           allowWithoutSignature || process.env.NODE_ENV === "development";
 
-        console.error("Invalid SHA signature", {
+        // Log removido por segurança
           eventType,
           received: receivedSignature || "(empty)",
           expected: expectedSignature.substring(0, 20) + "...",
@@ -500,28 +430,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // If in debug mode or no signature received, allow to continue
         if (isDebugMode || !receivedSignature) {
           if (!receivedSignature) {
-            console.warn(
-              "DigiStore IPN - No signature received, allowing in development mode"
-            );
+            // Log removido por segurança
             // In production, block if there's no signature
             if (process.env.NODE_ENV === "production") {
               return res.status(400).send("ERROR: invalid sha signature");
             }
           } else {
-            console.warn(
-              "DigiStore IPN - Allowing request with invalid signature (debug mode)"
-            );
+            // Log removido por segurança
           }
         } else {
           return res.status(400).send("ERROR: invalid sha signature");
         }
       } else {
-        console.log("DigiStore IPN - Signature validated successfully");
+        // Log removido por segurança
       }
     } else {
-      console.warn(
-        "DigiStore IPN - Signature validation skipped (no passphrase configured)"
-      );
+      // Log removido por segurança
     }
 
     // Process events
@@ -548,12 +472,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Payment received", {
-          orderId,
-          productId,
-          productName,
-          billingType,
-          email,
+        // Log removido por segurança (não expor dados de pagamento)
           firstName,
           lastName,
           rebillDate,
@@ -562,13 +481,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Validations
         if (!email || !firstName) {
-          console.error("Missing required fields: email or first_name");
+          // Log removido por segurança
           return res.status(400).send("ERROR: Missing required fields");
         }
 
         // Validate email format
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          console.error("Invalid email format:", email);
+          // Log removido por segurança (não expor email)
           return res.status(400).send("ERROR: Invalid email format");
         }
 
@@ -584,7 +503,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try {
             nextPaymentDate = new Date(rebillDate);
           } catch (e) {
-            console.warn("Invalid rebill_date format:", rebillDate);
+            // Log removido por segurança
             // Fallback: calculate 1 month from now
             nextPaymentDate = new Date(now);
             nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
@@ -593,13 +512,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // No rebillDate provided - calculate 1 month from payment date
           nextPaymentDate = new Date(now);
           nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-          console.log(
-            "No rebillDate provided, calculating 1 month from payment:",
-            {
-              paymentDate: now,
-              nextPaymentDate: nextPaymentDate,
-            }
-          );
+          // Log removido por segurança
         }
 
         // Check if user already exists (by email or orderId)
@@ -618,15 +531,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             !user.digistoreOrderId || !user.subscriptionStatus;
 
           if (isLegacyUser) {
-            console.log(
-              "DigiStore IPN - Legacy user detected, migrating to automated system:",
-              {
-                email: user.email,
-                hasOrderId: !!user.digistoreOrderId,
-                hasSubscriptionStatus: !!user.subscriptionStatus,
-                isActive: user.isActive,
-              }
-            );
+            // Log removido por segurança (não expor email ou informações de usuário)
           }
 
           // Se usuário já existe, atualizar dados de assinatura e ativar
@@ -655,10 +560,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   billingType: billingType || user.billingType,
                 },
               });
-              console.log(
-                "User activated with new temporary password:",
-                user.email
-              );
+              // Log removido por segurança (não expor email)
 
               // Enviar email com nova senha temporária
               try {
@@ -668,10 +570,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   tempPasswordForDisplay
                 );
               } catch (emailError) {
-                console.error(
-                  "Error sending email to reactivated user:",
-                  emailError
-                );
+                // Log removido por segurança
                 // Não bloquear o processo se email falhar
               }
             } else {
@@ -688,21 +587,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   isBlocked: false, // Garantir que está desbloqueado
                 },
               });
-              console.log(
-                isLegacyUser
-                  ? "Legacy user migrated to automated system:"
-                  : "User subscription updated:",
-                user.email
-              );
+              // Log removido por segurança (não expor email)
 
               // Enviar email informando que acesso foi liberado
               try {
                 await sendExistingUserEmail(user.email, user.name);
               } catch (emailError) {
-                console.error(
-                  "Error sending email to existing user:",
-                  emailError
-                );
+                // Log removido por segurança
                 // Não bloquear o processo se email falhar
               }
 
@@ -722,12 +613,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 isBlocked: false, // Garantir que está desbloqueado
               },
             });
-            console.log(
-              isLegacyUser
-                ? "Legacy user payment updated:"
-                : "User already exists and is active:",
-              user.email
-            );
+            // Log removido por segurança (não expor email)
 
             // Enviar email informando que acesso foi liberado
             try {
@@ -769,7 +655,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           });
 
-          console.log("User created from DigiStore payment:", user.email);
+          // Log removido por segurança (não expor email)
 
           // Enviar email com credenciais para novo usuário
           try {
@@ -779,7 +665,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               tempPasswordForDisplay
             );
           } catch (emailError) {
-            console.error("Error sending email to new user:", emailError);
+            // Log removido por segurança
             // Não bloquear o processo se email falhar
           }
         }
@@ -822,7 +708,7 @@ hide_on: ${hideOn}`;
         const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Payment missed", {
+        // Log removido por segurança (não expor dados de pagamento)
           orderId,
           email,
           isTestMode,
@@ -849,15 +735,9 @@ hide_on: ${hideOn}`;
               nextPaymentDate: null, // Remover próxima data de pagamento
             },
           });
-          console.log(
-            "User deactivated and blocked due to missed payment:",
-            user.email
-          );
+          // Log removido por segurança (não expor email)
         } else {
-          console.warn("User not found for payment_missed event:", {
-            orderId,
-            email,
-          });
+          // Log removido por segurança (não expor orderId ou email)
         }
 
         return res.status(200).send("OK");
@@ -868,7 +748,7 @@ hide_on: ${hideOn}`;
         const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Refund", {
+        // Log removido por segurança (não expor dados de pagamento)
           orderId,
           email,
           isTestMode,
@@ -895,9 +775,9 @@ hide_on: ${hideOn}`;
               nextPaymentDate: null,
             },
           });
-          console.log("User access removed due to refund:", user.email);
+          // Log removido por segurança (não expor email)
         } else {
-          console.warn("User not found for refund event:", { orderId, email });
+          // Log removido por segurança (não expor orderId ou email)
         }
 
         return res.status(200).send("OK");
@@ -908,7 +788,7 @@ hide_on: ${hideOn}`;
         const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Chargeback", {
+        // Log removido por segurança (não expor dados de pagamento)
           orderId,
           email,
           isTestMode,
@@ -935,12 +815,9 @@ hide_on: ${hideOn}`;
               nextPaymentDate: null,
             },
           });
-          console.log("User access removed due to chargeback:", user.email);
+          // Log removido por segurança (não expor email)
         } else {
-          console.warn("User not found for chargeback event:", {
-            orderId,
-            email,
-          });
+          // Log removido por segurança (não expor orderId ou email)
         }
 
         return res.status(200).send("OK");
@@ -952,7 +829,7 @@ hide_on: ${hideOn}`;
         const rebillDate = postedValue(postData, "rebill_date");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Rebill resumed", {
+        // Log removido por segurança (não expor dados de pagamento)
           orderId,
           email,
           rebillDate,
@@ -976,7 +853,7 @@ hide_on: ${hideOn}`;
             try {
               nextPaymentDate = new Date(rebillDate);
             } catch (e) {
-              console.warn("Invalid rebill_date format:", rebillDate);
+              // Log removido por segurança
             }
           }
 
@@ -990,12 +867,9 @@ hide_on: ${hideOn}`;
               nextPaymentDate: nextPaymentDate,
             },
           });
-          console.log("User reactivated - rebill resumed:", user.email);
+          // Log removido por segurança (não expor email)
         } else {
-          console.warn("User not found for rebill_resumed event:", {
-            orderId,
-            email,
-          });
+          // Log removido por segurança (não expor orderId ou email)
         }
 
         return res.status(200).send("OK");
@@ -1006,11 +880,7 @@ hide_on: ${hideOn}`;
         const email = postedValue(postData, "email");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Rebill cancelled", {
-          orderId,
-          email,
-          isTestMode,
-        });
+        // Log removido por segurança (não expor orderId, email ou dados de pagamento)
 
         // Buscar usuário por orderId ou email
         const user = await prisma.user.findFirst({
@@ -1033,15 +903,9 @@ hide_on: ${hideOn}`;
               nextPaymentDate: null,
             },
           });
-          console.log(
-            "User subscription cancelled and access removed:",
-            user.email
-          );
+          // Log removido por segurança (não expor email)
         } else {
-          console.warn("User not found for rebill_cancelled event:", {
-            orderId,
-            email,
-          });
+          // Log removido por segurança (não expor orderId ou email)
         }
 
         return res.status(200).send("OK");
@@ -1052,21 +916,17 @@ hide_on: ${hideOn}`;
         const digistoreId = postedValue(postData, "affiliate_name");
         const isTestMode = apiMode !== "live";
 
-        console.log("DigiStore IPN - Affiliation", {
-          email,
-          digistoreId,
-          isTestMode,
-        });
+        // Log removido por segurança (não expor email ou dados de afiliação)
 
         return res.status(200).send("OK");
       }
 
       default:
-        console.log("DigiStore IPN - Unknown event:", eventType);
+        // Log removido por segurança
         return res.status(200).send("OK");
     }
   } catch (error: any) {
-    console.error("DigiStore IPN error:", error);
+    // Log removido por segurança (não expor stack trace ou detalhes de erro)
     return res
       .status(500)
       .send(`ERROR: ${error.message || "Internal server error"}`);

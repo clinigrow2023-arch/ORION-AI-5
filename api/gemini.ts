@@ -81,12 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Se a data de pagamento passou, bloquear acesso automaticamente
         if (nextPayment < now) {
-          console.log("Subscription expired, blocking user:", {
-            userId: user.id,
-            email: user.email,
-            nextPaymentDate: user.nextPaymentDate,
-            now: now,
-          });
+          // Log removido por segurança (não expor userId, email ou datas)
 
           // Bloquear usuário automaticamente
           await prisma.user.update({
@@ -151,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           contextHistory
         );
 
-        console.log(`✅ Plan generated using ${provider}`);
+        // Log removido por segurança
 
         // Parse e validar JSON
         let parsedPlan;
@@ -167,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           response: jsonText, // Retornar JSON como string para compatibilidade
         });
       } catch (error: any) {
-        console.error("❌ All AI providers failed for plan generation:", error);
+        // Log removido por segurança
         return res.status(500).json({
           error:
             error.message ||
@@ -183,24 +178,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         history || []
       );
 
-      console.log(`✅ Message sent using ${provider}`, {
-        responseLength: fullText?.length || 0,
-        responseType: typeof fullText,
-        responsePreview: fullText?.substring(0, 200) || "empty",
-        hasResponse: !!fullText,
-      });
+      // Log removido por segurança (não expor qual provider foi usado)
 
       // Validar se a resposta não está vazia
       if (
         !fullText ||
         (typeof fullText === "string" && fullText.trim() === "")
       ) {
-        console.error("❌ Empty response from provider:", {
-          provider,
-          fullText,
-          type: typeof fullText,
-          length: fullText?.length,
-        });
+        // Log removido por segurança
         return res.status(500).json({
           error: "AI returned an empty response. Please try again.",
         });
@@ -210,10 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const responseText =
         typeof fullText === "string" ? fullText : String(fullText);
 
-      console.log("📤 Sending response to client:", {
-        responseLength: responseText.length,
-        responsePreview: responseText.substring(0, 200),
-      });
+      // Log removido por segurança
 
       return res.status(200).json({
         response: responseText,
@@ -224,7 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
       });
     } catch (error: any) {
-      console.error("❌ All AI providers failed for chat:", error);
+      // Log removido por segurança
       return res.status(500).json({
         error:
           error.message || "Failed to send message. All AI providers failed.",

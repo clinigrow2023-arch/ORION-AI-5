@@ -16,9 +16,7 @@ const globalForPrisma = globalThis as unknown as {
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
-  console.warn(
-    "⚠️ DATABASE_URL not found. Prisma Client may not work correctly."
-  );
+  // Log removido por segurança (não expor informações de .env)
 }
 
 // Criar Prisma Client com tratamento de erro
@@ -38,7 +36,7 @@ try {
     globalForPrisma.prisma = prismaInstance;
   }
 } catch (error) {
-  console.error("❌ Failed to initialize Prisma Client:", error);
+  // Log removido por segurança (não expor detalhes de erro)
   throw error;
 }
 

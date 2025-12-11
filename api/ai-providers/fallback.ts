@@ -1,6 +1,11 @@
-import { AIProvider, AIProviderError } from "./base.js";
+import { AIProvider, AIProviderError, createProviderError } from "./base.js";
 import { Ollama3Provider } from "./ollama3.js";
+import { GroqProvider } from "./groq.js";
 import { OpenAIProvider } from "./openai.js";
+import { GrokProvider } from "./grok.js";
+import { DeepSeekProvider } from "./deepseek.js";
+import { LaozangProvider } from "./laozang.js";
+import { GeminiProvider } from "./gemini.js";
 
 // System instruction for Orion
 const getSystemInstruction = (): string => {
@@ -99,25 +104,81 @@ Language: ALL OUTPUT MUST BE IN ENGLISH.
 export function createProviders(): AIProvider[] {
   const providers: AIProvider[] = [];
 
-  // 1. Ollama3 (primary) - VPS
+  // 1. Ollama3 (PRIMARY - sempre primeiro, máxima prioridade)
   const ollamaUrl = process.env.OLLAMA_URL || "http://31.97.93.86:11434";
-  const ollamaModel = process.env.OLLAMA_MODEL || "llama3";
+  const ollamaModel = process.env.OLLAMA_MODEL || "llama3:8b";
   const ollamaApiKey = process.env.OLLAMA_API_KEY;
   try {
     providers.push(new Ollama3Provider(ollamaUrl, ollamaModel, ollamaApiKey));
-    console.log(`✅ Ollama3 provider initialized: ${ollamaUrl} (model: ${ollamaModel})`);
+    // Log removido por segurança (não expor URL/modelo)
   } catch (error) {
-    console.warn("⚠️ Failed to initialize Ollama3 provider:", error);
+    // Log removido por segurança
   }
 
-  // 2. OpenAI (fallback only)
+  // 2. Groq (fallback principal - MUITO RÁPIDO: 1-3 segundos)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    try {
+      providers.push(new GroqProvider(groqKey));
+      // Log removido por segurança
+    } catch (error) {
+      // Log removido por segurança
+    }
+  }
+
+  // 3. Outros providers (fallback secundário - ordem aleatória)
+  // OpenAI
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
     try {
       providers.push(new OpenAIProvider(openaiKey));
-      console.log("✅ OpenAI provider initialized as fallback");
+      // Log removido por segurança
     } catch (error) {
-      console.warn("⚠️ Failed to initialize OpenAI provider:", error);
+      // Log removido por segurança
+    }
+  }
+
+  // Grok
+  const grokKey = process.env.GROK_API_KEY;
+  if (grokKey) {
+    try {
+      providers.push(new GrokProvider(grokKey));
+      // Log removido por segurança
+    } catch (error) {
+      // Log removido por segurança
+    }
+  }
+
+  // DeepSeek
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    try {
+      providers.push(new DeepSeekProvider(deepseekKey));
+      // Log removido por segurança
+    } catch (error) {
+      // Log removido por segurança
+    }
+  }
+
+  // Laozang
+  const laozangKey = process.env.LAOZANG_API_KEY;
+  if (laozangKey) {
+    try {
+      providers.push(new LaozangProvider(laozangKey));
+      // Log removido por segurança
+    } catch (error) {
+      // Log removido por segurança
+    }
+  }
+
+  // Gemini
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      providers.push(new GeminiProvider(geminiKey));
+      // Log removido por segurança
+    } catch (error) {
+      // Log removido por segurança
     }
   }
 
@@ -140,22 +201,14 @@ export async function tryProviders<T>(
 
   for (const provider of providers) {
     try {
-      console.log(`🔄 Trying ${provider.name} for ${operationName}...`);
+      // Log removido por segurança
       const result = await operation(provider);
 
-      console.log(`✅ ${provider.name} succeeded for ${operationName}`, {
-        hasResult: !!result,
-        resultType: typeof result,
-        resultLength: result?.length || 0,
-        resultPreview:
-          typeof result === "string"
-            ? result.substring(0, 100)
-            : String(result).substring(0, 100) || "empty",
-      });
+      // Log removido por segurança (não expor detalhes)
 
       // Validar que o resultado não está vazio
       if (result === undefined || result === null) {
-        console.error(`❌ ${provider.name} returned undefined/null result`);
+        // Log removido por segurança
         throw createProviderError(
           provider.name,
           "Provider returned undefined result",
@@ -171,10 +224,7 @@ export async function tryProviders<T>(
       // Caso contrário, assumir que é retryable (para continuar o fallback)
       const isRetryable = providerError.retryable !== false;
 
-      console.warn(
-        `❌ ${provider.name} failed for ${operationName}:`,
-        error.message || error
-      );
+      // Log removido por segurança
 
       errors.push({ provider: provider.name, error });
 
@@ -190,15 +240,11 @@ export async function tryProviders<T>(
 
         // Se não for erro de autenticação, continuar tentando outros providers
         if (!isAuthError) {
-          console.warn(
-            `⚠️ ${provider.name} error marked as not retryable but doesn't look like auth error, continuing fallback...`
-          );
+          // Log removido por segurança
           continue;
         }
 
-        console.error(
-          `🚫 ${provider.name} error is not retryable (auth error), stopping fallback chain`
-        );
+        // Log removido por segurança
         throw error;
       }
 
@@ -234,12 +280,7 @@ export async function sendMessageWithFallback(
         history,
         systemInstruction
       );
-      console.log(`📦 Provider ${provider.name} returned:`, {
-        hasResponse: !!response,
-        responseType: typeof response,
-        responseLength: response?.length || 0,
-        responsePreview: response?.substring(0, 100) || "empty",
-      });
+      // Log removido por segurança
       return response;
     },
     "sendMessage"
@@ -247,11 +288,7 @@ export async function sendMessageWithFallback(
 
   // Garantir que result é uma string válida
   if (!result || (typeof result === "string" && result.trim() === "")) {
-    console.error("❌ sendMessageWithFallback: result is empty:", {
-      result,
-      type: typeof result,
-      provider,
-    });
+    // Log removido por segurança
     throw new Error(`Provider ${provider} returned an empty response`);
   }
 
@@ -268,10 +305,15 @@ export async function generatePlanWithFallback(
   const providers = createProviders();
   const systemInstruction = getSystemInstruction();
 
-  return tryProviders(
+  const { result, provider } = await tryProviders(
     providers,
     async (provider) =>
       await provider.generatePlan(contextHistory, systemInstruction),
     "generatePlan"
   );
+
+  return {
+    response: typeof result === "string" ? result : String(result),
+    provider,
+  };
 }

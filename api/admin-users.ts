@@ -158,7 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error: any) {
-    console.error("Admin users error:", error);
+    // Log removido por segurança
     return res.status(500).json({
       error: error.message || "Internal server error",
     });

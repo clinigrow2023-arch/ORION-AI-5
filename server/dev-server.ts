@@ -8,8 +8,7 @@ dotenv.config();
 
 // Verify DATABASE_URL is loaded and valid
 if (!process.env.DATABASE_URL) {
-  console.error("❌ ERROR: DATABASE_URL not found in .env file");
-  console.error("Please make sure DATABASE_URL is set in your .env file");
+  // Log removido por segurança (não expor informações de .env)
   process.exit(1);
 }
 
@@ -18,28 +17,21 @@ let dbUrl = process.env.DATABASE_URL.trim();
 if (dbUrl.startsWith("DATABASE_URL=")) {
   dbUrl = dbUrl.replace(/^DATABASE_URL=/, "");
   process.env.DATABASE_URL = dbUrl;
-  console.log("⚠️  Fixed duplicate DATABASE_URL prefix");
+  // Log removido por segurança
 }
 
 if (!dbUrl.startsWith("mongodb://") && !dbUrl.startsWith("mongodb+srv://")) {
-  console.error(
-    '❌ ERROR: DATABASE_URL must start with "mongodb://" or "mongodb+srv://"'
-  );
-  console.error(`Current value: ${dbUrl.substring(0, 50)}...`);
+  // Log removido por segurança (não expor DATABASE_URL)
   process.exit(1);
 }
 
-console.log("✅ DATABASE_URL loaded successfully");
+// Log removido por segurança
 
 // Verify GEMINI_API_KEY is loaded
 if (!process.env.GEMINI_API_KEY) {
-  console.warn("⚠️  WARNING: GEMINI_API_KEY not found in .env file");
-  console.warn("The Gemini chat functionality will not work without this key.");
-  console.warn("Please add GEMINI_API_KEY to your .env file:");
-  console.warn("  GEMINI_API_KEY=your_gemini_api_key_here");
-  console.warn("");
+  // Log removido por segurança (não expor informações de .env)
 } else {
-  console.log("✅ GEMINI_API_KEY loaded successfully");
+  // Log removido por segurança
 }
 
 // Import Vercel API functions
@@ -67,9 +59,7 @@ app.use(
   (req: any, res: any, next: any) => {
     if (Buffer.isBuffer(req.body)) {
       req.rawBody = req.body.toString("utf-8");
-      console.log("DigiStore IPN - rawBody content:", {
-        length: req.rawBody.length,
-        preview: req.rawBody.substring(0, 500),
+      // Log removido por segurança (não expor conteúdo de requisições)
         hasData: req.rawBody.length > 0,
       });
 
@@ -136,6 +126,5 @@ app.post("/api/set-new-password", setNewPasswordHandler);
 app.post("/api/digistore-ipn", digistoreIpnHandler);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Development server running on http://localhost:${PORT}`);
-  console.log(`📡 API routes available at http://localhost:${PORT}/api/`);
+  // Logs removidos por segurança (não expor informações de servidor)
 });

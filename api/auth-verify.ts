@@ -73,12 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         // Se a data de pagamento passou, bloquear acesso automaticamente
         if (nextPayment < now) {
-          console.log("Subscription expired, blocking user:", {
-            userId: user.id,
-            email: user.email,
-            nextPaymentDate: user.nextPaymentDate,
-            now: now,
-          });
+          // Log removido por segurança (não expor userId, email ou datas)
 
           // Bloquear usuário automaticamente
           await prisma.user.update({

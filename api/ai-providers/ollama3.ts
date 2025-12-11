@@ -9,7 +9,7 @@ export class Ollama3Provider implements AIProvider {
 
   constructor(
     baseUrl: string = "http://31.97.93.86:11434",
-    model: string = "llama3",
+    model: string = "llama3:8b",
     apiKey?: string
   ) {
     this.baseUrl = baseUrl;
@@ -24,27 +24,45 @@ export class Ollama3Provider implements AIProvider {
     systemInstruction: string
   ): Promise<string> {
     try {
-      console.log(`[Ollama3] Starting sendMessage request to ${this.baseUrl}`);
-      
+      // Log removido por segurança (não expor URL da VPS)
+
+      // Otimização ULTRA EXTREMA: Limitar histórico às últimas 2 mensagens (1 turno)
+      // Para velocidade máxima, apenas contexto imediato
+      const MAX_HISTORY_MESSAGES = 2;
+      const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
+
+      // Log removido por segurança
+
       // Construir prompt completo com histórico e system instruction
       let fullPrompt = "";
 
-      // Adicionar system instruction
+      // Adicionar system instruction (resumida se muito longa)
       if (systemInstruction) {
-        fullPrompt += `${systemInstruction}\n\n`;
+        // Limitar system instruction a 300 caracteres para velocidade ULTRA
+        const systemInst =
+          systemInstruction.length > 300
+            ? systemInstruction.substring(0, 300) + "..."
+            : systemInstruction;
+        fullPrompt += `${systemInst}\n\n`;
       }
 
-      // Converter histórico para formato conversacional
-      for (const h of history) {
+      // Converter histórico para formato conversacional (mais compacto)
+      for (const h of limitedHistory) {
         const role = h.role === "user" ? "User" : "Assistant";
-        const content = h.parts.map((p) => p.text).join(" ");
-        if (content.trim()) {
-          fullPrompt += `${role}: ${content}\n\n`;
+        const content = h.parts
+          .map((p) => p.text)
+          .join(" ")
+          .trim();
+        if (content) {
+          // Limitar cada mensagem do histórico a 150 caracteres para velocidade ULTRA
+          const truncatedContent =
+            content.length > 150 ? content.substring(0, 150) + "..." : content;
+          fullPrompt += `${role}: ${truncatedContent}\n`;
         }
       }
 
       // Adicionar mensagem atual
-      fullPrompt += `User: ${message}\n\nAssistant:`;
+      fullPrompt += `User: ${message}\nAssistant:`;
 
       // Preparar headers com autenticação
       const headers: Record<string, string> = {
@@ -61,19 +79,27 @@ export class Ollama3Provider implements AIProvider {
         model: this.model,
         prompt: fullPrompt,
         stream: false,
+        // Limitar contexto total (tokens de entrada) - acelera processamento
+        num_ctx: 1024, // Máximo de tokens no contexto (reduzido para velocidade ULTRA)
         options: {
           temperature: 0.7,
+          // Limitar tokens gerados para resposta mais rápida
+          num_predict: 100, // Máximo de tokens na resposta (VELOCIDADE ULTRA - respostas mais curtas mas instantâneas)
+          top_p: 0.9, // Nucleus sampling (mais rápido que top_k)
+          repeat_penalty: 1.1, // Reduz repetição
         },
       };
 
-      console.log(`[Ollama3] Request body prepared, model: ${this.model}, prompt length: ${fullPrompt.length}`);
+      // Logs removidos por segurança (não expor modelo, URL, ou detalhes de requisição)
 
-      // Adicionar timeout de 60 segundos
+      // Timeout otimizado: 90 segundos (com otimizações, deve ser suficiente)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
 
+      const startTime = Date.now();
       let response: Response;
       try {
+        // Log removido por segurança
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
           headers,
@@ -81,12 +107,13 @@ export class Ollama3Provider implements AIProvider {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
+        // Log removido por segurança (não expor tempo de resposta)
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === "AbortError") {
           throw createProviderError(
             this.name,
-            "Request timeout after 60 seconds",
+            "Request timeout after 90 seconds",
             "TIMEOUT",
             true
           );
@@ -94,29 +121,25 @@ export class Ollama3Provider implements AIProvider {
         throw fetchError;
       }
 
-      console.log(`[Ollama3] Response status: ${response.status} ${response.statusText}`);
+      // Log removido por segurança
 
       if (!response.ok) {
         let errorData: any = {};
         try {
           const errorText = await response.text();
-          console.error(`[Ollama3] Error response body:`, errorText);
+          // Log removido por segurança (não expor detalhes de erro)
           errorData = JSON.parse(errorText);
         } catch (e) {
-          console.error(`[Ollama3] Failed to parse error response`);
+          // Log removido por segurança
         }
-        
+
         const isRetryable = isRetryableError({
           message: errorData.error || `HTTP ${response.status}`,
           status: response.status,
         });
-        
-        console.error(`[Ollama3] Request failed:`, {
-          status: response.status,
-          error: errorData.error || "Unknown error",
-          retryable: isRetryable,
-        });
-        
+
+        // Log removido por segurança (não expor detalhes de erro)
+
         throw createProviderError(
           this.name,
           errorData.error || `HTTP error! status: ${response.status}`,
@@ -126,7 +149,7 @@ export class Ollama3Provider implements AIProvider {
       }
 
       const data = await response.json();
-      console.log(`[Ollama3] Response received, keys:`, Object.keys(data));
+      // Log removido por segurança
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
       let content = "";
@@ -137,10 +160,12 @@ export class Ollama3Provider implements AIProvider {
       } else if (data.text) {
         content = data.text;
       } else {
-        console.error(`[Ollama3] Unexpected response format:`, JSON.stringify(data).substring(0, 500));
+        // Log removido por segurança
         throw createProviderError(
           this.name,
-          `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(data).substring(0, 100)}`,
+          `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
+            data
+          ).substring(0, 100)}`,
           undefined,
           false
         );
@@ -148,7 +173,7 @@ export class Ollama3Provider implements AIProvider {
 
       // Validar se a resposta não está vazia
       if (!content || content.trim() === "") {
-        console.error(`[Ollama3] Empty response received`);
+        // Log removido por segurança
         throw createProviderError(
           this.name,
           "Empty response from Ollama API",
@@ -157,20 +182,15 @@ export class Ollama3Provider implements AIProvider {
         );
       }
 
-      console.log(`[Ollama3] Success! Response length: ${content.length}`);
+      // Log removido por segurança
       return content;
     } catch (error: any) {
       if (error.provider) {
-        console.error(`[Ollama3] Provider error:`, error.message);
+        // Log removido por segurança
         throw error; // Already a provider error
       }
 
-      console.error(`[Ollama3] Unexpected error:`, {
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        stack: error.stack?.substring(0, 200),
-      });
+      // Log removido por segurança (não expor stack trace ou detalhes de erro)
 
       const isRetryable = isRetryableError(error);
       throw createProviderError(
@@ -187,8 +207,8 @@ export class Ollama3Provider implements AIProvider {
     systemInstruction: string
   ): Promise<string> {
     try {
-      console.log(`[Ollama3] Starting generatePlan request to ${this.baseUrl}`);
-      
+      // Log removido por segurança (não expor URL da VPS)
+
       const prompt = `${systemInstruction}\n\nBased on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
 
 HISTORY:
@@ -234,7 +254,7 @@ Output strictly valid JSON with the following structure:
         },
       };
 
-      console.log(`[Ollama3] Plan request prepared, prompt length: ${prompt.length}`);
+      // Log removido por segurança
 
       // Adicionar timeout de 90 segundos (plan generation pode demorar mais)
       const controller = new AbortController();
@@ -262,29 +282,27 @@ Output strictly valid JSON with the following structure:
         throw fetchError;
       }
 
-      console.log(`[Ollama3] Plan response status: ${response.status} ${response.statusText}`);
+      console.log(
+        `[Ollama3] Plan response status: ${response.status} ${response.statusText}`
+      );
 
       if (!response.ok) {
         let errorData: any = {};
         try {
           const errorText = await response.text();
-          console.error(`[Ollama3] Plan error response body:`, errorText);
+          // Log removido por segurança (não expor detalhes de erro)
           errorData = JSON.parse(errorText);
         } catch (e) {
-          console.error(`[Ollama3] Failed to parse plan error response`);
+          // Log removido por segurança
         }
-        
+
         const isRetryable = isRetryableError({
           message: errorData.error || `HTTP ${response.status}`,
           status: response.status,
         });
-        
-        console.error(`[Ollama3] Plan generation failed:`, {
-          status: response.status,
-          error: errorData.error || "Unknown error",
-          retryable: isRetryable,
-        });
-        
+
+        // Log removido por segurança (não expor detalhes de erro)
+
         throw createProviderError(
           this.name,
           errorData.error || `HTTP error! status: ${response.status}`,
@@ -294,7 +312,7 @@ Output strictly valid JSON with the following structure:
       }
 
       const data = await response.json();
-      console.log(`[Ollama3] Plan response received, keys:`, Object.keys(data));
+      // Log removido por segurança
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
       let jsonText = "";
@@ -305,17 +323,19 @@ Output strictly valid JSON with the following structure:
       } else if (data.text) {
         jsonText = data.text;
       } else {
-        console.error(`[Ollama3] Unexpected plan response format:`, JSON.stringify(data).substring(0, 500));
+        // Log removido por segurança
         throw createProviderError(
           this.name,
-          `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(data).substring(0, 100)}`,
+          `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
+            data
+          ).substring(0, 100)}`,
           undefined,
           false
         );
       }
 
       if (!jsonText || jsonText.trim() === "") {
-        console.error(`[Ollama3] Empty plan response received`);
+        // Log removido por segurança
         throw createProviderError(
           this.name,
           "No data received from plan generation",
@@ -327,24 +347,19 @@ Output strictly valid JSON with the following structure:
       // Tentar validar se é JSON válido
       try {
         JSON.parse(jsonText);
-        console.log(`[Ollama3] Plan generation success! JSON is valid, length: ${jsonText.length}`);
+        // Log removido por segurança
       } catch (parseError) {
-        console.warn(`[Ollama3] Plan response may not be valid JSON, but returning anyway:`, jsonText.substring(0, 200));
+        // Log removido por segurança
       }
 
       return jsonText;
     } catch (error: any) {
       if (error.provider) {
-        console.error(`[Ollama3] Plan provider error:`, error.message);
+        // Log removido por segurança
         throw error; // Already a provider error
       }
 
-      console.error(`[Ollama3] Plan unexpected error:`, {
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        stack: error.stack?.substring(0, 200),
-      });
+      // Log removido por segurança (não expor stack trace ou detalhes de erro)
 
       const isRetryable = isRetryableError(error);
       throw createProviderError(

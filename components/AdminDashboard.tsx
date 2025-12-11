@@ -326,6 +326,11 @@ const AdminDashboard: React.FC = () => {
             <p className="text-sm md:text-base text-slate-400">
               Manage users, blocks, and passwords
             </p>
+            {activeTab === "users" && (
+              <p className="text-sm md:text-base text-indigo-400 mt-1">
+                Total users: <span className="font-semibold">{users.length}</span>
+              </p>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <button

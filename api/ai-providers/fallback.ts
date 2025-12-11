@@ -29,9 +29,14 @@ export const getSystemInstruction = async (): Promise<string> => {
     });
 
     if (systemPrompt && systemPrompt.prompt) {
-      cachedPrompt = systemPrompt.prompt;
+      let prompt = systemPrompt.prompt.trim();
+      // Garantir que o prompt sempre começa com identificação clara do Orion
+      if (!prompt.toLowerCase().includes("you are orion")) {
+        prompt = `You are Orion AI, an expert relationship and attraction mentor.\n\n${prompt}`;
+      }
+      cachedPrompt = prompt;
       cacheTimestamp = now;
-      return systemPrompt.prompt;
+      return prompt;
     }
   } catch (error: any) {
     // Se falhar, limpar cache e tentar novamente na próxima vez

@@ -111,7 +111,7 @@ export class GeminiService {
   private async getSystemInstruction(): Promise<string> {
     try {
       // Buscar do endpoint da API (que busca do banco)
-      const response = await fetch('/api/system-prompt');
+      const response = await fetch("/api/system-prompt");
       if (response.ok) {
         const data = await response.json();
         if (data.prompt) {
@@ -430,13 +430,14 @@ Language: ALL OUTPUT MUST BE IN ENGLISH.`;
       
       Output strictly valid JSON.`;
 
+          const systemInstruction = await this.getSystemInstruction();
           const response = await this.ai.models.generateContent({
             model: this.modelName,
             contents: prompt,
             config: {
               responseMimeType: "application/json",
               responseSchema: planSchema,
-              systemInstruction: this.getSystemInstruction(),
+              systemInstruction: systemInstruction,
             },
           });
 

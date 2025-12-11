@@ -12,6 +12,8 @@ import {
   Trash2,
   KeyRound,
   Search,
+  UserPlus,
+  Mail,
 } from "lucide-react";
 
 interface User {
@@ -44,6 +46,11 @@ const AdminDashboard: React.FC = () => {
     userName: string;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"users" | "create">("users");
+  const [createUserEmail, setCreateUserEmail] = useState("");
+  const [createUserName, setCreateUserName] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [createUserSuccess, setCreateUserSuccess] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -230,6 +237,60 @@ const AdminDashboard: React.FC = () => {
     setResetPasswordConfirm(null);
   };
 
+  // Criar usuário manualmente
+  const handleCreateUser = async () => {
+    if (!createUserEmail.trim() || !createUserName.trim()) {
+      setError("Email and name are required");
+      return;
+    }
+
+    // Validar formato de email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createUserEmail)) {
+      setError("Invalid email format");
+      return;
+    }
+
+    try {
+      setCreatingUser(true);
+      setError(null);
+      setCreateUserSuccess(null);
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error("No token found");
+      }
+
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(getApiEndpoint("admin-users"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: createUserEmail.toLowerCase().trim(),
+          name: createUserName.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create user");
+      }
+
+      const data = await response.json();
+      setCreateUserSuccess(
+        `User created successfully! Email sent to ${data.user.email} with temporary password.`
+      );
+      setCreateUserEmail("");
+      setCreateUserName("");
+      await fetchUsers(); // Atualizar lista de usuários
+    } catch (err: any) {
+      setError(err.message || "Failed to create user");
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   // Filtrar usuários baseado na busca
   const filteredUsers = users.filter((user) => {
     if (!searchQuery.trim()) return true;
@@ -277,6 +338,129 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="mb-4 md:mb-6 flex gap-2 border-b border-slate-800">
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "users"
+                ? "text-indigo-400 border-b-2 border-indigo-400"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Users size={18} />
+              Users
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab("create")}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "create"
+                ? "text-indigo-400 border-b-2 border-indigo-400"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <UserPlus size={18} />
+              Create User
+            </span>
+          </button>
+        </div>
+
+        {/* Create User Tab */}
+        {activeTab === "create" && (
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6">
+            <div className="max-w-2xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                  Create User Manually
+                </h2>
+                <p className="text-sm md:text-base text-slate-400">
+                  Use this when a DigiStore payment was approved but email wasn't sent, or if there was an error. A random password will be generated and sent via email.
+                </p>
+              </div>
+
+              {createUserSuccess && (
+                <div className="mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-400 text-sm md:text-base">
+                  <CheckCircle size={18} className="md:w-5 md:h-5 shrink-0" />
+                  <span>{createUserSuccess}</span>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm md:text-base">
+                  <AlertCircle size={18} className="md:w-5 md:h-5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    <span className="flex items-center gap-2">
+                      <Mail size={16} />
+                      Email
+                    </span>
+                  </label>
+                  <input
+                    type="email"
+                    value={createUserEmail}
+                    onChange={(e) => setCreateUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+                    disabled={creatingUser}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    <span className="flex items-center gap-2">
+                      <Users size={16} />
+                      Name
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={createUserName}
+                    onChange={(e) => setCreateUserName(e.target.value)}
+                    placeholder="User Name"
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+                    disabled={creatingUser}
+                  />
+                </div>
+
+                <button
+                  onClick={handleCreateUser}
+                  disabled={creatingUser || !createUserEmail.trim() || !createUserName.trim()}
+                  className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm md:text-base flex items-center justify-center gap-2"
+                >
+                  {creatingUser ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      <span>Creating User...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={18} />
+                      <span>Create User & Send Email</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                  <p className="text-xs md:text-sm text-slate-400">
+                    <strong className="text-slate-300">Note:</strong> A random password will be automatically generated and sent to the user's email. The user will be required to change this password on their first login.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Users Tab */}
+        {activeTab === "users" && (
+          <>
         {/* Search Filter */}
         <div className="mb-4 md:mb-6">
           <div className="relative">
@@ -591,6 +775,8 @@ const AdminDashboard: React.FC = () => {
               </button>
             )}
           </div>
+        )}
+          </>
         )}
       </div>
 

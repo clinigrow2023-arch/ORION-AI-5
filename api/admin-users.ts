@@ -72,6 +72,89 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ users });
     }
 
+    // POST - Criar usuário manualmente (admin only)
+    if (req.method === "POST") {
+      const { email, name } = req.body;
+
+      if (!email || !name) {
+        return res.status(400).json({
+          error: "Email and name are required",
+        });
+      }
+
+      // Validar formato de email
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+
+      // Verificar se email já existe
+      const existingUser = await prisma.user.findUnique({
+        where: { email: email.toLowerCase().trim() },
+      });
+
+      if (existingUser) {
+        return res.status(409).json({ error: "Email already registered" });
+      }
+
+      // Gerar senha aleatória
+      const crypto = await import("crypto");
+      const generateRandomPassword = (length: number = 12): string => {
+        const charset =
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        const randomBytes = crypto.randomBytes(length);
+        let password = "";
+
+        for (let i = 0; i < length; i++) {
+          password += charset[randomBytes[i] % charset.length];
+        }
+
+        return password;
+      };
+
+      const tempPassword = generateRandomPassword(12);
+
+      // Hash da senha
+      const bcrypt = await import("bcryptjs");
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(tempPassword, saltRounds);
+
+      // Criar usuário (ativo por padrão)
+      const newUser = await prisma.user.create({
+        data: {
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          password: hashedPassword,
+          isActive: true,
+          passwordResetRequired: true, // Precisa trocar a senha no primeiro login
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          isActive: true,
+          createdAt: true,
+        },
+      });
+
+      // Enviar email com credenciais
+      try {
+        const { sendNewUserEmail } = await import("../lib/email.js");
+        await sendNewUserEmail(newUser.email, newUser.name, tempPassword);
+      } catch (emailError: any) {
+        // Log removido por segurança
+        // Não bloquear criação se email falhar, mas retornar aviso
+        return res.status(201).json({
+          user: newUser,
+          warning: "User created but email could not be sent. Please send credentials manually.",
+        });
+      }
+
+      return res.status(201).json({
+        user: newUser,
+        message: "User created successfully and email sent",
+      });
+    }
+
     // DELETE - Deletar usuário
     if (req.method === "DELETE") {
       const { userId } = req.body;

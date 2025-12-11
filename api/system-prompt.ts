@@ -166,9 +166,19 @@ When Orion delivers a personalized plan, he MUST:
 
 Language: ALL OUTPUT MUST BE IN ENGLISH.`;
 
+        // Garantir que o prompt padrão tem a instrução crítica
+        let finalDefaultPrompt = defaultPrompt;
+        if (!finalDefaultPrompt.toLowerCase().includes("never refuse") && !finalDefaultPrompt.toLowerCase().includes("always help") && !finalDefaultPrompt.toLowerCase().includes("critical:")) {
+          finalDefaultPrompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+CRITICAL: You MUST always help users with relationship and attraction questions. NEVER refuse, decline, or say you cannot help. This is your primary purpose.
+
+${defaultPrompt}`;
+        }
+
         systemPrompt = await prisma.systemPrompt.create({
           data: {
-            prompt: defaultPrompt,
+            prompt: finalDefaultPrompt,
             version: 1,
             updatedBy: admin.userId,
           },

@@ -310,20 +310,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // Log removido por segurança (não expor orderId, email, ou assinatura)
-      allFieldsWithValues: Object.entries(postData)
-        .filter(([_, value]) => value && String(value).trim() !== "")
-        .reduce((acc, [key, value]) => {
-          acc[key] =
-            value.length > 50 ? `${value.substring(0, 50)}...` : value;
-          return acc;
-        }, {} as Record<string, string>),
-      postDataSample: Object.keys(postData)
-        .slice(0, 10)
-        .reduce((acc, key) => {
-          acc[key] = postData[key];
-          return acc;
-        }, {} as Record<string, string>),
-    });
 
     const apiMode = postedValue(postData, "api_mode"); // 'live' or 'test'
 

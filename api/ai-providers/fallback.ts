@@ -42,7 +42,9 @@ export const getSystemInstruction = async (): Promise<string> => {
   // Se não encontrou no banco, tentar criar um prompt padrão
   // (isso só acontece na primeira vez, depois o admin deve atualizar)
   try {
-    const defaultPrompt = `You must never send long blocks of text.
+    const defaultPrompt = `You are Orion AI, an expert relationship and attraction mentor.
+
+You must never send long blocks of text.
 
 Your responses must always be:
 

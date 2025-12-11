@@ -594,13 +594,46 @@ const AdminDashboard: React.FC = () => {
               <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
                 System Prompt Management
               </h2>
-              <p className="text-sm md:text-base text-slate-400">
+              <p className="text-sm md:text-base text-slate-400 mb-3">
                 Edit the system instruction that all AI providers (Ollama, Groq, OpenAI, etc.) will use. Changes apply globally to all AI responses.
               </p>
-              {promptVersion > 0 && (
-                <p className="text-xs text-slate-500 mt-1">
-                  Current version: {promptVersion}
-                </p>
+              
+              {/* Status do Prompt Atual */}
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 md:p-4 mb-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-slate-300 mb-1">
+                      Current Active Prompt
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      {promptVersion > 0 ? (
+                        <>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            Version {promptVersion}
+                          </span>
+                          {promptUpdatedAt && (
+                            <span>• Last updated: {promptUpdatedAt}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-slate-500">No prompt saved yet</span>
+                      )}
+                    </div>
+                  </div>
+                  {promptVersion > 0 && (
+                    <div className="text-xs text-indigo-400 font-medium">
+                      ✅ Active on all AI providers
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Mensagem de Sucesso */}
+              {promptSuccess && (
+                <div className="mb-4 p-3 md:p-4 bg-green-900/30 border border-green-700 rounded-lg">
+                  <p className="text-sm md:text-base text-green-300">{promptSuccess}</p>
+                </div>
               )}
             </div>
 

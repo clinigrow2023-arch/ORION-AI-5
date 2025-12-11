@@ -95,6 +95,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Messages array is required" });
       }
 
+      // IMPORTANTE: Validar limite de 3 conversas por usuário (exceto admin)
+      if (user.role !== "admin") {
+        const conversationCount = await prisma.conversation.count({
+          where: { userId: auth.userId },
+        });
+
+        if (conversationCount >= 3) {
+          return res.status(403).json({
+            error:
+              "Maximum of 3 conversations allowed. Please delete a conversation to create a new one.",
+            maxConversations: true,
+          });
+        }
+      }
+
       const conversation = await prisma.conversation.create({
         data: {
           userId: auth.userId,

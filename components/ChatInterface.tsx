@@ -174,7 +174,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         if (data.conversations && Array.isArray(data.conversations)) {
           // Garantir que só carregamos conversas válidas (com id e messages)
           const validConversations = data.conversations.filter(
-            (conv: any) => conv.id && conv.messages && Array.isArray(conv.messages)
+            (conv: any) =>
+              conv.id && conv.messages && Array.isArray(conv.messages)
           );
           setConversations(validConversations);
         }
@@ -232,11 +233,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }));
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      
+
       // Se já existe uma conversa, atualizar (PUT) em vez de criar nova (POST)
       const method = currentConversationId ? "PUT" : "POST";
       const url = getApiEndpoint("conversations");
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -629,6 +630,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         {conversations.length < 3 && (
                           <button
                             onClick={() => {
+                              // Validar novamente antes de criar (dupla verificação)
+                              if (conversations.length >= 3) {
+                                const errorMsg: Message = {
+                                  id: generateUniqueId(),
+                                  text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+                                  sender: Sender.Bot,
+                                  timestamp: new Date(),
+                                };
+                                addMessage(errorMsg);
+                                setShowConversationsList(false);
+                                return;
+                              }
                               setCurrentConversationId(null);
                               onResetChat();
                               setShowConversationsList(false);
@@ -648,6 +661,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   {conversations.length < 3 && (
                     <button
                       onClick={() => {
+                        // Validar novamente antes de criar (dupla verificação)
+                        if (conversations.length >= 3) {
+                          const errorMsg: Message = {
+                            id: generateUniqueId(),
+                            text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+                            sender: Sender.Bot,
+                            timestamp: new Date(),
+                          };
+                          addMessage(errorMsg);
+                          return;
+                        }
                         setCurrentConversationId(null);
                         onResetChat();
                         setShowConversationsList(false);

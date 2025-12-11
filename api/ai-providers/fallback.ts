@@ -487,16 +487,17 @@ export function createProviders(): AIProvider[] {
     }
   }
 
-  // Gemini
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (geminiKey) {
-    try {
-      providers.push(new GeminiProvider(geminiKey));
-      // Log removido por segurança
-    } catch (error) {
-      // Log removido por segurança
-    }
-  }
+  // Gemini - TEMPORARIAMENTE DESABILITADO devido a bloqueios de segurança
+  // Descomente quando as safety settings estiverem funcionando corretamente
+  // const geminiKey = process.env.GEMINI_API_KEY;
+  // if (geminiKey) {
+  //   try {
+  //     providers.push(new GeminiProvider(geminiKey));
+  //     // Log removido por segurança
+  //   } catch (error) {
+  //     // Log removido por segurança
+  //   }
+  // }
 
   if (providers.length === 0) {
     throw new Error(

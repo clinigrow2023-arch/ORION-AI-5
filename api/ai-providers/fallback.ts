@@ -237,6 +237,7 @@ Do not overwhelm the user with all secret signals — release selectively.`;
 export const clearPromptCache = (): void => {
   cachedPrompt = null;
   cacheTimestamp = 0;
+  // Forçar busca imediata na próxima chamada
 };
 
 // System instruction síncrono (para compatibilidade - usa cache)

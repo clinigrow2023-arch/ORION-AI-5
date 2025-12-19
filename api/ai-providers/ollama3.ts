@@ -9,13 +9,18 @@ export class Ollama3Provider implements AIProvider {
 
   constructor(
     baseUrl: string = process.env.OLLAMA_URL || "http://localhost:11434",
-    model: string = "llama3:8b",
+    model: string = process.env.OLLAMA_MODEL || "llama3-8b-fast",
     apiKey?: string
   ) {
     this.baseUrl = baseUrl;
     this.model = model;
     // Usar token secreto para proteger a VPS
     this.apiKey = apiKey || process.env.OLLAMA_API_KEY || "";
+    
+    // Debug: mostrar qual modelo está sendo usado
+    console.log(`[Ollama3] Provider inicializado com modelo: ${this.model}`);
+    console.log(`[Ollama3] Base URL: ${this.baseUrl}`);
+    console.log(`[Ollama3] OLLAMA_MODEL env: ${process.env.OLLAMA_MODEL || "não definido"}`);
   }
 
   async sendMessage(

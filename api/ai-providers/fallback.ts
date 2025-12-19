@@ -498,11 +498,17 @@ export function createProviders(): AIProvider[] {
 
   // Ollama3 (PRINCIPAL)
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const ollamaModel = process.env.OLLAMA_MODEL || "llama3:8b";
+  const ollamaModel = process.env.OLLAMA_MODEL || "llama3-8b-fast";
   const ollamaApiKey = process.env.OLLAMA_API_KEY;
+  
+  console.log(`[Fallback] Configurando Ollama3 - Modelo: ${ollamaModel}, URL: ${ollamaUrl}`);
+  console.log(`[Fallback] OLLAMA_MODEL env: ${process.env.OLLAMA_MODEL || "não definido (usando padrão)"}`);
+  
   try {
     providers.push(new Ollama3Provider(ollamaUrl, ollamaModel, ollamaApiKey));
+    console.log(`[Fallback] Ollama3 provider adicionado com sucesso`);
   } catch (error) {
+    console.error(`[Fallback] Erro ao criar Ollama3 provider:`, error);
     // Se falhar ao criar, não adicionar
   }
 

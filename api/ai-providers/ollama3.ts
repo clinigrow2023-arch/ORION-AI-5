@@ -712,12 +712,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
             // Se done for true, finalizou
             if (json.done) {
-              console.log(`[Ollama3] Stream done flag received. Total response length: ${fullResponse.length}`);
               break;
             }
           } catch (parseError) {
-            // Log para debug - pode ser que a linha não seja JSON válido
-            console.warn(`[Ollama3] Failed to parse line: ${line.substring(0, 100)}`);
             // Ignorar linhas que não são JSON válido
             continue;
           }

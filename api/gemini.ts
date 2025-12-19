@@ -174,13 +174,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Verificar se é requisição de streaming (query param ou header)
     const useStreaming = req.query.stream === "true" || req.headers["x-stream"] === "true";
-    
-    console.log(`[API] Streaming request? ${useStreaming} (query: ${req.query.stream}, header: ${req.headers["x-stream"]})`);
 
     // Requisição normal de chat - usar sistema de fallback com streaming
     try {
       if (useStreaming) {
-        console.log("[API] Setting up SSE streaming response");
         // Configurar headers para streaming (SSE)
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
@@ -188,32 +185,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader("X-Accel-Buffering", "no"); // Desabilitar buffering do nginx
 
         let fullResponse = "";
-        let chunkCount = 0;
 
         try {
-          console.log("[API] Calling sendMessageStreamWithFallback");
           const { response: fullText, provider } = await sendMessageStreamWithFallback(
             message,
             history || [],
             (chunk: string) => {
               // Enviar chunk via SSE
-              chunkCount++;
               fullResponse += chunk;
-              const sseData = JSON.stringify({ chunk, done: false });
-              res.write(`data: ${sseData}\n\n`);
-              
-              if (chunkCount % 10 === 0) {
-                console.log(`[API] Sent ${chunkCount} chunks, total length: ${fullResponse.length}`);
-              }
+              res.write(`data: ${JSON.stringify({ chunk, done: false })}\n\n`);
             }
           );
 
-          console.log(`[API] Streaming completed. Total chunks: ${chunkCount}, Final length: ${fullText.length}`);
           // Enviar resposta final
           res.write(`data: ${JSON.stringify({ chunk: "", done: true, response: fullText })}\n\n`);
           res.end();
         } catch (streamError: any) {
-          console.error("[API] Streaming error:", streamError);
           res.write(`data: ${JSON.stringify({ error: streamError.message || "Streaming failed" })}\n\n`);
           res.end();
         }

@@ -339,7 +339,11 @@ Do not overwhelm the user with all secret signals — release selectively.`;
         // Adicionar header para ativar streaming
         headers["X-Stream"] = "true";
 
-        response = await fetch(`${API_ENDPOINT}?stream=true`, {
+        const streamUrl = `${API_ENDPOINT}?stream=true`;
+        console.log("🌊 [Streaming] Requesting streaming response:", streamUrl);
+        console.log("🌊 [Streaming] Headers:", { ...headers, Authorization: "***" });
+
+        response = await fetch(streamUrl, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -351,7 +355,10 @@ Do not overwhelm the user with all secret signals — release selectively.`;
         if (response.ok) {
           // Verificar se é streaming (SSE)
           const contentType = response.headers.get("content-type");
+          console.log("🌊 [Streaming] Content-Type:", contentType);
+          
           if (contentType?.includes("text/event-stream")) {
+            console.log("✅ [Streaming] SSE detected, processing stream...");
             // Processar SSE streaming
             const reader = response.body?.getReader();
             if (!reader) {
@@ -361,30 +368,42 @@ Do not overwhelm the user with all secret signals — release selectively.`;
             const decoder = new TextDecoder();
             let buffer = "";
             let fullResponse = "";
+            let chunkCount = 0;
 
             while (true) {
               const { done, value } = await reader.read();
-              if (done) break;
+              if (done) {
+                console.log(`🌊 [Streaming] Stream ended. Total chunks: ${chunkCount}, Total length: ${fullResponse.length}`);
+                break;
+              }
 
               buffer += decoder.decode(value, { stream: true });
               const lines = buffer.split("\n");
               buffer = lines.pop() || "";
 
               for (const line of lines) {
+                if (line.trim() === "") continue;
+                
                 if (line.startsWith("data: ")) {
                   try {
                     const data = JSON.parse(line.substring(6));
                     
                     if (data.error) {
+                      console.error("❌ [Streaming] Error from server:", data.error);
                       throw new Error(data.error);
                     }
 
                     if (data.chunk) {
+                      chunkCount++;
                       fullResponse += data.chunk;
                       onChunk(data.chunk);
+                      if (chunkCount % 10 === 0) {
+                        console.log(`🌊 [Streaming] Received ${chunkCount} chunks, length: ${fullResponse.length}`);
+                      }
                     }
 
                     if (data.done && data.response) {
+                      console.log(`✅ [Streaming] Stream completed. Final response length: ${data.response.length}`);
                       // Atualizar histórico
                       this.chatHistory.push({ role: "user", parts: [{ text: message }] });
                       this.chatHistory.push({
@@ -394,15 +413,20 @@ Do not overwhelm the user with all secret signals — release selectively.`;
                       return data.response;
                     }
                   } catch (parseError) {
+                    console.warn("⚠️ [Streaming] Failed to parse line:", line.substring(0, 100));
                     // Ignorar linhas inválidas
                     continue;
                   }
+                } else {
+                  // Linha sem "data: " prefix - pode ser parte do SSE
+                  console.warn("⚠️ [Streaming] Unexpected line format:", line.substring(0, 100));
                 }
               }
             }
 
             // Se chegou aqui sem done, usar o que foi acumulado
             if (fullResponse) {
+              console.log(`⚠️ [Streaming] Stream ended without 'done' flag. Using accumulated response (${fullResponse.length} chars)`);
               this.chatHistory.push({ role: "user", parts: [{ text: message }] });
               this.chatHistory.push({
                 role: "model",
@@ -414,6 +438,7 @@ Do not overwhelm the user with all secret signals — release selectively.`;
             throw new Error("Streaming ended without complete response");
           } else {
             // Fallback para modo não-streaming (compatibilidade)
+            console.log("⚠️ [Streaming] Server did not return SSE, falling back to non-streaming mode");
             const data = await response.json();
 
             console.log("API Response Data:", {

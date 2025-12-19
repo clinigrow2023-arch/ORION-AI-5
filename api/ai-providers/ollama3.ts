@@ -584,7 +584,9 @@ Output strictly valid JSON with the following structure:
 
 REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
-        if (!systemInstruction.toLowerCase().startsWith("critical instructions")) {
+        if (
+          !systemInstruction.toLowerCase().startsWith("critical instructions")
+        ) {
           enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
         } else {
           enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
@@ -634,7 +636,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         },
       };
 
-      console.log(`[Ollama3] Starting streaming request (model: ${this.model})`);
+      console.log(
+        `[Ollama3] Starting streaming request (model: ${this.model})`
+      );
 
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
@@ -698,7 +702,7 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
           try {
             const json = JSON.parse(line);
-            
+
             // Ollama retorna chunks no campo 'response'
             if (json.response) {
               const chunk = json.response;
@@ -708,9 +712,12 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
             // Se done for true, finalizou
             if (json.done) {
+              console.log(`[Ollama3] Stream done flag received. Total response length: ${fullResponse.length}`);
               break;
             }
           } catch (parseError) {
+            // Log para debug - pode ser que a linha não seja JSON válido
+            console.warn(`[Ollama3] Failed to parse line: ${line.substring(0, 100)}`);
             // Ignorar linhas que não são JSON válido
             continue;
           }
@@ -731,7 +738,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         }
       }
 
-      console.log(`[Ollama3] Streaming completed. Total length: ${fullResponse.length}`);
+      console.log(
+        `[Ollama3] Streaming completed. Total length: ${fullResponse.length}`
+      );
 
       // Validar resposta
       if (!fullResponse || fullResponse.trim() === "") {

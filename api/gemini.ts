@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "./_prisma.js";
 import {
   sendMessageWithFallback,
+  sendMessageStreamWithFallback,
   generatePlanWithFallback,
 } from "./ai-providers/fallback.js";
 import {
@@ -171,46 +172,78 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Requisição normal de chat - usar sistema de fallback
+    // Verificar se é requisição de streaming (query param ou header)
+    const useStreaming = req.query.stream === "true" || req.headers["x-stream"] === "true";
+
+    // Requisição normal de chat - usar sistema de fallback com streaming
     try {
-      const { response: fullText, provider } = await sendMessageWithFallback(
-        message,
-        history || []
-      );
+      if (useStreaming) {
+        // Configurar headers para streaming (SSE)
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no"); // Desabilitar buffering do nginx
 
-      // Log removido por segurança (não expor qual provider foi usado)
+        let fullResponse = "";
 
-      // Validar se a resposta não está vazia
-      if (
-        !fullText ||
-        (typeof fullText === "string" && fullText.trim() === "")
-      ) {
-        // Log removido por segurança
-        return res.status(500).json({
-          error: "AI returned an empty response. Please try again.",
+        try {
+          const { response: fullText, provider } = await sendMessageStreamWithFallback(
+            message,
+            history || [],
+            (chunk: string) => {
+              // Enviar chunk via SSE
+              fullResponse += chunk;
+              res.write(`data: ${JSON.stringify({ chunk, done: false })}\n\n`);
+            }
+          );
+
+          // Enviar resposta final
+          res.write(`data: ${JSON.stringify({ chunk: "", done: true, response: fullText })}\n\n`);
+          res.end();
+        } catch (streamError: any) {
+          res.write(`data: ${JSON.stringify({ error: streamError.message || "Streaming failed" })}\n\n`);
+          res.end();
+        }
+      } else {
+        // Modo não-streaming (compatibilidade)
+        const { response: fullText, provider } = await sendMessageWithFallback(
+          message,
+          history || []
+        );
+
+        // Validar se a resposta não está vazia
+        if (
+          !fullText ||
+          (typeof fullText === "string" && fullText.trim() === "")
+        ) {
+          return res.status(500).json({
+            error: "AI returned an empty response. Please try again.",
+          });
+        }
+
+        // Garantir que fullText é uma string
+        const responseText =
+          typeof fullText === "string" ? fullText : String(fullText);
+
+        return res.status(200).json({
+          response: responseText,
+          history: [
+            ...(history || []),
+            { role: "user", parts: [{ text: message }] },
+            { role: "model", parts: [{ text: fullText }] },
+          ],
         });
       }
-
-      // Garantir que fullText é uma string
-      const responseText =
-        typeof fullText === "string" ? fullText : String(fullText);
-
-      // Log removido por segurança
-
-      return res.status(200).json({
-        response: responseText,
-        history: [
-          ...(history || []),
-          { role: "user", parts: [{ text: message }] },
-          { role: "model", parts: [{ text: fullText }] },
-        ],
-      });
     } catch (error: any) {
-      // Log removido por segurança
-      return res.status(500).json({
-        error:
-          error.message || "Failed to send message. All AI providers failed.",
-      });
+      if (useStreaming) {
+        res.write(`data: ${JSON.stringify({ error: error.message || "Failed to send message" })}\n\n`);
+        res.end();
+      } else {
+        return res.status(500).json({
+          error:
+            error.message || "Failed to send message. All AI providers failed.",
+        });
+      }
     }
   } catch (error: any) {
     console.error("Gemini API Error:", error);

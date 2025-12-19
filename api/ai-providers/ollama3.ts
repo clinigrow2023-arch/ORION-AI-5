@@ -16,11 +16,15 @@ export class Ollama3Provider implements AIProvider {
     this.model = model;
     // Usar token secreto para proteger a VPS
     this.apiKey = apiKey || process.env.OLLAMA_API_KEY || "";
-    
+
     // Debug: mostrar qual modelo está sendo usado
     console.log(`[Ollama3] Provider inicializado com modelo: ${this.model}`);
     console.log(`[Ollama3] Base URL: ${this.baseUrl}`);
-    console.log(`[Ollama3] OLLAMA_MODEL env: ${process.env.OLLAMA_MODEL || "não definido"}`);
+    console.log(
+      `[Ollama3] OLLAMA_MODEL env: ${
+        process.env.OLLAMA_MODEL || "não definido"
+      }`
+    );
   }
 
   async sendMessage(
@@ -535,6 +539,215 @@ Output strictly valid JSON with the following structure:
       }
 
       // Log removido por segurança (não expor stack trace ou detalhes de erro)
+
+      const isRetryable = isRetryableError(error);
+      throw createProviderError(
+        this.name,
+        error.message || "Unknown error from Ollama API",
+        error.code || error.status,
+        isRetryable
+      );
+    }
+  }
+
+  // Método de streaming para respostas mais rápidas
+  async sendMessageStream(
+    message: string,
+    history: Array<{ role: string; parts: Array<{ text: string }> }>,
+    systemInstruction: string,
+    onChunk: (chunk: string) => void
+  ): Promise<string> {
+    try {
+      const MAX_HISTORY_MESSAGES = 4;
+      const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
+
+      // Reforçar instruções críticas
+      let enhancedSystemInstruction = systemInstruction;
+      if (systemInstruction) {
+        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
+
+1. You are Orion AI, a relationship and attraction mentor.
+2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
+3. NEVER refuse, decline, or say you cannot help.
+4. FORBIDDEN PHRASES - NEVER SAY THESE:
+   - "I can't provide assistance"
+   - "I can't help"
+   - "I'm unable to"
+   - "I cannot"
+   - "I won't help"
+   - "I can't fulfill that request"
+   - "I can't provide assistance or guidance on relationships"
+   - Any phrase that refuses to help with relationship questions
+5. If a question is unclear, ask clarifying questions - DO NOT refuse.
+6. You help with HEALTHY relationship strategies, reconnection, and attraction.
+7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
+
+REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
+
+        if (!systemInstruction.toLowerCase().startsWith("critical instructions")) {
+          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+        } else {
+          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+        }
+      }
+
+      // Construir prompt completo com histórico
+      let fullPrompt = "";
+
+      for (const h of limitedHistory) {
+        const role = h.role === "user" ? "User" : "Assistant";
+        const content = h.parts
+          .map((p) => p.text)
+          .join(" ")
+          .trim();
+        if (content) {
+          const truncatedContent =
+            content.length > 300 ? content.substring(0, 300) + "..." : content;
+          fullPrompt += `${role}: ${truncatedContent}\n`;
+        }
+      }
+
+      fullPrompt += `User: ${message}\nAssistant:`;
+
+      // Preparar headers
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (this.apiKey) {
+        headers["X-API-Key"] = this.apiKey;
+        headers["Authorization"] = `Bearer ${this.apiKey}`;
+      }
+
+      // Request body com streaming ativado
+      const requestBody: any = {
+        model: this.model,
+        prompt: fullPrompt,
+        stream: true, // ATIVAR STREAMING
+        system: enhancedSystemInstruction,
+        num_ctx: 2048,
+        options: {
+          temperature: 0.8,
+          num_predict: 1024,
+          top_p: 0.95,
+          repeat_penalty: 1.1,
+        },
+      };
+
+      console.log(`[Ollama3] Starting streaming request (model: ${this.model})`);
+
+      const response = await fetch(`${this.baseUrl}/api/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        let errorData: any = {};
+        try {
+          const errorText = await response.text();
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          // Fallback
+        }
+
+        const isRetryable = isRetryableError({
+          message: errorData.error || `HTTP ${response.status}`,
+          status: response.status,
+        });
+
+        throw createProviderError(
+          this.name,
+          errorData.error || `HTTP error! status: ${response.status}`,
+          response.status,
+          isRetryable
+        );
+      }
+
+      // Processar stream
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw createProviderError(
+          this.name,
+          "Response body is not readable",
+          undefined,
+          false
+        );
+      }
+
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        // Decodificar chunk
+        buffer += decoder.decode(value, { stream: true });
+
+        // Processar linhas completas
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Manter última linha incompleta no buffer
+
+        for (const line of lines) {
+          if (line.trim() === "") continue;
+
+          try {
+            const json = JSON.parse(line);
+            
+            // Ollama retorna chunks no campo 'response'
+            if (json.response) {
+              const chunk = json.response;
+              fullResponse += chunk;
+              onChunk(chunk); // Enviar chunk para callback
+            }
+
+            // Se done for true, finalizou
+            if (json.done) {
+              break;
+            }
+          } catch (parseError) {
+            // Ignorar linhas que não são JSON válido
+            continue;
+          }
+        }
+      }
+
+      // Processar último buffer se houver
+      if (buffer.trim()) {
+        try {
+          const json = JSON.parse(buffer);
+          if (json.response) {
+            const chunk = json.response;
+            fullResponse += chunk;
+            onChunk(chunk);
+          }
+        } catch (e) {
+          // Ignorar
+        }
+      }
+
+      console.log(`[Ollama3] Streaming completed. Total length: ${fullResponse.length}`);
+
+      // Validar resposta
+      if (!fullResponse || fullResponse.trim() === "") {
+        throw createProviderError(
+          this.name,
+          "Empty response from Ollama API",
+          undefined,
+          true
+        );
+      }
+
+      return fullResponse;
+    } catch (error: any) {
+      if (error.provider) {
+        throw error;
+      }
 
       const isRetryable = isRetryableError(error);
       throw createProviderError(

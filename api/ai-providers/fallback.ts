@@ -638,6 +638,45 @@ export async function sendMessageWithFallback(
   };
 }
 
+// Send message with streaming fallback
+export async function sendMessageStreamWithFallback(
+  message: string,
+  history: Array<{ role: string; parts: Array<{ text: string }> }>,
+  onChunk: (chunk: string) => void
+): Promise<{ response: string; provider: string }> {
+  const providers = createProviders();
+  const systemInstruction = await getSystemInstruction();
+
+  // Tentar Ollama3 primeiro (suporta streaming)
+  const ollamaProvider = providers.find((p) => p.name === "Ollama3");
+  
+  if (ollamaProvider && "sendMessageStream" in ollamaProvider) {
+    try {
+      const fullResponse = await (ollamaProvider as any).sendMessageStream(
+        message,
+        history,
+        systemInstruction,
+        onChunk
+      );
+      
+      if (!fullResponse || (typeof fullResponse === "string" && fullResponse.trim() === "")) {
+        throw new Error("Ollama3 returned an empty response");
+      }
+
+      return {
+        response: typeof fullResponse === "string" ? fullResponse : String(fullResponse),
+        provider: "Ollama3",
+      };
+    } catch (error: any) {
+      console.log(`[Fallback] Ollama3 streaming failed, trying fallback: ${error.message}`);
+      // Se falhar, tentar método normal sem streaming
+    }
+  }
+
+  // Fallback para método normal (sem streaming)
+  return await sendMessageWithFallback(message, history);
+}
+
 // Generate plan with fallback
 export async function generatePlanWithFallback(
   contextHistory: string

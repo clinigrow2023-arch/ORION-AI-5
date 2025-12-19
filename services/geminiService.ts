@@ -336,7 +336,10 @@ Do not overwhelm the user with all secret signals — release selectively.`;
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        response = await fetch(API_ENDPOINT, {
+        // Adicionar header para ativar streaming
+        headers["X-Stream"] = "true";
+
+        response = await fetch(`${API_ENDPOINT}?stream=true`, {
           method: "POST",
           headers,
           body: JSON.stringify({
@@ -346,53 +349,119 @@ Do not overwhelm the user with all secret signals — release selectively.`;
         });
 
         if (response.ok) {
-          const data = await response.json();
-
-          console.log("API Response Data:", {
-            hasResponse: !!data.response,
-            responseType: typeof data.response,
-            responseLength: data.response?.length || 0,
-            responsePreview: data.response?.substring(0, 200) || "empty",
-            fullData: data,
-          });
-
-          const fullText = data.response || "";
-
-          // Validar se a resposta não está vazia
-          if (
-            !fullText ||
-            (typeof fullText === "string" && fullText.trim() === "")
-          ) {
-            console.error("❌ Empty response from API:", {
-              data,
-              response: data.response,
-              responseType: typeof data.response,
-            });
-            throw new Error("AI returned an empty response. Please try again.");
-          }
-
-          // Simulate streaming
-          if (fullText && onChunk) {
-            const words = fullText.split(" ");
-            for (let i = 0; i < words.length; i++) {
-              const chunk = (i === 0 ? "" : " ") + words[i];
-              onChunk(chunk);
-              await new Promise((resolve) => setTimeout(resolve, 10));
+          // Verificar se é streaming (SSE)
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("text/event-stream")) {
+            // Processar SSE streaming
+            const reader = response.body?.getReader();
+            if (!reader) {
+              throw new Error("Response body is not readable");
             }
-          }
 
-          // Update history
-          if (data.history) {
-            this.chatHistory = data.history;
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let fullResponse = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  try {
+                    const data = JSON.parse(line.substring(6));
+                    
+                    if (data.error) {
+                      throw new Error(data.error);
+                    }
+
+                    if (data.chunk) {
+                      fullResponse += data.chunk;
+                      onChunk(data.chunk);
+                    }
+
+                    if (data.done && data.response) {
+                      // Atualizar histórico
+                      this.chatHistory.push({ role: "user", parts: [{ text: message }] });
+                      this.chatHistory.push({
+                        role: "model",
+                        parts: [{ text: data.response }],
+                      });
+                      return data.response;
+                    }
+                  } catch (parseError) {
+                    // Ignorar linhas inválidas
+                    continue;
+                  }
+                }
+              }
+            }
+
+            // Se chegou aqui sem done, usar o que foi acumulado
+            if (fullResponse) {
+              this.chatHistory.push({ role: "user", parts: [{ text: message }] });
+              this.chatHistory.push({
+                role: "model",
+                parts: [{ text: fullResponse }],
+              });
+              return fullResponse;
+            }
+
+            throw new Error("Streaming ended without complete response");
           } else {
-            this.chatHistory.push({ role: "user", parts: [{ text: message }] });
-            this.chatHistory.push({
-              role: "model",
-              parts: [{ text: fullText }],
-            });
-          }
+            // Fallback para modo não-streaming (compatibilidade)
+            const data = await response.json();
 
-          return fullText;
+            console.log("API Response Data:", {
+              hasResponse: !!data.response,
+              responseType: typeof data.response,
+              responseLength: data.response?.length || 0,
+              responsePreview: data.response?.substring(0, 200) || "empty",
+              fullData: data,
+            });
+
+            const fullText = data.response || "";
+
+            // Validar se a resposta não está vazia
+            if (
+              !fullText ||
+              (typeof fullText === "string" && fullText.trim() === "")
+            ) {
+              console.error("❌ Empty response from API:", {
+                data,
+                response: data.response,
+                responseType: typeof data.response,
+              });
+              throw new Error("AI returned an empty response. Please try again.");
+            }
+
+            // Simulate streaming para compatibilidade
+            if (fullText && onChunk) {
+              const words = fullText.split(" ");
+              for (let i = 0; i < words.length; i++) {
+                const chunk = (i === 0 ? "" : " ") + words[i];
+                onChunk(chunk);
+                await new Promise((resolve) => setTimeout(resolve, 10));
+              }
+            }
+
+            // Update history
+            if (data.history) {
+              this.chatHistory = data.history;
+            } else {
+              this.chatHistory.push({ role: "user", parts: [{ text: message }] });
+              this.chatHistory.push({
+                role: "model",
+                parts: [{ text: fullText }],
+              });
+            }
+
+            return fullText;
+          }
         }
 
         // If response is 404 and we're in development, throw error to trigger fallback

@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from "react";
+import {
+  AlertCircle,
+  Ban,
+  Bot,
+  CheckCircle,
+  KeyRound,
+  Loader2,
+  Mail,
+  RefreshCw,
+  Save,
+  Search,
+  Trash2,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
-import {
-  Users,
-  Ban,
-  CheckCircle,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  X,
-  Trash2,
-  KeyRound,
-  Search,
-  UserPlus,
-  Mail,
-  Bot,
-  Save,
-} from "lucide-react";
 
 interface User {
   id: string;
@@ -48,6 +48,7 @@ const AdminDashboard: React.FC = () => {
     userName: string;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"users" | "create" | "prompt">("users");
   const [createUserEmail, setCreateUserEmail] = useState("");
   const [createUserName, setCreateUserName] = useState("");
@@ -70,7 +71,7 @@ const AdminDashboard: React.FC = () => {
       }
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(`${getApiEndpoint("admin-users")}?limit=500&search=${encodeURIComponent(searchQuery)}`, {
+      const response = await fetch(`${getApiEndpoint("admin-users")}?limit=500&search=${encodeURIComponent(debouncedSearchQuery)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -97,9 +98,21 @@ const AdminDashboard: React.FC = () => {
     if (activeTab === "prompt") {
       fetchSystemPrompt();
     }
-  }, [activeTab, searchQuery]);
+  }, [activeTab, debouncedSearchQuery]);
 
 
+
+  // Efeito para aplicar debounce na pesquisa
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms de delay após o usuário parar de digitar
+
+    // Limpar o timer se o valor mudar antes do delay terminar
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   const fetchSystemPrompt = async () => {
     try {
@@ -409,8 +422,8 @@ const AdminDashboard: React.FC = () => {
 
   // Filtrar usuários baseado na busca
   const filteredUsers = users.filter((user) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase().trim();
+    if (!debouncedSearchQuery.trim()) return true;
+    const query = debouncedSearchQuery.toLowerCase().trim();
     return (
       user.email.toLowerCase().includes(query) ||
       user.name.toLowerCase().includes(query)
@@ -714,8 +727,6 @@ const AdminDashboard: React.FC = () => {
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                // Reiniciar para a primeira página ao pesquisar
-                fetchUsers(1);
               }}
               className="w-full pl-10 pr-4 py-2 md:py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
             />
@@ -723,7 +734,7 @@ const AdminDashboard: React.FC = () => {
               <button
                 onClick={() => {
                   setSearchQuery("");
-                  fetchUsers(1);
+                  setDebouncedSearchQuery("");
                 }}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
                 title="Clear search"
@@ -1011,11 +1022,11 @@ const AdminDashboard: React.FC = () => {
           <div className="text-center py-12">
             <Users size={48} className="text-slate-600 mx-auto mb-4" />
             <p className="text-slate-400">
-              {searchQuery
+              {debouncedSearchQuery
                 ? "No users found matching your search"
                 : "No users found"}
             </p>
-            {searchQuery && (
+            {debouncedSearchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
                 className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"

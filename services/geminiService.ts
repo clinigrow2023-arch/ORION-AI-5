@@ -1,10 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ActionPlan } from "../types";
 
-// API endpoint (Vercel e desenvolvimento local)
-import { getApiEndpoint } from "../lib/api-endpoints";
-
-const API_ENDPOINT = getApiEndpoint("gemini");
+// Usar endpoint local para desenvolvimento, com fallback para provedores locais
+const API_ENDPOINT = "/api/gemini";
 
 // Check if we're in development
 const isDevelopment =
@@ -324,31 +322,28 @@ Do not overwhelm the user with all secret signals — release selectively.`;
       const token =
         typeof window !== "undefined" && localStorage.getItem("auth_token");
 
-      // Try API endpoint first
-      let response: Response | null = null;
+      // Usar o método direto para enviar mensagem
       try {
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
-
-        // Adicionar token de autenticação se disponível
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
+        const fullText = await this.sendMessageDirect(message);
+        
+        // Simular streaming para compatibilidade
+        if (fullText && onChunk) {
+          const words = fullText.split(" ");
+          for (let i = 0; i < words.length; i++) {
+            const chunk = (i === 0 ? "" : " ") + words[i];
+            onChunk(chunk);
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
         }
 
-        // Adicionar header para ativar streaming
-        headers["X-Stream"] = "true";
-
-        response = await fetch(`${API_ENDPOINT}?stream=true`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            message,
-            history: this.chatHistory,
-          }),
+        // Update history
+        this.chatHistory.push({ role: "user", parts: [{ text: message }] });
+        this.chatHistory.push({
+          role: "model",
+          parts: [{ text: fullText }],
         });
 
-        if (response.ok) {
+        return fullText;
           // Verificar se é streaming (SSE)
           const contentType = response.headers.get("content-type");
           
@@ -588,22 +583,12 @@ Do not overwhelm the user with all secret signals — release selectively.`;
       const token =
         typeof window !== "undefined" && localStorage.getItem("auth_token");
 
-      // Try API endpoint first
+      // Não usar mais o endpoint da API, tentar provedores locais diretamente
       try {
-        const headers: Record<string, string> = {
-          "Content-Type": "application/json",
-        };
+        await this.initializeAI();
+        if (!this.ai) throw new Error("Failed to initialize AI client");
 
-        // Adicionar token de autenticação se disponível
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(API_ENDPOINT, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            message: `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
+        const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
       
       HISTORY:
       ${contextHistory}
@@ -614,45 +599,50 @@ Do not overwhelm the user with all secret signals — release selectively.`;
       3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
       4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
       5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
-      6. TRIGGERS: Explain how to apply neurological triggers (Nostalgia, Safety, etc.).
+      6. TRIGGERS: Explain how to apply specific Secret Signals (The Awakening Phrase, The Fascination Signal, etc.).
       
-      Output strictly valid JSON.`,
-            history: [],
-          }),
+      Output strictly valid JSON.`;
+
+        const systemInstruction = await this.getSystemInstruction();
+        const response = await this.ai.models.generateContent({
+          model: this.modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: planSchema,
+            systemInstruction: systemInstruction,
+            // Configurações de segurança mais permissivas para permitir conteúdo de relacionamento
+            safetySettings: [
+              {
+                category: "HARM_CATEGORY_HARASSMENT" as any,
+                threshold: "BLOCK_NONE" as any,
+              },
+              {
+                category: "HARM_CATEGORY_HATE_SPEECH" as any,
+                threshold: "BLOCK_NONE" as any,
+              },
+              {
+                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
+                threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+              },
+              {
+                category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
+                threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+              },
+            ],
+          },
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        const jsonText = response.text;
+        if (!jsonText)
+          throw new Error("No data received from plan generation.");
 
-          // A API agora retorna JSON estruturado diretamente em data.response
-          let parsedPlan: ActionPlan;
-
-          if (typeof data.response === "string") {
-            // Se response é string, tentar parsear como JSON
-            try {
-              parsedPlan = JSON.parse(data.response) as ActionPlan;
-            } catch {
-              // Se falhar, tentar extrair JSON com regex (fallback)
-              const jsonMatch = data.response.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                parsedPlan = JSON.parse(jsonMatch[0]) as ActionPlan;
-              } else {
-                throw new Error("No valid JSON found in response");
-              }
-            }
-          } else if (typeof data.response === "object") {
-            // Se response já é um objeto, usar diretamente
-            parsedPlan = data.response as ActionPlan;
-          } else {
-            throw new Error("Invalid response format");
-          }
-
-          // Validar que o plano tem todas as propriedades necessárias
-          if (this.validatePlan(parsedPlan)) {
-            return parsedPlan;
-          } else {
-            throw new Error("Generated plan is missing required properties");
-          }
+        const parsedPlan = JSON.parse(jsonText) as ActionPlan;
+        // Validar que o plano tem todas as propriedades necessárias
+        if (this.validatePlan(parsedPlan)) {
+          return parsedPlan;
+        } else {
+          throw new Error("Generated plan is missing required properties");
         }
       } catch (apiError) {
         // Fallback to direct API in development
@@ -771,6 +761,46 @@ Do not overwhelm the user with all secret signals — release selectively.`;
   // Método para adicionar mensagens ao histórico (usado ao carregar conversas)
   addToHistory(role: "user" | "model", text: string): void {
     this.chatHistory.push({ role, parts: [{ text }] });
+  }
+
+  private async sendMessageDirect(message: string): Promise<string> {
+    await this.initializeAI();
+    if (!this.ai) {
+      throw new Error(
+        "Failed to initialize AI client - API key may be missing"
+      );
+    }
+
+    const systemInstruction = await this.getSystemInstruction();
+    const chat = this.ai.chats.create({
+      model: this.modelName,
+      config: {
+        systemInstruction: systemInstruction,
+        // Configurações de segurança mais permissivas para permitir conteúdo de relacionamento
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT" as any,
+            threshold: "BLOCK_NONE" as any,
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH" as any,
+            threshold: "BLOCK_NONE" as any,
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
+            threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
+            threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+          },
+        ],
+      },
+      history: this.chatHistory,
+    });
+
+    const result = await chat.sendMessage({ message });
+    return result.text();
   }
 }
 

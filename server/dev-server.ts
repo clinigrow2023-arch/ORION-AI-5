@@ -94,6 +94,7 @@ app.options("/api/:functionName", (req, res) => {
 
 // Routes - usando /api/ em vez de /.netlify/functions/
 app.post("/api/auth-register", authHandler);
+app.post("/api/gemini", geminiHandler);
 app.post("/api/auth-login", authHandler);
 app.get("/api/auth-verify", authHandler);
 app.get("/api/conversations", conversationsHandler);
@@ -104,7 +105,7 @@ app.get("/api/admin-users", adminUsersHandler);
 app.post("/api/admin-users", adminUsersHandler);
 app.put("/api/admin-users", adminUsersHandler);
 app.delete("/api/admin-users", adminUsersHandler);
-app.post("/api/gemini", geminiHandler);
+
 app.put("/api/change-password", authHandler);
 app.post("/api/set-new-password", authHandler);
 app.post("/api/digistore-ipn", digistoreIpnHandler);

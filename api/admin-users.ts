@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { handleOptions, setCorsHeaders, getTokenFromHeader } from "./_helpers.js";
+import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
 
 export default async function adminUsersHandler(
@@ -23,19 +23,23 @@ export default async function adminUsersHandler(
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    let decoded: { userId: string; email: string; role: string };
+    let decoded: { userId: string; email: string };
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
         userId: string;
         email: string;
-        role: string;
       };
     } catch (error) {
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    // Verificar se o usuário é administrador
-    if (decoded.role !== "admin") {
+    // Verificar se o usuário é administrador consultando o banco de dados
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { role: true },
+    });
+
+    if (!user || user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });
     }
 

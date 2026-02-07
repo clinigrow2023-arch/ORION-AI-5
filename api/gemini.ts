@@ -1,9 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { handleOptions, setCorsHeaders, getTokenFromHeader } from "./_helpers.js";
+import { handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
-import { sendMessageWithFallback, sendMessageStreamWithFallback } from "./ai-providers/fallback.js";
+import { sendMessageStreamWithFallback, sendMessageWithFallback } from "./ai-providers/fallback.js";
 
 export default async function geminiHandler(
   req: VercelRequest,

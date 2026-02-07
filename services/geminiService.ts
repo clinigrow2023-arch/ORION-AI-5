@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Schema, Type } from "@google/genai";
 import { ActionPlan } from "../types";
 
 // Usar endpoint local para desenvolvimento, com fallback para provedores locais

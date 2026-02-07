@@ -186,7 +186,7 @@ export const handler: Handler = async (event, context) => {
 
         // Lista de IDs de produtos que devem disparar a criação/ativação de usuário e envio de email
         // IMPORTANTE: Substitua 'YOUR_EXISTING_PRODUCT_ID' pelo ID real do seu produto existente.
-        const ALLOWED_PRODUCT_IDS = ['123456', '646917']; 
+        const ALLOWED_PRODUCT_IDS = ['646916', '646917', '636567']; 
 
         if (!ALLOWED_PRODUCT_IDS.includes(productId)) {
           console.log(`DigiStore IPN - Product ID ${productId} is not configured for automatic access.`);

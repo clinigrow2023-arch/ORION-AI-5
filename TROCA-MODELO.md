@@ -3,12 +3,14 @@
 ## 🎯 Modelos Recomendados
 
 ### Opção 1: llama3.2:3b (RECOMENDADO - Melhor Equilíbrio)
+
 - ✅ **Velocidade:** 10-15 segundos
 - ✅ **Qualidade:** ⭐⭐⭐⭐ Muito boa
 - ✅ **RAM:** ~2GB
 - ✅ **Seguimento de instruções:** Muito melhor que 1b
 
 ### Opção 2: llama3:8b (Melhor Qualidade)
+
 - ✅ **Velocidade:** 20-30 segundos
 - ✅ **Qualidade:** ⭐⭐⭐⭐⭐ Excelente
 - ✅ **RAM:** ~5GB
@@ -53,12 +55,14 @@ npm run dev
 ## ✅ Resultado Esperado
 
 Com `llama3.2:3b`:
+
 - ✅ Respostas em 10-15 segundos
 - ✅ Modelo segue as instruções CRITICAL corretamente
 - ✅ Para de recusar ajudar
 - ✅ Qualidade muito boa
 
 Com `llama3:8b`:
+
 - ✅ Respostas em 20-30 segundos
 - ✅ Modelo segue perfeitamente as instruções
 - ✅ Qualidade máxima
@@ -67,12 +71,14 @@ Com `llama3:8b`:
 ## ⚠️ Por que o 1b não funciona?
 
 O `llama3.2:1b` é muito pequeno (1 bilhão de parâmetros):
+
 - ❌ Treinamento de segurança muito rígido
 - ❌ Ignora instruções do system prompt
 - ❌ Sempre recusa ajudar (comportamento padrão)
 - ❌ Não consegue "aprender" com as instruções CRITICAL
 
 Modelos maiores (3b, 8b) têm:
+
 - ✅ Mais capacidade de seguir instruções
 - ✅ Melhor compreensão de contexto
 - ✅ Respeitam o system prompt
@@ -81,8 +87,8 @@ Modelos maiores (3b, 8b) têm:
 ## 💡 Recomendação Final
 
 **Use `llama3.2:3b`** - é o melhor equilíbrio:
+
 - Rápido o suficiente (10-15s)
 - Segue as instruções corretamente
 - Qualidade muito boa
 - Não recusa ajudar
-

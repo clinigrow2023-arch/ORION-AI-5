@@ -184,6 +184,19 @@ export const handler: Handler = async (event, context) => {
         const productName = postedValue(postData, 'product_name');
         const billingType = postedValue(postData, 'billing_type');
 
+        // Lista de IDs de produtos que devem disparar a criação/ativação de usuário e envio de email
+        // IMPORTANTE: Substitua 'YOUR_EXISTING_PRODUCT_ID' pelo ID real do seu produto existente.
+        const ALLOWED_PRODUCT_IDS = ['123456', '646917']; 
+
+        if (!ALLOWED_PRODUCT_IDS.includes(productId)) {
+          console.log(`DigiStore IPN - Product ID ${productId} is not configured for automatic access.`);
+          return {
+            statusCode: 200,
+            headers,
+            body: 'OK: Product ID not configured for automated access.',
+          };
+        }
+
         const email = postedValue(postData, 'email');
         const firstName = postedValue(postData, 'address_first_name');
         const lastName = postedValue(postData, 'address_last_name');

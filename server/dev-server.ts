@@ -1,7 +1,7 @@
 // Development server to simulate Vercel API routes locally
-import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import express from "express";
 
 // Load environment variables
 dotenv.config();
@@ -35,11 +35,11 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 // Import Vercel API functions
+import adminUsersHandler from "../api/admin-users.js";
 import authHandler from "../api/auth.js";
 import conversationsHandler from "../api/conversations.js";
-import adminUsersHandler from "../api/admin-users.js";
-import geminiHandler from "../api/gemini.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
+import geminiHandler from "../api/gemini.js";
 import systemPromptHandler from "../api/system-prompt.js";
 
 const app = express();

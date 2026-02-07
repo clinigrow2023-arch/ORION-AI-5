@@ -1,6 +1,9 @@
+import { prisma } from "../_prisma.js";
 import { AIProvider, AIProviderError, createProviderError } from "./base.js";
 import { Ollama3Provider } from "./ollama3.js";
-import { prisma } from "../_prisma.js";
+
+// GroqProvider não está mais disponível após remoção do arquivo
+const GroqProvider = null;
 
 // Cache do prompt para evitar múltiplas queries
 let cachedPrompt: string | null = null;

@@ -1,6 +1,5 @@
 import { AIProvider, AIProviderError, createProviderError } from "./base.js";
 import { Ollama3Provider } from "./ollama3.js";
-import { GroqProvider } from "./groq.js";
 import { prisma } from "../_prisma.js";
 
 // Cache do prompt para evitar múltiplas queries

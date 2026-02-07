@@ -3,6 +3,13 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "vite",
+  "rewrites": [
+    { "source": "/api/auth-register", "destination": "/api/auth" },
+    { "source": "/api/auth-login", "destination": "/api/auth" },
+    { "source": "/api/auth-verify", "destination": "/api/auth" },
+    { "source": "/api/change-password", "destination": "/api/auth" },
+    { "source": "/api/set-new-password", "destination": "/api/auth" }
+  ],
   "env": {
     "PRISMA_GENERATE_DATABASE_URL": "mongodb://localhost:27017/dummy"
   }

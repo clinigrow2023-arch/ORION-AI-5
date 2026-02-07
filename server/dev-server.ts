@@ -35,14 +35,10 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 // Import Vercel API functions
-import authRegisterHandler from "../api/auth-register.js";
-import authLoginHandler from "../api/auth-login.js";
-import authVerifyHandler from "../api/auth-verify.js";
+import authHandler from "../api/auth.js";
 import conversationsHandler from "../api/conversations.js";
 import adminUsersHandler from "../api/admin-users.js";
 import geminiHandler from "../api/gemini.js";
-import changePasswordHandler from "../api/change-password.js";
-import setNewPasswordHandler from "../api/set-new-password.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
 import systemPromptHandler from "../api/system-prompt.js";
 
@@ -97,9 +93,9 @@ app.options("/api/:functionName", (req, res) => {
 });
 
 // Routes - usando /api/ em vez de /.netlify/functions/
-app.post("/api/auth-register", authRegisterHandler);
-app.post("/api/auth-login", authLoginHandler);
-app.get("/api/auth-verify", authVerifyHandler);
+app.post("/api/auth-register", authHandler);
+app.post("/api/auth-login", authHandler);
+app.get("/api/auth-verify", authHandler);
 app.get("/api/conversations", conversationsHandler);
 app.post("/api/conversations", conversationsHandler);
 app.put("/api/conversations", conversationsHandler);
@@ -109,8 +105,8 @@ app.post("/api/admin-users", adminUsersHandler);
 app.put("/api/admin-users", adminUsersHandler);
 app.delete("/api/admin-users", adminUsersHandler);
 app.post("/api/gemini", geminiHandler);
-app.put("/api/change-password", changePasswordHandler);
-app.post("/api/set-new-password", setNewPasswordHandler);
+app.put("/api/change-password", authHandler);
+app.post("/api/set-new-password", authHandler);
 app.post("/api/digistore-ipn", digistoreIpnHandler);
 app.get("/api/system-prompt", systemPromptHandler);
 app.put("/api/system-prompt", systemPromptHandler);

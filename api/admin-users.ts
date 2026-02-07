@@ -45,10 +45,14 @@ export default async function adminUsersHandler(
 
     if (req.method === "GET") {
       // Listar usuários
-      const { page = 1, limit = 10, search = "" } = req.query;
+      const { page = 1, limit = 500, search = "" } = req.query;
 
       const pageNumber = parseInt(page as string) || 1;
-      const limitNumber = parseInt(limit as string) || 10;
+      const limitNumber = parseInt(limit as string) || 500;
+      
+      // Impor limite máximo para evitar sobrecarga
+      const maxLimit = 500;
+      const finalLimit = Math.min(limitNumber, maxLimit);
       const offset = (pageNumber - 1) * limitNumber;
 
       let whereClause: any = {};
@@ -77,7 +81,7 @@ export default async function adminUsersHandler(
           productId: true,
         },
         skip: offset,
-        take: limitNumber,
+        take: finalLimit,
         orderBy: { createdAt: "desc" },
       });
 

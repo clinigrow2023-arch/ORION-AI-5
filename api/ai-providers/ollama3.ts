@@ -35,9 +35,9 @@ export class Ollama3Provider implements AIProvider {
     try {
       // Log removido por segurança (não expor URL da VPS)
 
-      // Histórico otimizado: 4 mensagens (2 turnos) para velocidade
-      // Modelo 3b precisa de menos contexto para ser rápido
-      const MAX_HISTORY_MESSAGES = 4; // Reduzido de 10 para 4 para velocidade
+      // Histórico otimizado: 2 mensagens (1 turno) para velocidade máxima
+      // Menos contexto significa respostas mais rápidas
+      const MAX_HISTORY_MESSAGES = 2; // Reduzido para velocidade
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
       // SEMPRE reforçar instruções críticas no início do system instruction
@@ -71,10 +71,18 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         if (
           !systemInstruction.toLowerCase().startsWith("critical instructions")
         ) {
-          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+          enhancedSystemInstruction = `${criticalInstructions}
+
+---
+
+${systemInstruction}`;
         } else {
           // Se já começa com CRITICAL, ainda adicionar reforço
-          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+          enhancedSystemInstruction = `${criticalInstructions}
+
+---
+
+${systemInstruction}`;
         }
       }
 
@@ -118,13 +126,13 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         prompt: fullPrompt,
         stream: false,
         // Contexto otimizado para velocidade (modelo 3b)
-        num_ctx: 2048, // Reduzido de 4096 para 2048 - mais rápido
+        num_ctx: 1024, // Reduzido para aceleração máxima
         options: {
-          temperature: 0.8, // Mantido para flexibilidade
-          // Tokens gerados otimizados: 1024 é suficiente para respostas completas
-          num_predict: 1024, // Reduzido de 4096 para 1024 - muito mais rápido (suficiente para respostas)
-          top_p: 0.95, // Mantido para flexibilidade
-          repeat_penalty: 1.1, // Reduz repetição
+          temperature: 0.7, // Levemente reduzido para respostas mais focadas
+          // Tokens gerados otimizados para velocidade
+          num_predict: 768, // Reduzido para aceleração máxima
+          top_p: 0.9, // Levemente reduzido para respostas mais coerentes
+          repeat_penalty: 1.2, // Aumentado para reduzir repetição
         },
       };
 
@@ -138,9 +146,9 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
       // Logs removidos por segurança (não expor modelo, URL, ou detalhes de requisição)
 
-      // Timeout aumentado: 180 segundos (respostas completas podem demorar mais)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000);
+      // Timeout reduzido para respostas mais rápidas: 60 segundos
+      const controller = new AbortController(); 
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       const startTime = Date.now();
       let response: Response;
@@ -320,10 +328,18 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         if (
           !systemInstruction.toLowerCase().startsWith("critical instructions")
         ) {
-          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+          enhancedSystemInstruction = `${criticalInstructions}
+
+---
+
+${systemInstruction}`;
         } else {
           // Se já começa com CRITICAL, ainda adicionar reforço
-          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+          enhancedSystemInstruction = `${criticalInstructions}
+
+---
+
+${systemInstruction}`;
         }
       }
 
@@ -369,13 +385,13 @@ Output strictly valid JSON with the following structure:
         stream: false,
         format: "json",
         // Contexto otimizado para velocidade (modelo 3b)
-        num_ctx: 3072, // Reduzido de 8192 para 3072 - mais rápido (suficiente para planos)
+        num_ctx: 2048, // Reduzido para aceleração
         options: {
-          temperature: 0.8, // Mantido para flexibilidade
-          // Tokens gerados otimizados: 2048 é suficiente para planos completos
-          num_predict: 2048, // Reduzido de 8192 para 2048 - muito mais rápido (suficiente para planos JSON)
-          top_p: 0.95, // Mantido para flexibilidade
-          repeat_penalty: 1.1,
+          temperature: 0.7, // Levemente reduzido para respostas mais focadas
+          // Tokens gerados otimizados para velocidade
+          num_predict: 1536, // Reduzido para aceleração
+          top_p: 0.9, // Levemente reduzido para respostas mais coerentes
+          repeat_penalty: 1.2,
         },
       };
 
@@ -386,9 +402,9 @@ Output strictly valid JSON with the following structure:
 
       // Log removido por segurança
 
-      // Timeout aumentado: 180 segundos (planos completos podem demorar mais)
+      // Timeout reduzido para respostas mais rápidas: 60 segundos
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       const startTime = Date.now();
       let response: Response;
@@ -558,7 +574,9 @@ Output strictly valid JSON with the following structure:
     onChunk: (chunk: string) => void
   ): Promise<string> {
     try {
-      const MAX_HISTORY_MESSAGES = 4;
+      // Histórico otimizado: 2 mensagens (1 turno) para velocidade máxima
+      // Menos contexto significa respostas mais rápidas
+      const MAX_HISTORY_MESSAGES = 2; // Reduzido para velocidade
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
       // Reforçar instruções críticas
@@ -587,9 +605,17 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         if (
           !systemInstruction.toLowerCase().startsWith("critical instructions")
         ) {
-          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+          enhancedSystemInstruction = `${criticalInstructions}
+
+---
+
+${systemInstruction}`;
         } else {
-          enhancedSystemInstruction = `${criticalInstructions}\n\n---\n\n${systemInstruction}`;
+          enhancedSystemInstruction = `${criticalInstructions}
+
+---
+
+${systemInstruction}`;
         }
       }
 
@@ -627,12 +653,12 @@ REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
         prompt: fullPrompt,
         stream: true, // ATIVAR STREAMING
         system: enhancedSystemInstruction,
-        num_ctx: 2048,
+        num_ctx: 1024, // Reduzido para aceleração
         options: {
-          temperature: 0.8,
-          num_predict: 1024,
-          top_p: 0.95,
-          repeat_penalty: 1.1,
+          temperature: 0.7, // Levemente reduzido para respostas mais focadas
+          num_predict: 768, // Reduzido para aceleração
+          top_p: 0.9, // Levemente reduzido para respostas mais coerentes
+          repeat_penalty: 1.2, // Aumentado para reduzir repetição
         },
       };
 

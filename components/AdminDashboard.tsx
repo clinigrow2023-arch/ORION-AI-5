@@ -60,7 +60,7 @@ const AdminDashboard: React.FC = () => {
   const [promptUpdatedAt, setPromptUpdatedAt] = useState<string | null>(null);
   const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page: number = 1) => {
     try {
       setLoading(true);
       setError(null);
@@ -70,7 +70,7 @@ const AdminDashboard: React.FC = () => {
       }
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("admin-users"), {
+      const response = await fetch(`${getApiEndpoint("admin-users")}?limit=500&search=${encodeURIComponent(searchQuery)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -93,11 +93,13 @@ const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1);
     if (activeTab === "prompt") {
       fetchSystemPrompt();
     }
-  }, [activeTab]);
+  }, [activeTab, searchQuery]);
+
+
 
   const fetchSystemPrompt = async () => {
     try {
@@ -415,6 +417,10 @@ const AdminDashboard: React.FC = () => {
     );
   });
 
+  const handleRefreshClick = () => {
+    fetchUsers(1);
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
@@ -448,7 +454,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <button
-              onClick={fetchUsers}
+              onClick={handleRefreshClick}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm md:text-base"
             >
               <RefreshCw size={18} className="md:w-5 md:h-5" />
@@ -706,12 +712,19 @@ const AdminDashboard: React.FC = () => {
               type="text"
               placeholder="Search by name or email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                // Reiniciar para a primeira página ao pesquisar
+                fetchUsers(1);
+              }}
               className="w-full pl-10 pr-4 py-2 md:py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={() => {
+                  setSearchQuery("");
+                  fetchUsers(1);
+                }}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
                 title="Clear search"
               >
@@ -889,6 +902,8 @@ const AdminDashboard: React.FC = () => {
             </table>
           </div>
         </div>
+
+      
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4 overflow-y-auto flex-1 min-h-0 pb-4">

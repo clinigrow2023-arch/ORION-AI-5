@@ -546,7 +546,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               return res.status(200).send("OK");
             }
           } else {
-            // Usuário já ativo e com assinatura ativa - apenas atualizar dados de pagamento
+            // Usuário já ativo e com assinatura ativa - RENOVAÇÃO: apenas atualizar dados de pagamento, SEM enviar email
+            // Email de acesso é enviado apenas 1x (novo usuário ou reativação), não em toda renovação
             user = await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -558,18 +559,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 isBlocked: false, // Garantir que está desbloqueado
               },
             });
-            // Log removido por segurança (não expor email)
-
-            // Enviar email informando que acesso foi liberado
-            try {
-              await sendExistingUserEmail(user.email, user.name);
-            } catch (emailError) {
-              console.error(
-                "Error sending email to existing user:",
-                emailError
-              );
-              // Não bloquear o processo se email falhar
-            }
 
             return res.status(200).send("OK");
           }

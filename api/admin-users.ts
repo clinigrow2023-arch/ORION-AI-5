@@ -1,8 +1,21 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendNewUserEmail } from "../lib/email.js";
 import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
+
+function generateRandomPassword(length: number = 12): string {
+  const charset =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  const bytes = randomBytes(length);
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset[bytes[i] % charset.length];
+  }
+  return password;
+}
 
 export default async function adminUsersHandler(
   req: VercelRequest,
@@ -49,11 +62,11 @@ export default async function adminUsersHandler(
 
       const pageNumber = parseInt(page as string) || 1;
       const limitNumber = parseInt(limit as string) || 500;
-      
+
       // Impor limite máximo para evitar sobrecarga
       const maxLimit = 500;
       const finalLimit = Math.min(limitNumber, maxLimit);
-      const offset = (pageNumber - 1) * limitNumber;
+      const offset = (pageNumber - 1) * finalLimit;
 
       let whereClause: any = {};
       if (search) {
@@ -91,42 +104,57 @@ export default async function adminUsersHandler(
         users,
         pagination: {
           currentPage: pageNumber,
-          totalPages: Math.ceil(total / limitNumber),
+          totalPages: Math.max(1, Math.ceil(total / finalLimit)),
           totalItems: total,
-          itemsPerPage: limitNumber,
+          itemsPerPage: finalLimit,
         },
       });
     } else if (req.method === "POST") {
-      // Criar novo usuário (admin)
-      const { name, email, password, role = "user" } = req.body;
+      // Criar novo usuário (admin). Senha opcional: se omitida, gera temporária e envia e-mail.
+      const { name, email, password, role = "user" } = req.body || {};
 
-      if (!name || !email || !password) {
+      if (!name || !email) {
         return res.status(400).json({
-          error: "Name, email and password are required",
+          error: "Name and email are required",
+        });
+      }
+
+      const normalizedRole = role === "admin" ? "admin" : "user";
+      const passwordWasOmitted =
+        password === undefined ||
+        password === null ||
+        String(password).trim() === "";
+
+      let plainPassword = passwordWasOmitted
+        ? generateRandomPassword(12)
+        : String(password);
+
+      if (!passwordWasOmitted && plainPassword.length < 6) {
+        return res.status(400).json({
+          error: "Password must be at least 6 characters",
         });
       }
 
       // Verificar se email já existe
       const existingUser = await prisma.user.findUnique({
-        where: { email: email.toLowerCase() },
+        where: { email: String(email).toLowerCase().trim() },
       });
 
       if (existingUser) {
         return res.status(409).json({ error: "Email already exists" });
       }
 
-      // Hash da senha
       const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
 
-      // Criar usuário
       const newUser = await prisma.user.create({
         data: {
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
+          name: String(name).trim(),
+          email: String(email).toLowerCase().trim(),
           password: hashedPassword,
-          role: role,
-          isActive: true, // Admins geralmente criam usuários ativos
+          role: normalizedRole,
+          isActive: true,
+          passwordResetRequired: passwordWasOmitted,
         },
         select: {
           id: true,
@@ -139,31 +167,122 @@ export default async function adminUsersHandler(
         },
       });
 
+      let emailSent = false;
+      if (passwordWasOmitted) {
+        try {
+          emailSent = await sendNewUserEmail(
+            newUser.email,
+            newUser.name,
+            plainPassword
+          );
+        } catch {
+          emailSent = false;
+        }
+      }
+
       return res.status(201).json({
         message: "User created successfully",
         user: newUser,
+        emailSent,
+        passwordGenerated: passwordWasOmitted,
       });
     } else if (req.method === "PUT") {
-      // Atualizar usuário
-      const { userId, updates } = req.body;
+      const body = req.body || {};
+      const userId = body.userId as string | undefined;
 
-      if (!userId || !updates) {
+      if (!userId) {
         return res.status(400).json({
-          error: "User ID and updates are required",
+          error: "User ID is required",
         });
       }
 
-      // Não permitir atualizar o próprio papel de admin
-      if (userId === decoded.userId && updates.role && updates.role !== "admin") {
+      // Reset de senha (fluxo do painel)
+      if (body.resetPassword === true) {
+        const target = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, email: true, name: true },
+        });
+        if (!target) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        const tempPassword = generateRandomPassword(12);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        const updatedUser = await prisma.user.update({
+          where: { id: userId },
+          data: {
+            password: hashedPassword,
+            passwordResetRequired: true,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isBlocked: true,
+            isActive: true,
+            subscriptionStatus: true,
+            lastPaymentDate: true,
+            nextPaymentDate: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        let emailSent = false;
+        try {
+          emailSent = await sendNewUserEmail(
+            target.email,
+            target.name,
+            tempPassword
+          );
+        } catch {
+          emailSent = false;
+        }
+
+        return res.status(200).json({
+          message: "Password reset successfully",
+          user: updatedUser,
+          emailSent,
+        });
+      }
+
+      let rawUpdates = body.updates;
+      if (!rawUpdates || typeof rawUpdates !== "object") {
+        const { userId: _uid, resetPassword: _rp, updates: _u, ...rest } = body;
+        rawUpdates = rest;
+      }
+
+      const allowed: Record<string, unknown> = {};
+      if (typeof rawUpdates.isBlocked === "boolean") {
+        allowed.isBlocked = rawUpdates.isBlocked;
+      }
+      if (typeof rawUpdates.isActive === "boolean") {
+        allowed.isActive = rawUpdates.isActive;
+      }
+      if (typeof rawUpdates.name === "string" && rawUpdates.name.trim()) {
+        allowed.name = rawUpdates.name.trim();
+      }
+      if (rawUpdates.role === "admin" || rawUpdates.role === "user") {
+        allowed.role = rawUpdates.role;
+      }
+
+      if (Object.keys(allowed).length === 0) {
+        return res.status(400).json({
+          error: "No valid updates provided",
+        });
+      }
+
+      if (userId === decoded.userId && allowed.role && allowed.role !== "admin") {
         return res.status(403).json({
           error: "Cannot change your own admin role",
         });
       }
 
-      // Atualizar usuário
       const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: updates,
+        data: allowed as any,
         select: {
           id: true,
           name: true,
@@ -184,8 +303,9 @@ export default async function adminUsersHandler(
         user: updatedUser,
       });
     } else if (req.method === "DELETE") {
-      // Excluir usuário
-      const { userId } = req.query;
+      const userId =
+        (typeof req.query.userId === "string" && req.query.userId) ||
+        (req.body && typeof req.body.userId === "string" ? req.body.userId : "");
 
       if (!userId) {
         return res.status(400).json({
@@ -201,7 +321,7 @@ export default async function adminUsersHandler(
       }
 
       await prisma.user.delete({
-        where: { id: userId as string },
+        where: { id: userId },
       });
 
       return res.status(200).json({

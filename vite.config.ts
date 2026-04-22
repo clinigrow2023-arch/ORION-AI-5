@@ -19,8 +19,29 @@ export default defineConfig(({ mode }) => {
       ],
       proxy: {
         "/api": {
-          target: "http://localhost:8888",
+          target: "http://127.0.0.1:8888",
           changeOrigin: true,
+          configure(proxy) {
+            proxy.on("error", (err, _req, res) => {
+              const msg = (err as NodeJS.ErrnoException)?.code || err?.message;
+              console.error(
+                "\n[vite proxy] /api → 127.0.0.1:8888:",
+                msg,
+                "\n  → API na porta 8888: use `npm run dev` ou `npm run dev:client` (sobem API + Vite).",
+                "\n  → Só front, API em outro terminal: `npm run dev:vite-only` + `npm run dev:server`.",
+                "\n  → Se a API cair na hora: defina DATABASE_URL (MongoDB) no .env.\n"
+              );
+              if (res && !res.headersSent && typeof (res as any).writeHead === "function") {
+                (res as any).writeHead(502, { "Content-Type": "application/json" });
+                (res as any).end(
+                  JSON.stringify({
+                    error:
+                      "API local indisponível (porta 8888). Rode `npm run dev` ou `npm run dev:client`, ou `npm run dev:server` em outro terminal. Confira DATABASE_URL no .env.",
+                  })
+                );
+              }
+            });
+          },
         },
       },
     },

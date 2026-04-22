@@ -74,7 +74,6 @@ The app requires user authentication. Users must:
 ## Deployment (Vercel)
 
 1. Set environment variables in Vercel:
-
    - `GEMINI_API_KEY` - Your Gemini API key (primary AI provider)
    - `GROK_API_KEY` - Your Grok (xAI) API key (fallback AI provider)
    - `GROQ_API_KEY` - Your Groq API key (fallback AI provider)
@@ -108,7 +107,6 @@ The app includes integration with DigiStore24 for automatic user creation when p
 ### Configuration
 
 1. Set up the IPN URL in DigiStore24 settings:
-
    - Go to https://www.digistore24.com/settings/ipn
    - Set the notify URL to: `https://your-site.vercel.app/api/digistore-ipn`
    - Configure IPN timing to "Before redirect to thankyou page"
@@ -151,7 +149,6 @@ For local development with external access and webhook support (e.g., DigiStore 
 ### Setup
 
 1. Install Cloudflare Tunnel:
-
    - Download from: https://github.com/cloudflare/cloudflared/releases
    - Extract `cloudflared.exe` and add to PATH or place in project directory
 
@@ -162,7 +159,6 @@ For local development with external access and webhook support (e.g., DigiStore 
    ```
 
    This will:
-
    - Authenticate with Cloudflare (opens browser)
    - Create a named tunnel (`orion-ai-dev`)
    - Configure it to point to `localhost:3000`

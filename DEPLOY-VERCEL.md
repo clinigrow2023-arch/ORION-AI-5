@@ -132,26 +132,22 @@ Se um provider falhar ou exceder limite, o sistema tenta automaticamente o próx
 Este erro geralmente indica um problema na execução da função serverless. Siga estes passos:
 
 1. **Verificar variáveis de ambiente na Vercel:**
-
    - Acesse **Settings** → **Environment Variables**
    - Certifique-se de que `DATABASE_URL` está configurada corretamente
    - Verifique se `JWT_SECRET` está configurado
    - Confirme que todas as chaves de API de IA estão configuradas
 
 2. **Verificar logs da função:**
-
    - Acesse **Deployments** → Selecione o deployment → **Functions**
    - Clique na função que está falhando (ex: `api/auth-login`)
    - Veja os logs de erro para identificar o problema específico
 
 3. **Verificar Prisma Client:**
-
    - O Prisma Client deve ser gerado durante o build
    - Se o build falhar, verifique se `DATABASE_URL` está disponível durante o build
    - O `postinstall` script tenta gerar o Prisma Client mesmo sem `DATABASE_URL`
 
 4. **Problemas comuns:**
-
    - **DATABASE_URL inválida**: Verifique se a string de conexão está correta
    - **Prisma Client não gerado**: Verifique os logs do build
    - **Timeout de conexão**: Verifique se o MongoDB Atlas permite conexões da Vercel

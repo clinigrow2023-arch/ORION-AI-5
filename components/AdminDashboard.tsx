@@ -3,6 +3,8 @@ import {
   Ban,
   Bot,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   KeyRound,
   Loader2,
   Mail,
@@ -10,11 +12,12 @@ import {
   Save,
   Search,
   Trash2,
+  UserCog,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 
@@ -27,10 +30,90 @@ interface User {
   createdAt: string;
 }
 
+const USER_PAGE_SIZES = [25, 50, 100] as const;
+
+/** Busca local: digitar não re-renderiza o painel inteiro; só o pai atualiza após debounce */
+const AdminUserSearchBar = React.memo(function AdminUserSearchBar({
+  onDebouncedChange,
+}: {
+  onDebouncedChange: (query: string) => void;
+}) {
+  const [local, setLocal] = useState("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleNotify = useCallback(
+    (raw: string) => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        onDebouncedChange(raw.trim());
+      }, 420);
+    },
+    [onDebouncedChange]
+  );
+
+  useEffect(() => {
+    scheduleNotify(local);
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [local, scheduleNotify]);
+
+  const clearNow = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setLocal("");
+    onDebouncedChange("");
+  };
+
+  return (
+    <div className="mb-4 md:mb-6">
+      <div className="relative">
+        <Search
+          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none"
+          size={20}
+        />
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          className="w-full pl-10 pr-10 py-2 md:py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+        />
+        {local ? (
+          <button
+            type="button"
+            onClick={clearNow}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
+            title="Clear search"
+          >
+            <X size={18} />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+});
+
 const AdminDashboard: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  /** Primeira carga da lista na aba Users (tela cheia); depois só refresh suave */
+  const [usersBootstrapping, setUsersBootstrapping] = useState(true);
+  const [usersRefreshing, setUsersRefreshing] = useState(false);
+  const [totalUsersMatching, setTotalUsersMatching] = useState(0);
+  const usersListInitialized = useRef(false);
+  const usersFetchSeq = useRef(0);
+  const prevSearchForLoadRef = useRef<string | null>(null);
+  const lastSuccessfulListKey = useRef("");
+  const listParamsRef = useRef({ page: 1, size: 25, q: "" });
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [blockConfirm, setBlockConfirm] = useState<{
@@ -47,12 +130,29 @@ const AdminDashboard: React.FC = () => {
     userId: string;
     userName: string;
   } | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [userPage, setUserPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof USER_PAGE_SIZES)[number]>(25);
+  const [listCurrentPage, setListCurrentPage] = useState(1);
+  const [listTotalPages, setListTotalPages] = useState(1);
+  const [searchBarKey, setSearchBarKey] = useState(0);
   const [activeTab, setActiveTab] = useState<"users" | "create" | "prompt">("users");
+
+  listParamsRef.current = {
+    page: userPage,
+    size: pageSize,
+    q: debouncedSearchQuery,
+  };
   const [createUserEmail, setCreateUserEmail] = useState("");
   const [createUserName, setCreateUserName] = useState("");
+  const [createUserRole, setCreateUserRole] = useState<"user" | "admin">("user");
   const [creatingUser, setCreatingUser] = useState(false);
+  const [roleModal, setRoleModal] = useState<{
+    userId: string;
+    userName: string;
+    initialRole: "user" | "admin";
+    selectedRole: "user" | "admin";
+  } | null>(null);
   const [createUserSuccess, setCreateUserSuccess] = useState<string | null>(null);
   const [systemPrompt, setSystemPrompt] = useState("");
   const [promptLoading, setPromptLoading] = useState(false);
@@ -61,21 +161,44 @@ const AdminDashboard: React.FC = () => {
   const [promptUpdatedAt, setPromptUpdatedAt] = useState<string | null>(null);
   const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
 
-  const fetchUsers = async (page: number = 1) => {
+  const loadUserList = async (
+    page: number,
+    limit: number,
+    search: string,
+    opts?: { bypassDedupe?: boolean }
+  ) => {
+    const dedupeKey = `${search}|${page}|${limit}`;
+    if (!opts?.bypassDedupe && dedupeKey === lastSuccessfulListKey.current) {
+      return;
+    }
+
+    const seq = ++usersFetchSeq.current;
+    const isRepeatFetch = usersListInitialized.current;
+
     try {
-      setLoading(true);
       setError(null);
+      if (isRepeatFetch) {
+        setUsersRefreshing(true);
+      } else {
+        setUsersBootstrapping(true);
+      }
+
       const token = authService.getToken();
       if (!token) {
         throw new Error("No token found");
       }
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(`${getApiEndpoint("admin-users")}?limit=500&search=${encodeURIComponent(debouncedSearchQuery)}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${getApiEndpoint(
+          "admin-users"
+        )}?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -85,34 +208,64 @@ const AdminDashboard: React.FC = () => {
       }
 
       const data = await response.json();
-      setUsers(data.users || []);
+      if (seq !== usersFetchSeq.current) {
+        return;
+      }
+
+      const list = data.users || [];
+      setUsers(list);
+      const total = data.pagination?.totalItems;
+      setTotalUsersMatching(
+        typeof total === "number" ? total : list.length
+      );
+      const cur = data.pagination?.currentPage;
+      const tp = data.pagination?.totalPages;
+      setListCurrentPage(typeof cur === "number" ? cur : page);
+      setListTotalPages(
+        typeof tp === "number"
+          ? Math.max(1, tp)
+          : Math.max(1, Math.ceil((total ?? list.length) / limit))
+      );
+      setUserPage(typeof cur === "number" ? cur : page);
+      lastSuccessfulListKey.current = dedupeKey;
+      usersListInitialized.current = true;
     } catch (err: any) {
-      setError(err.message || "Failed to load users");
+      if (seq === usersFetchSeq.current) {
+        setError(err.message || "Failed to load users");
+      }
     } finally {
-      setLoading(false);
+      if (seq === usersFetchSeq.current) {
+        setUsersBootstrapping(false);
+        setUsersRefreshing(false);
+      }
     }
   };
 
+  const reloadAfterMutation = () => {
+    const { page, size, q } = listParamsRef.current;
+    return loadUserList(page, size, q, { bypassDedupe: true });
+  };
+
   useEffect(() => {
-    fetchUsers(1);
+    if (activeTab !== "users") {
+      return;
+    }
+
+    const searchChanged =
+      prevSearchForLoadRef.current !== null &&
+      prevSearchForLoadRef.current !== debouncedSearchQuery;
+    prevSearchForLoadRef.current = debouncedSearchQuery;
+
+    const pageToFetch = searchChanged ? 1 : userPage;
+
+    void loadUserList(pageToFetch, pageSize, debouncedSearchQuery);
+  }, [activeTab, debouncedSearchQuery, userPage, pageSize]);
+
+  useEffect(() => {
     if (activeTab === "prompt") {
       fetchSystemPrompt();
     }
-  }, [activeTab, debouncedSearchQuery]);
-
-
-
-  // Efeito para aplicar debounce na pesquisa
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500); // 500ms de delay após o usuário parar de digitar
-
-    // Limpar o timer se o valor mudar antes do delay terminar
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [searchQuery]);
+  }, [activeTab]);
 
   const fetchSystemPrompt = async () => {
     try {
@@ -221,8 +374,9 @@ const AdminDashboard: React.FC = () => {
     userId: string,
     updates: {
       isBlocked?: boolean;
+      role?: "user" | "admin";
     }
-  ) => {
+  ): Promise<boolean> => {
     try {
       setUpdating(userId);
       setError(null);
@@ -238,7 +392,7 @@ const AdminDashboard: React.FC = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId, ...updates }),
+        body: JSON.stringify({ userId, updates }),
       });
 
       if (!response.ok) {
@@ -246,13 +400,41 @@ const AdminDashboard: React.FC = () => {
         throw new Error(data.error || "Failed to update user");
       }
 
-      await fetchUsers();
+      await reloadAfterMutation();
+      return true;
     } catch (err: any) {
       setError(err.message || "Failed to update user");
+      return false;
     } finally {
       setUpdating(null);
     }
   };
+
+  const openRoleModal = (user: User) => {
+    const initial = user.role === "admin" ? "admin" : "user";
+    setRoleModal({
+      userId: user.id,
+      userName: user.name,
+      initialRole: initial,
+      selectedRole: initial,
+    });
+  };
+
+  const confirmRoleChange = async () => {
+    if (!roleModal) return;
+    if (roleModal.selectedRole === roleModal.initialRole) {
+      setRoleModal(null);
+      return;
+    }
+    const ok = await updateUser(roleModal.userId, {
+      role: roleModal.selectedRole,
+    });
+    if (ok) {
+      setRoleModal(null);
+    }
+  };
+
+  const cancelRoleChange = () => setRoleModal(null);
 
   const handleBlockToggle = (user: User) => {
     setBlockConfirm({
@@ -292,14 +474,17 @@ const AdminDashboard: React.FC = () => {
         }
 
         const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(getApiEndpoint("admin-users"), {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ userId: deleteConfirm.userId }),
-        });
+        const response = await fetch(
+          `${getApiEndpoint("admin-users")}?userId=${encodeURIComponent(
+            deleteConfirm.userId
+          )}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!response.ok) {
           const data = await response.json();
@@ -307,7 +492,7 @@ const AdminDashboard: React.FC = () => {
         }
 
         setDeleteConfirm(null);
-        await fetchUsers();
+        await reloadAfterMutation();
       } catch (err: any) {
         setError(err.message || "Failed to delete user");
       } finally {
@@ -352,8 +537,17 @@ const AdminDashboard: React.FC = () => {
           throw new Error(data.error || "Failed to reset password");
         }
 
+        const data = await response.json();
+        if (data.emailSent === false) {
+          setError(
+            "Password was reset, but the email could not be sent. Configure GMAIL_USER and GMAIL_PASS on the server, or share access with the user manually."
+          );
+        } else {
+          setError(null);
+        }
+
         setResetPasswordConfirm(null);
-        await fetchUsers();
+        await reloadAfterMutation();
       } catch (err: any) {
         setError(err.message || "Failed to reset password");
       } finally {
@@ -398,6 +592,7 @@ const AdminDashboard: React.FC = () => {
         body: JSON.stringify({
           email: createUserEmail.toLowerCase().trim(),
           name: createUserName.trim(),
+          role: createUserRole,
         }),
       });
 
@@ -407,12 +602,20 @@ const AdminDashboard: React.FC = () => {
       }
 
       const data = await response.json();
-      setCreateUserSuccess(
-        `User created successfully! Email sent to ${data.user.email} with temporary password.`
-      );
+      let successMsg = `User ${data.user.email} was created successfully.`;
+      if (data.passwordGenerated) {
+        successMsg += data.emailSent
+          ? " A temporary password was sent by email."
+          : " Email was not sent (configure GMAIL_USER/GMAIL_PASS on the server). You can use Reset PW to email a new temporary password once Gmail is configured.";
+      }
+      setCreateUserSuccess(successMsg);
       setCreateUserEmail("");
       setCreateUserName("");
-      await fetchUsers(); // Atualizar lista de usuários
+      setCreateUserRole("user");
+      setUserPage(1);
+      await loadUserList(1, pageSize, debouncedSearchQuery, {
+        bypassDedupe: true,
+      });
     } catch (err: any) {
       setError(err.message || "Failed to create user");
     } finally {
@@ -420,21 +623,11 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Filtrar usuários baseado na busca
-  const filteredUsers = users.filter((user) => {
-    if (!debouncedSearchQuery.trim()) return true;
-    const query = debouncedSearchQuery.toLowerCase().trim();
-    return (
-      user.email.toLowerCase().includes(query) ||
-      user.name.toLowerCase().includes(query)
-    );
-  });
-
   const handleRefreshClick = () => {
-    fetchUsers(1);
+    void reloadAfterMutation();
   };
 
-  if (loading) {
+  if (activeTab === "users" && usersBootstrapping) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
         <div className="text-center">
@@ -461,7 +654,31 @@ const AdminDashboard: React.FC = () => {
             </p>
             {activeTab === "users" && (
               <p className="text-sm md:text-base text-indigo-400 mt-1">
-                Total users: <span className="font-semibold">{users.length}</span>
+                {debouncedSearchQuery.trim() ? (
+                  <>
+                    Matches:{" "}
+                    <span className="font-semibold">{totalUsersMatching}</span>
+                    {listTotalPages > 1 ? (
+                      <span className="text-slate-500 font-normal">
+                        {" "}
+                        · page {listCurrentPage} of {listTotalPages} (
+                        {pageSize} per page)
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    Total users:{" "}
+                    <span className="font-semibold">{totalUsersMatching}</span>
+                    {listTotalPages > 1 ? (
+                      <span className="text-slate-500 font-normal">
+                        {" "}
+                        · page {listCurrentPage} of {listTotalPages} (
+                        {pageSize} per page)
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -489,9 +706,9 @@ const AdminDashboard: React.FC = () => {
             <span className="flex items-center gap-2">
               <Users size={18} />
               Users
-              {users.length > 0 && (
+              {totalUsersMatching > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
-                  {users.length}
+                  {totalUsersMatching}
                 </span>
               )}
             </span>
@@ -584,6 +801,23 @@ const AdminDashboard: React.FC = () => {
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                     disabled={creatingUser}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Role
+                  </label>
+                  <select
+                    value={createUserRole}
+                    onChange={(e) =>
+                      setCreateUserRole(e.target.value as "user" | "admin")
+                    }
+                    disabled={creatingUser}
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+                  >
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                  </select>
                 </div>
 
                 <button
@@ -714,40 +948,64 @@ const AdminDashboard: React.FC = () => {
         {/* Users Tab */}
         {activeTab === "users" && (
           <>
-        {/* Search Filter */}
-        <div className="mb-4 md:mb-6">
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
-              size={20}
-            />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
+        <AdminUserSearchBar
+          key={searchBarKey}
+          onDebouncedChange={setDebouncedSearchQuery}
+        />
+        {debouncedSearchQuery.trim() ? (
+          <p className="mb-3 text-sm text-slate-400 -mt-2">
+            This page: {users.length} users · total matches:{" "}
+            {totalUsersMatching}
+          </p>
+        ) : null}
+
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-slate-300">
+          <label className="flex items-center gap-2">
+            <span className="text-slate-400">Per page</span>
+            <select
+              value={pageSize}
+              disabled={usersRefreshing}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
+                const n = Number(e.target.value) as (typeof USER_PAGE_SIZES)[number];
+                setPageSize(n);
+                setUserPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2 md:py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setDebouncedSearchQuery("");
-                }}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
-                title="Clear search"
-              >
-                <X size={18} />
-              </button>
-            )}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {USER_PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              type="button"
+              disabled={listCurrentPage <= 1 || usersRefreshing}
+              onClick={() => setUserPage((p) => Math.max(1, p - 1))}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+            >
+              <ChevronLeft size={18} />
+              Prev
+            </button>
+            <span className="text-slate-400 tabular-nums px-1">
+              Page {listCurrentPage} of {listTotalPages}
+            </span>
+            <button
+              type="button"
+              disabled={
+                listCurrentPage >= listTotalPages || usersRefreshing
+              }
+              onClick={() =>
+                setUserPage((p) => Math.min(listTotalPages, p + 1))
+              }
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+            >
+              Next
+              <ChevronRight size={18} />
+            </button>
           </div>
-          {searchQuery && (
-            <p className="mt-2 text-sm text-slate-400">
-              Showing {filteredUsers.length} of {users.length} users
-            </p>
-          )}
         </div>
 
         {error && (
@@ -756,6 +1014,20 @@ const AdminDashboard: React.FC = () => {
             <span>{error}</span>
           </div>
         )}
+
+        <div className="relative flex-1 flex flex-col min-h-0">
+          {usersRefreshing && (
+            <div
+              className="absolute inset-0 z-20 bg-slate-950/40 flex items-center justify-center pointer-events-none rounded-xl"
+              aria-hidden
+            >
+              <Loader2
+                className="animate-spin text-indigo-400"
+                size={36}
+                aria-label="Updating list"
+              />
+            </div>
+          )}
 
         {/* Desktop Table View */}
         <div
@@ -787,7 +1059,7 @@ const AdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <tr
                     key={user.id}
                     className="hover:bg-slate-800/50 transition-colors"
@@ -862,6 +1134,30 @@ const AdminDashboard: React.FC = () => {
                           )}
                         </button>
                         <button
+                          onClick={() => openRoleModal(user)}
+                          disabled={
+                            updating === user.id || user.id === currentUser?.id
+                          }
+                          className="px-2 lg:px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title={
+                            user.id === currentUser?.id
+                              ? "You cannot change your own role here"
+                              : "Change role (user / admin)"
+                          }
+                        >
+                          {updating === user.id ? (
+                            <Loader2
+                              className="animate-spin lg:w-4 lg:h-4"
+                              size={14}
+                            />
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <UserCog size={12} className="lg:w-3 lg:h-3" />
+                              <span className="hidden lg:inline">Role</span>
+                            </span>
+                          )}
+                        </button>
+                        <button
                           onClick={() => handleResetPassword(user)}
                           disabled={updating === user.id}
                           className="px-2 lg:px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 transition-colors"
@@ -918,7 +1214,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4 overflow-y-auto flex-1 min-h-0 pb-4">
-          {filteredUsers.map((user) => (
+          {users.map((user) => (
             <div
               key={user.id}
               className="bg-slate-900 rounded-xl border border-slate-800 p-4"
@@ -986,6 +1282,27 @@ const AdminDashboard: React.FC = () => {
                   )}
                 </button>
                 <button
+                  onClick={() => openRoleModal(user)}
+                  disabled={
+                    updating === user.id || user.id === currentUser?.id
+                  }
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                  title={
+                    user.id === currentUser?.id
+                      ? "You cannot change your own role here"
+                      : "Change role"
+                  }
+                >
+                  {updating === user.id ? (
+                    <Loader2 className="animate-spin mx-auto" size={14} />
+                  ) : (
+                    <>
+                      <UserCog size={12} />
+                      <span>Role</span>
+                    </>
+                  )}
+                </button>
+                <button
                   onClick={() => handleResetPassword(user)}
                   disabled={updating === user.id}
                   className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
@@ -1017,18 +1334,26 @@ const AdminDashboard: React.FC = () => {
             </div>
           ))}
         </div>
+        </div>
 
-        {filteredUsers.length === 0 && !loading && (
+        {users.length === 0 &&
+          !usersBootstrapping &&
+          !usersRefreshing && (
           <div className="text-center py-12">
             <Users size={48} className="text-slate-600 mx-auto mb-4" />
             <p className="text-slate-400">
-              {debouncedSearchQuery
+              {debouncedSearchQuery.trim()
                 ? "No users found matching your search"
                 : "No users found"}
             </p>
-            {debouncedSearchQuery && (
+            {debouncedSearchQuery.trim() && (
               <button
-                onClick={() => setSearchQuery("")}
+                type="button"
+                onClick={() => {
+                  setSearchBarKey((k) => k + 1);
+                  setDebouncedSearchQuery("");
+                  setUserPage(1);
+                }}
                 className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 Clear search
@@ -1160,6 +1485,67 @@ const AdminDashboard: React.FC = () => {
                   </span>
                 ) : (
                   "Delete Account"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: alterar role */}
+      {roleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 max-w-md w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center border border-purple-500/30 shrink-0">
+                <UserCog size={24} className="text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-white">
+                  Change role
+                </h3>
+                <p className="text-sm text-slate-400">User: {roleModal.userName}</p>
+              </div>
+            </div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Role
+            </label>
+            <select
+              value={roleModal.selectedRole}
+              onChange={(e) =>
+                setRoleModal({
+                  ...roleModal,
+                  selectedRole: e.target.value as "user" | "admin",
+                })
+              }
+              disabled={updating === roleModal.userId}
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+            </select>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={cancelRoleChange}
+                disabled={updating === roleModal.userId}
+                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRoleChange}
+                disabled={updating === roleModal.userId}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
+              >
+                {updating === roleModal.userId ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    Saving...
+                  </span>
+                ) : (
+                  "Save role"
                 )}
               </button>
             </div>

@@ -8,7 +8,11 @@ dotenv.config();
 
 // Verify DATABASE_URL is loaded and valid
 if (!process.env.DATABASE_URL) {
-  // Log removido por segurança (não expor informações de .env)
+  console.error(
+    "\n[dev-server] DATABASE_URL não está definido no ambiente (.env na raiz do projeto).",
+    "\n            Sem isso o servidor não sobe na porta 8888 e o Vite retorna ECONNREFUSED em /api/* (ex.: auth-login).",
+    "\n            Adicione uma URL MongoDB válida e rode de novo: npm run dev\n"
+  );
   process.exit(1);
 }
 
@@ -21,7 +25,10 @@ if (dbUrl.startsWith("DATABASE_URL=")) {
 }
 
 if (!dbUrl.startsWith("mongodb://") && !dbUrl.startsWith("mongodb+srv://")) {
-  // Log removido por segurança (não expor DATABASE_URL)
+  console.error(
+    "\n[dev-server] DATABASE_URL precisa começar com mongodb:// ou mongodb+srv://",
+    "\n            (valor inválido ou corrompido no .env).\n"
+  );
   process.exit(1);
 }
 

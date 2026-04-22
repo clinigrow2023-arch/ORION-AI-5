@@ -127,6 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           const userData = data.user;
+          localStorage.setItem("user", JSON.stringify(userData));
           // Limpar histórico do geminiService ao carregar usuário para evitar compartilhamento
           geminiService.clearHistory();
           setUser(userData);

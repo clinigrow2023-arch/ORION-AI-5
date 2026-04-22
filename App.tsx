@@ -19,6 +19,12 @@ const App: React.FC = () => {
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (currentView === "admin" && !isAdmin) {
+      setCurrentView("chat");
+    }
+  }, [currentView, isAdmin]);
+
   // Não fazer logout automático se usuário estiver bloqueado ou expirado
   // Usuário permanece logado mas sem acesso ao chat (já está bloqueado no ChatInterface)
 
@@ -43,6 +49,15 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentView) {
       case "admin":
+        if (!isAdmin) {
+          return (
+            <ChatInterface
+              messages={messages}
+              addMessage={addMessage}
+              onResetChat={resetChat}
+            />
+          );
+        }
         return <AdminDashboard />;
       case "chat":
         return (

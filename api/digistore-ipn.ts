@@ -10,6 +10,9 @@ const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
 // Site base URL (for login and thank you page)
 const SITE_URL = process.env.SITE_URL || "https://your-site.vercel.app";
 
+// Only these DigiStore product IDs may create or renew in-app access on on_payment
+const ALLOWED_DIGISTORE_PRODUCT_IDS = new Set(["686819", "686820"]);
+
 /**
  * Debug mode: To temporarily disable signature validation (for debugging only)
  * Set environment variable: DIGISTORE_ALLOW_WITHOUT_SIGNATURE=true
@@ -406,7 +409,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (normalizedEventType) {
       case "on_payment": {
         const orderId = postedValue(postData, "order_id");
-        const productId = postedValue(postData, "product_id");
+        const productId = postedValue(postData, "product_id").trim();
+        if (!ALLOWED_DIGISTORE_PRODUCT_IDS.has(productId)) {
+          return res.status(200).send("OK");
+        }
         const productName = postedValue(postData, "product_name");
         const billingType = postedValue(postData, "billing_type");
         const rebillDate = postedValue(postData, "rebill_date"); // Date of next recurring payment

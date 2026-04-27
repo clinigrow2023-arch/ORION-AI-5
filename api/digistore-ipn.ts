@@ -2,7 +2,11 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { prisma } from "./_prisma.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { sendNewUserEmail, sendExistingUserEmail } from "../lib/email.js";
+import {
+  sendNewUserEmail,
+  sendExistingUserEmail,
+  sendRenewalThankYouEmail,
+} from "../lib/email.js";
 
 // IPN Passphrase configured in DigiStore IPN settings
 const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
@@ -10,8 +14,22 @@ const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
 // Site base URL (for login and thank you page)
 const SITE_URL = process.env.SITE_URL || "https://your-site.vercel.app";
 
-// Only these DigiStore product IDs may create or renew in-app access on on_payment
-const ALLOWED_DIGISTORE_PRODUCT_IDS = new Set(["686819", "686820"]);
+// Centralized product allowlist:
+// - configure via DIGISTORE_ALLOWED_PRODUCT_IDS="id1,id2,id3"
+// - no hardcoded fallback in code
+
+function parseAllowedDigistoreProductIds(): Set<string> {
+  const source = process.env.DIGISTORE_ALLOWED_PRODUCT_IDS || "";
+
+  return new Set(
+    source
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+  );
+}
+
+const ALLOWED_DIGISTORE_PRODUCT_IDS = parseAllowedDigistoreProductIds();
 
 /**
  * Debug mode: To temporarily disable signature validation (for debugging only)
@@ -102,6 +120,10 @@ function generateRandomPassword(length: number = 12): string {
  */
 function postedValue(data: Record<string, any>, varname: string): string {
   return data[varname] || "";
+}
+
+function isAllowedDigistoreProduct(productId: string): boolean {
+  return ALLOWED_DIGISTORE_PRODUCT_IDS.has((productId || "").trim());
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -369,9 +391,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Detailed log before calculating expected signature
       // Log removido por segurança (não expor informações de assinatura)
 
-      const expectedSignature = digistoreSignature(IPN_PASSPHRASE, postData);
+      const expectedSignatures = new Set([
+        digistoreSignature(IPN_PASSPHRASE, postData, false, false),
+        digistoreSignature(IPN_PASSPHRASE, postData, true, false),
+        digistoreSignature(IPN_PASSPHRASE, postData, false, true),
+        digistoreSignature(IPN_PASSPHRASE, postData, true, true),
+      ]);
+      const normalizedReceivedSignature = (receivedSignature || "")
+        .trim()
+        .toUpperCase();
+      const isSignatureValid = expectedSignatures.has(normalizedReceivedSignature);
 
-      if (receivedSignature !== expectedSignature) {
+      if (!isSignatureValid) {
         // Check if in debug mode
         const allowWithoutSignature =
           process.env.DIGISTORE_ALLOW_WITHOUT_SIGNATURE === "true";
@@ -410,7 +441,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case "on_payment": {
         const orderId = postedValue(postData, "order_id");
         const productId = postedValue(postData, "product_id").trim();
-        if (!ALLOWED_DIGISTORE_PRODUCT_IDS.has(productId)) {
+        if (!isAllowedDigistoreProduct(productId)) {
           return res.status(200).send("OK");
         }
         const productName = postedValue(postData, "product_name");
@@ -553,7 +584,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           } else {
             // Usuário já ativo e com assinatura ativa - RENOVAÇÃO: apenas atualizar dados de pagamento, SEM enviar email
-            // Email de acesso é enviado apenas 1x (novo usuário ou reativação), não em toda renovação
+            // Enviar email de agradecimento por renovação
             user = await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -565,6 +596,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 isBlocked: false, // Garantir que está desbloqueado
               },
             });
+
+            try {
+              await sendRenewalThankYouEmail(user.email, user.name);
+            } catch (emailError) {
+              // Log removido por segurança
+              // Não bloquear o processo se email falhar
+            }
 
             return res.status(200).send("OK");
           }

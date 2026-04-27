@@ -309,6 +309,126 @@ This is an automated email, please do not reply.
 }
 
 /**
+ * Sends thank-you email when subscription is renewed
+ */
+export async function sendRenewalThankYouEmail(
+  email: string,
+  name: string
+): Promise<boolean> {
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn("Email transporter not available, skipping email send");
+    return false;
+  }
+
+  const loginUrl = `${SITE_URL}/#login`;
+
+  const mailOptions = {
+    from: `"Orion AI" <${GMAIL_USER}>`,
+    to: email,
+    subject: "Orion AI - Thanks for renewing your subscription!",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+          }
+          .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+          }
+          .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Thank you for renewing!</h1>
+        </div>
+        <div class="content">
+          <p>Hello <strong>${name}</strong>,</p>
+
+          <p>We have successfully confirmed your renewal payment.</p>
+          <p>Your access to Orion AI remains active and available.</p>
+
+          <div style="text-align: center;">
+            <a href="${loginUrl}" class="button">Access Orion AI</a>
+          </div>
+
+          <p>Thank you for continuing with us. If you need anything, we're here to help.</p>
+
+          <div class="footer">
+            <p>This is an automated email, please do not reply.</p>
+            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Thank you for renewing!
+
+Hello ${name},
+
+We have successfully confirmed your renewal payment.
+Your access to Orion AI remains active and available.
+
+Access: ${loginUrl}
+
+Thank you for continuing with us. If you need anything, we're here to help.
+
+This is an automated email, please do not reply.
+    `.trim(),
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Renewal thank-you email sent successfully:", {
+      email,
+      messageId: info.messageId,
+    });
+    return true;
+  } catch (error: any) {
+    console.error("Error sending renewal thank-you email:", {
+      email,
+      error: error.message,
+    });
+    return false;
+  }
+}
+
+/**
  * Sends email to user informing that subscription has expired
  */
 export async function sendSubscriptionExpiredEmail(

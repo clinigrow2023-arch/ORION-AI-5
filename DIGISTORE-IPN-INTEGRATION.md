@@ -90,7 +90,10 @@ No Vercel, configure:
 ```env
 DIGISTORE_IPN_PASSPHRASE=your_digistore_ipn_passphrase
 SITE_URL=https://your-site.vercel.app
+DIGISTORE_ALLOWED_PRODUCT_IDS=686819,686820,683588,686804
 ```
+
+> **Importante:** não existe fallback hardcoded no código; se essa env estiver vazia, nenhum produto será liberado.
 
 ### 2. Configuração na DigiStore
 

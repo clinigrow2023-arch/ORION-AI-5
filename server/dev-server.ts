@@ -38,6 +38,7 @@ import authHandler from "../api/auth.js";
 import conversationsHandler from "../api/conversations.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
 import chatHandler from "../api/chat.js";
+import planHandler from "../api/plan.js";
 import systemPromptHandler from "../api/system-prompt.js";
 
 const app = express();
@@ -93,6 +94,7 @@ app.options("/api/:functionName", (req, res) => {
 // Routes - usando /api/ em vez de /.netlify/functions/
 app.post("/api/auth-register", authHandler);
 app.post("/api/chat", chatHandler);
+app.post("/api/plan", planHandler);
 app.post("/api/gemini", chatHandler);
 app.post("/api/auth-login", authHandler);
 app.get("/api/auth-verify", authHandler);

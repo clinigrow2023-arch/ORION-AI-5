@@ -21,18 +21,24 @@ interface PlanDisplayProps {
   setPlan: (plan: ActionPlan) => void;
 }
 
-interface Conversation {
+interface ConversationSummary {
   id: string;
-  messages: Array<{ text: string; sender: string; timestamp: string }>;
   createdAt: string;
   updatedAt: string;
+  messageCount?: number;
+}
+
+interface ConversationDetail extends ConversationSummary {
+  messages: Array<{ text: string; sender: string; timestamp?: string }>;
 }
 
 const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [loadedConversation, setLoadedConversation] =
+    useState<ConversationDetail | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
@@ -50,17 +56,19 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
         if (!token) return;
 
         const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(getApiEndpoint("conversations"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await fetch(
+          `${getApiEndpoint("conversations")}?summary=1`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (response.ok) {
           const data = await response.json();
           if (data.conversations && data.conversations.length > 0) {
             setConversations(data.conversations);
-            // Selecionar primeira conversa por padrão
             if (!selectedConversationId) {
               setSelectedConversationId(data.conversations[0].id);
             }
@@ -74,27 +82,47 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     loadConversations();
   }, []);
 
+  useEffect(() => {
+    const loadSelectedMessages = async () => {
+      if (!selectedConversationId) {
+        setLoadedConversation(null);
+        return;
+      }
+
+      try {
+        const token = authService.getToken();
+        if (!token) return;
+
+        const { getApiEndpoint } = await import("../lib/api-endpoints");
+        const response = await fetch(
+          `${getApiEndpoint("conversations")}?conversationId=${encodeURIComponent(selectedConversationId)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.conversation) {
+            setLoadedConversation(data.conversation);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load conversation for plan:", e);
+      }
+    };
+
+    loadSelectedMessages();
+  }, [selectedConversationId]);
+
   const getSelectedConversationHistory = (): string => {
-    if (!selectedConversationId) {
-      // Fallback para histórico do chatService
-      return chatService.getHistoryAsString() || "";
+    if (loadedConversation?.messages?.length) {
+      return loadedConversation.messages
+        .map(
+          (msg) =>
+            `${msg.sender === "user" ? "User" : "Orion"}: ${msg.text}`
+        )
+        .join("\n\n");
     }
-
-    const selectedConv = conversations.find(
-      (c) => c.id === selectedConversationId
-    );
-    if (
-      !selectedConv ||
-      !selectedConv.messages ||
-      selectedConv.messages.length === 0
-    ) {
-      return chatService.getHistoryAsString() || "";
-    }
-
-    // Converter mensagens da conversa para string de histórico
-    return selectedConv.messages
-      .map((msg) => `${msg.sender === "user" ? "User" : "Orion"}: ${msg.text}`)
-      .join("\n\n");
+    return chatService.getHistoryAsString() || "";
   };
 
   const generatePlan = async () => {
@@ -107,7 +135,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     }
 
     const history = getSelectedConversationHistory();
-    if (!history) {
+    if (!history.trim()) {
       setError(
         "Please select a conversation or chat with Orion first to provide context about your situation."
       );
@@ -117,14 +145,17 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     setIsGenerating(true);
     setError(null);
     try {
-      const newPlan = await chatService.generateFormalPlan(history);
+      const newPlan = await chatService.generateFormalPlan({
+        conversationId: selectedConversationId,
+        contextHistory: history,
+      });
 
       // Validar que o plano recebido está completo
       if (
         !newPlan ||
         !newPlan.steps ||
         !Array.isArray(newPlan.steps) ||
-        newPlan.steps.length === 0
+        newPlan.steps.length < 3
       ) {
         setError(
           "The generated plan is incomplete. Please try again or provide more details in the chat."
@@ -152,7 +183,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     plan.steps.length > 0 &&
     plan.messageTemplates &&
     Array.isArray(plan.messageTemplates) &&
-    plan.messageTemplates.length > 0;
+    plan.messageTemplates.length >= 3;
 
   if (!plan || !isValidPlan) {
     return (

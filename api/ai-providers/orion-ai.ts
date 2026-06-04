@@ -49,8 +49,7 @@ export async function generatePlanWithOllama(
   contextHistory: string
 ): Promise<string> {
   const provider = getOllamaProvider();
-  const systemInstruction = await getSystemInstruction();
-  const response = await provider.generatePlan(contextHistory, systemInstruction);
+  const response = await provider.generatePlan(contextHistory);
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty plan response");
   }

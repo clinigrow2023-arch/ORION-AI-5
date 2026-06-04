@@ -23,6 +23,7 @@ if (!process.env.DATABASE_URL) {
 import adminUsersHandler from "../api/admin-users.js";
 import authHandler from "../api/auth.js";
 import chatHandler from "../api/chat.js";
+import planHandler from "../api/plan.js";
 import conversationsHandler from "../api/conversations.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
 import systemPromptHandler from "../api/system-prompt.js";
@@ -92,6 +93,7 @@ app.get("/api/system-prompt", api(systemPromptHandler));
 app.put("/api/system-prompt", api(systemPromptHandler));
 
 app.post("/api/chat", api(chatHandler));
+app.post("/api/plan", api(planHandler));
 /** @deprecated use /api/chat — kept for older clients */
 app.post("/api/gemini", api(chatHandler));
 

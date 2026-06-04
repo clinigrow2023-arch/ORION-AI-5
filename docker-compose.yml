@@ -7,6 +7,9 @@ services:
     image: ollama/ollama:latest
     container_name: orion-ollama
     restart: unless-stopped
+    environment:
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-4}"
+      OLLAMA_MAX_LOADED_MODELS: "1"
     volumes:
       - ollama_orion_data:/root/.ollama
     ports:

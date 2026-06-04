@@ -1,8 +1,17 @@
-import { MAX_HISTORY_MESSAGES } from "../../lib/chat-constants.js";
+import {
+  MAX_HISTORY_MESSAGES,
+  MAX_SYSTEM_PROMPT_CHARS,
+} from "../../lib/chat-constants.js";
 
 export { MAX_HISTORY_MESSAGES };
-export const MAX_MESSAGE_LENGTH = 300;
-export const MAX_PLAN_CONTEXT_CHARS = 6000;
+export const MAX_MESSAGE_LENGTH = 280;
+export const MAX_PLAN_CONTEXT_CHARS = 3500;
+
+/** Compact system for action plan only — avoids loading the huge chat prompt */
+export const PLAN_SYSTEM_PROMPT = `You are Orion AI. Output ONLY valid JSON (English). No markdown.
+Create a personalized reconciliation action plan from the chat history.
+Include: diagnosis, exactly 3 steps (title, description, duration), 3 messageTemplates (situation, text, timing), dos[], donts[], distancingStrategy, neurologicalTriggers.
+Be specific to the user's situation. Keep each field concise.`;
 
 const CRITICAL_BLOCK = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
 
@@ -20,6 +29,16 @@ const CRITICAL_BLOCK = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
 
 REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
 
+export function truncateSystemInstruction(systemInstruction: string): string {
+  if (!systemInstruction?.trim()) return "";
+  const trimmed = systemInstruction.trim();
+  if (trimmed.length <= MAX_SYSTEM_PROMPT_CHARS) return trimmed;
+  return (
+    trimmed.slice(0, MAX_SYSTEM_PROMPT_CHARS) +
+    "\n\n[Instructions truncated for response speed]"
+  );
+}
+
 export function enhanceSystemInstruction(systemInstruction: string): string {
   if (!systemInstruction?.trim()) {
     return CRITICAL_BLOCK;
@@ -27,14 +46,25 @@ export function enhanceSystemInstruction(systemInstruction: string): string {
 
   const lower = systemInstruction.toLowerCase();
   if (lower.includes("never refuse") && lower.includes("you are orion")) {
-    return systemInstruction;
+    return truncateSystemInstruction(systemInstruction);
   }
 
   if (!lower.includes("you are orion")) {
-    return `You are Orion AI, an expert relationship and attraction mentor.\n\n${systemInstruction}`;
+    return truncateSystemInstruction(
+      `You are Orion AI, an expert relationship and attraction mentor.\n\n${systemInstruction}`
+    );
   }
 
-  return `${CRITICAL_BLOCK}\n\n---\n\n${systemInstruction}`;
+  return truncateSystemInstruction(
+    `${CRITICAL_BLOCK}\n\n---\n\n${systemInstruction}`
+  );
+}
+
+export function buildPlanUserPrompt(truncatedHistory: string): string {
+  return `Chat history:
+${truncatedHistory}
+
+Return one JSON object with keys: diagnosis, steps (array of 3), messageTemplates (array of 3), dos, donts, distancingStrategy, neurologicalTriggers.`;
 }
 
 export function limitHistory<T extends { parts: Array<{ text: string }> }>(

@@ -2,6 +2,7 @@ import { ActionPlan } from "../types";
 import { MAX_HISTORY_MESSAGES } from "../lib/chat-constants";
 
 const API_ENDPOINT = "/api/chat";
+const PLAN_ENDPOINT = "/api/plan";
 
 export type ChatHistoryItem = {
   role: "user" | "model";
@@ -104,7 +105,10 @@ export class ChatService {
     throw new Error("Streaming ended without a complete response");
   }
 
-  async generateFormalPlan(contextHistory: string): Promise<ActionPlan> {
+  async generateFormalPlan(options: {
+    contextHistory?: string;
+    conversationId?: string | null;
+  }): Promise<ActionPlan> {
     const token =
       typeof window !== "undefined" && localStorage.getItem("auth_token");
 
@@ -115,25 +119,12 @@ export class ChatService {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(API_ENDPOINT, {
+    const response = await fetch(PLAN_ENDPOINT, {
       method: "POST",
       headers,
       body: JSON.stringify({
-        message: `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
-
-HISTORY:
-${contextHistory}
-
-STRICT REQUIREMENTS:
-1. LANGUAGE: Output MUST be strictly in English.
-2. DIAGNOSIS: Synthesize the diagnosis based on the user's answers in the chat.
-3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
-4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
-5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
-6. TRIGGERS: Explain how to apply neurological triggers.
-
-Output strictly valid JSON.`,
-        history: [],
+        contextHistory: options.contextHistory || "",
+        conversationId: options.conversationId || undefined,
       }),
     });
 
@@ -146,23 +137,9 @@ Output strictly valid JSON.`,
     }
 
     const data = await response.json();
-    let parsedPlan: ActionPlan;
+    const parsedPlan = (data.plan || data.response) as ActionPlan;
 
-    if (typeof data.response === "string") {
-      try {
-        parsedPlan = JSON.parse(data.response) as ActionPlan;
-      } catch {
-        const jsonMatch = data.response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No valid JSON found in response");
-        parsedPlan = JSON.parse(jsonMatch[0]) as ActionPlan;
-      }
-    } else if (typeof data.response === "object") {
-      parsedPlan = data.response as ActionPlan;
-    } else {
-      throw new Error("Invalid response format");
-    }
-
-    if (!this.validatePlan(parsedPlan)) {
+    if (!parsedPlan || !this.validatePlan(parsedPlan)) {
       throw new Error("Generated plan is missing required properties");
     }
 
@@ -179,14 +156,11 @@ Output strictly valid JSON.`,
     const p = plan as ActionPlan;
     return (
       typeof p.diagnosis === "string" &&
+      p.diagnosis.length > 0 &&
       Array.isArray(p.steps) &&
-      p.steps.length > 0 &&
+      p.steps.length >= 3 &&
       Array.isArray(p.messageTemplates) &&
-      p.messageTemplates.length > 0 &&
-      Array.isArray(p.dos) &&
-      p.dos.length > 0 &&
-      Array.isArray(p.donts) &&
-      p.donts.length > 0 &&
+      p.messageTemplates.length >= 3 &&
       typeof p.distancingStrategy === "string" &&
       typeof p.neurologicalTriggers === "string"
     );

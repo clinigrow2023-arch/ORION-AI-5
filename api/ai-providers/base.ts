@@ -6,10 +6,7 @@ export interface AIProvider {
     history: Array<{ role: string; parts: Array<{ text: string }> }>,
     systemInstruction: string
   ): Promise<string>;
-  generatePlan(
-    contextHistory: string,
-    systemInstruction: string
-  ): Promise<string>;
+  generatePlan(contextHistory: string): Promise<string>;
 }
 
 export interface AIProviderError extends Error {

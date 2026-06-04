@@ -14,6 +14,7 @@
     { "source": "/api/digistore-ipn", "destination": "/api/digistore-ipn" },
     { "source": "/api/system-prompt", "destination": "/api/system-prompt" },
     { "source": "/api/chat", "destination": "/api/chat" },
+    { "source": "/api/plan", "destination": "/api/plan" },
     { "source": "/api/gemini", "destination": "/api/chat" }
   ],
   "env": {

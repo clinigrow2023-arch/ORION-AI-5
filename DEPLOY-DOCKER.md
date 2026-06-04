@@ -75,18 +75,37 @@ Parar só o stack Docker (Ollama do host continua):
 docker compose --env-file .env.docker down
 ```
 
-## Nginx (app na 3001)
+## Domínio (ex.: orion.orionaii.com)
 
-```nginx
-location / {
-  proxy_pass http://127.0.0.1:3001;
-  proxy_http_version 1.1;
-  proxy_set_header Host $host;
-  proxy_buffering off;
-}
+DNS: registro **A** `orion` → `31.97.93.86` (já configurado no painel).
+
+Na VPS:
+
+```bash
+apt update && apt install -y nginx certbot python3-certbot-nginx
+cp /opt/orion-ai-docker/deploy/nginx-orion.conf /etc/nginx/sites-available/orion
+ln -sf /etc/nginx/sites-available/orion /etc/nginx/sites-enabled/orion
+rm -f /etc/nginx/sites-enabled/default   # se existir e conflitar
+nginx -t && systemctl reload nginx
+ufw allow 80/tcp && ufw allow 443/tcp
+
+certbot --nginx -d orion.orionaii.com
 ```
 
-`SITE_URL` em `.env.docker` deve ser o domínio público (IPN Digistore, links de e-mail).
+Atualize `.env.docker`:
+
+```env
+SITE_URL=https://orion.orionaii.com
+```
+
+```bash
+cd /opt/orion-ai-docker
+docker compose --env-file .env.docker up -d --force-recreate orion-app
+```
+
+Teste: `https://orion.orionaii.com` (sem `:3001`).
+
+Digistore IPN (quando for cortar Vercel): `https://orion.orionaii.com/api/digistore-ipn`
 
 ## Migrar para o Ollama grande do host (futuro)
 
@@ -103,3 +122,19 @@ Quando quiser usar o Ollama já existente na 11434, **sem** o container `ollama-
 3. Use o mesmo `OLLAMA_MODEL` que já está no host.
 
 Até lá, os dois Ollamas coexistem: produção em **11434**, teste Orion em **11435**.
+
+## Performance e escala (~1000 usuários)
+
+Respostas **quase instantâneas** com LLM local em CPU não são realistas; o alvo é **5–12 s no chat** e **15–30 s no Action Plan** após otimizações.
+
+**Já no código:** prompt do chat truncado, histórico curto (2 msgs), `num_predict` menor, endpoint `/api/plan` dedicado (JSON, sem prompt gigante do admin).
+
+**Na VPS (`.env.docker`):**
+
+```env
+OLLAMA_NUM_PARALLEL=4
+```
+
+**Para máxima velocidade (quando validar):** apontar o app para o Ollama **8B do host** (`:11434`) com GPU/RAM — ver seção “Migrar para o Ollama grande”.
+
+**Escala:** 1000 usuários cadastrados OK; picos simultâneos limitados pelo CPU. KVM8 + `OLLAMA_NUM_PARALLEL=4` aguenta dezenas de chats leves; acima disso considere fila ou segundo nó Ollama.

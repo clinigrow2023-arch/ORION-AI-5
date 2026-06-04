@@ -1,10 +1,21 @@
 import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 import {
+  CHAT_NUM_PREDICT,
+  PLAN_NUM_PREDICT,
+} from "../../lib/chat-constants.js";
+import {
   buildConversationPrompt,
+  buildPlanUserPrompt,
   enhanceSystemInstruction,
   getOllamaAuthHeaders,
+  PLAN_SYSTEM_PROMPT,
   truncatePlanContext,
 } from "./ollama-helpers.js";
+
+const OLLAMA_DEBUG = process.env.OLLAMA_DEBUG === "1";
+function ollamaLog(...args: unknown[]) {
+  if (OLLAMA_DEBUG) console.log(...args);
+}
 
 // Ollama provider — VPS local inference only
 export class Ollama3Provider implements AIProvider {
@@ -24,7 +35,7 @@ export class Ollama3Provider implements AIProvider {
     this.apiKey = apiKey || process.env.OLLAMA_API_KEY || "";
 
     // Debug: mostrar qual modelo está sendo usado
-    console.log(`[Ollama] model=${this.model} url=${this.baseUrl}`);
+    ollamaLog(`[Ollama] model=${this.model}`);
   }
 
   async sendMessage(
@@ -46,8 +57,8 @@ export class Ollama3Provider implements AIProvider {
         system: enhancedSystemInstruction,
         num_ctx: 2048,
         options: {
-          temperature: 0.7,
-          num_predict: 512,
+          temperature: 0.65,
+          num_predict: CHAT_NUM_PREDICT,
           top_p: 0.9,
           repeat_penalty: 1.15,
         },
@@ -201,38 +212,10 @@ export class Ollama3Provider implements AIProvider {
     }
   }
 
-  async generatePlan(
-    contextHistory: string,
-    systemInstruction: string
-  ): Promise<string> {
+  async generatePlan(contextHistory: string): Promise<string> {
     try {
-      const enhancedSystemInstruction = enhanceSystemInstruction(systemInstruction);
       const truncatedHistory = truncatePlanContext(contextHistory);
-
-      const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
-
-HISTORY:
-${truncatedHistory}
-
-STRICT REQUIREMENTS:
-1. LANGUAGE: Output MUST be strictly in English.
-2. DIAGNOSIS: Synthesize the diagnosis based on the user's answers in the chat.
-3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
-4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
-5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
-6. TRIGGERS: Explain how to use specific Secret Signals (The Awakening Phrase, The Fascination Signal, etc.).
-
-Output strictly valid JSON with the following structure:
-{
-  "diagnosis": "string",
-  "steps": [{"stepNumber": 1, "title": "string", "description": "string", "duration": "string"}],
-  "messageTemplates": [{"situation": "string", "text": "string", "timing": "string"}],
-  "dos": ["string"],
-  "donts": ["string"],
-  "distancingStrategy": "string",
-  "neurologicalTriggers": "string"
-}`;
-
+      const prompt = buildPlanUserPrompt(truncatedHistory);
       const headers = getOllamaAuthHeaders(this.apiKey);
 
       const requestBody: Record<string, unknown> = {
@@ -240,13 +223,13 @@ Output strictly valid JSON with the following structure:
         prompt,
         stream: false,
         format: "json",
-        system: enhancedSystemInstruction,
-        num_ctx: 4096,
+        system: PLAN_SYSTEM_PROMPT,
+        num_ctx: 3072,
         options: {
-          temperature: 0.7,
-          num_predict: 1200,
-          top_p: 0.9,
-          repeat_penalty: 1.15,
+          temperature: 0.35,
+          num_predict: PLAN_NUM_PREDICT,
+          top_p: 0.85,
+          repeat_penalty: 1.1,
         },
       };
 
@@ -435,8 +418,8 @@ Output strictly valid JSON with the following structure:
         system: enhancedSystemInstruction,
         num_ctx: 2048,
         options: {
-          temperature: 0.7,
-          num_predict: 512,
+          temperature: 0.65,
+          num_predict: CHAT_NUM_PREDICT,
           top_p: 0.9,
           repeat_penalty: 1.15,
         },

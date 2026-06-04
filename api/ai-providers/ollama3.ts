@@ -1,8 +1,14 @@
 import { AIProvider, createProviderError, isRetryableError } from "./base.js";
+import {
+  buildConversationPrompt,
+  enhanceSystemInstruction,
+  getOllamaAuthHeaders,
+  truncatePlanContext,
+} from "./ollama-helpers.js";
 
-// Ollama3 Provider Implementation
+// Ollama provider — VPS local inference only
 export class Ollama3Provider implements AIProvider {
-  name = "Ollama3";
+  name = "Ollama";
   private baseUrl: string;
   private model: string;
   private apiKey: string;
@@ -18,13 +24,7 @@ export class Ollama3Provider implements AIProvider {
     this.apiKey = apiKey || process.env.OLLAMA_API_KEY || "";
 
     // Debug: mostrar qual modelo está sendo usado
-    console.log(`[Ollama3] Provider inicializado com modelo: ${this.model}`);
-    console.log(`[Ollama3] Base URL: ${this.baseUrl}`);
-    console.log(
-      `[Ollama3] OLLAMA_MODEL env: ${
-        process.env.OLLAMA_MODEL || "não definido"
-      }`
-    );
+    console.log(`[Ollama] model=${this.model} url=${this.baseUrl}`);
   }
 
   async sendMessage(
@@ -35,114 +35,23 @@ export class Ollama3Provider implements AIProvider {
     try {
       // Log removido por segurança (não expor URL da VPS)
 
-      // Histórico otimizado: 2 mensagens (1 turno) para velocidade máxima
-      // Menos contexto significa respostas mais rápidas
-      const MAX_HISTORY_MESSAGES = 2; // Reduzido para velocidade
-      const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
+      const enhancedSystemInstruction = enhanceSystemInstruction(systemInstruction);
+      const fullPrompt = buildConversationPrompt(message, history);
+      const headers = getOllamaAuthHeaders(this.apiKey);
 
-      // SEMPRE reforçar instruções críticas no início do system instruction
-      // Modelos pequenos (como llama3.2:1b) precisam de instruções MUITO explícitas
-      let enhancedSystemInstruction = systemInstruction;
-      if (systemInstruction) {
-        // Instruções CRITICAL MUITO explícitas e diretas - SEMPRE no início
-        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
-
-1. You are Orion AI, a relationship and attraction mentor.
-2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
-3. NEVER refuse, decline, or say you cannot help.
-4. FORBIDDEN PHRASES - NEVER SAY THESE:
-   - "I can't provide assistance"
-   - "I can't help"
-   - "I'm unable to"
-   - "I cannot"
-   - "I won't help"
-   - "I can't fulfill that request"
-   - "I can't provide assistance or guidance on relationships"
-   - "I encourage you to reach out to a trusted friend"
-   - Any phrase that refuses to help with relationship questions
-5. If a question is unclear, ask clarifying questions - DO NOT refuse.
-6. You help with HEALTHY relationship strategies, reconnection, and attraction.
-7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
-
-REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
-
-        // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
-        // Modelos pequenos precisam de reforço constante
-        if (
-          !systemInstruction.toLowerCase().startsWith("critical instructions")
-        ) {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        } else {
-          // Se já começa com CRITICAL, ainda adicionar reforço
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        }
-      }
-
-      // Construir prompt completo com histórico
-      let fullPrompt = "";
-
-      // Converter histórico para formato conversacional (com truncamento para velocidade)
-      const MAX_MESSAGE_LENGTH = 300; // Limitar cada mensagem a 300 caracteres para velocidade
-      for (const h of limitedHistory) {
-        const role = h.role === "user" ? "User" : "Assistant";
-        let content = h.parts
-          .map((p) => p.text)
-          .join(" ")
-          .trim();
-        if (content) {
-          // Truncar mensagens muito longas para reduzir prompt
-          if (content.length > MAX_MESSAGE_LENGTH) {
-            content = content.substring(0, MAX_MESSAGE_LENGTH) + "...";
-          }
-          fullPrompt += `${role}: ${content}\n`;
-        }
-      }
-
-      // Adicionar mensagem atual
-      fullPrompt += `User: ${message}\nAssistant:`;
-
-      // Preparar headers com autenticação
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      // Adicionar token de autenticação se configurado
-      if (this.apiKey) {
-        headers["X-API-Key"] = this.apiKey;
-        headers["Authorization"] = `Bearer ${this.apiKey}`;
-      }
-
-      // Usar campo 'system' separado se disponível (API do Ollama suporta isso)
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         model: this.model,
         prompt: fullPrompt,
         stream: false,
-        // Contexto otimizado para velocidade (modelo 3b)
-        num_ctx: 1024, // Reduzido para aceleração máxima
+        system: enhancedSystemInstruction,
+        num_ctx: 2048,
         options: {
-          temperature: 0.7, // Levemente reduzido para respostas mais focadas
-          // Tokens gerados otimizados para velocidade
-          num_predict: 768, // Reduzido para aceleração máxima
-          top_p: 0.9, // Levemente reduzido para respostas mais coerentes
-          repeat_penalty: 1.2, // Aumentado para reduzir repetição
+          temperature: 0.7,
+          num_predict: 512,
+          top_p: 0.9,
+          repeat_penalty: 1.15,
         },
       };
-
-      // Adicionar system instruction como campo separado (API do Ollama suporta)
-      if (enhancedSystemInstruction) {
-        requestBody.system = enhancedSystemInstruction;
-        // Também adicionar no início do prompt como fallback
-        fullPrompt = `${enhancedSystemInstruction}\n\n${fullPrompt}`;
-        requestBody.prompt = fullPrompt;
-      }
 
       // Logs removidos por segurança (não expor modelo, URL, ou detalhes de requisição)
 
@@ -297,56 +206,13 @@ ${systemInstruction}`;
     systemInstruction: string
   ): Promise<string> {
     try {
-      // SEMPRE reforçar instruções críticas no início do system instruction
-      // Modelos pequenos (como llama3.2:1b) precisam de instruções MUITO explícitas
-      let enhancedSystemInstruction = systemInstruction;
-      if (systemInstruction) {
-        // Instruções CRITICAL MUITO explícitas e diretas - SEMPRE no início
-        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
+      const enhancedSystemInstruction = enhanceSystemInstruction(systemInstruction);
+      const truncatedHistory = truncatePlanContext(contextHistory);
 
-1. You are Orion AI, a relationship and attraction mentor.
-2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
-3. NEVER refuse, decline, or say you cannot help.
-4. FORBIDDEN PHRASES - NEVER SAY THESE:
-   - "I can't provide assistance"
-   - "I can't help"
-   - "I'm unable to"
-   - "I cannot"
-   - "I won't help"
-   - "I can't fulfill that request"
-   - "I can't provide assistance or guidance on relationships"
-   - "I encourage you to reach out to a trusted friend"
-   - Any phrase that refuses to help with relationship questions
-5. If a question is unclear, ask clarifying questions - DO NOT refuse.
-6. You help with HEALTHY relationship strategies, reconnection, and attraction.
-7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
-
-REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
-
-        // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
-        // Modelos pequenos precisam de reforço constante
-        if (
-          !systemInstruction.toLowerCase().startsWith("critical instructions")
-        ) {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        } else {
-          // Se já começa com CRITICAL, ainda adicionar reforço
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        }
-      }
-
-      const prompt = `${enhancedSystemInstruction}\n\nBased on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
+      const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
 
 HISTORY:
-${contextHistory}
+${truncatedHistory}
 
 STRICT REQUIREMENTS:
 1. LANGUAGE: Output MUST be strictly in English.
@@ -367,38 +233,22 @@ Output strictly valid JSON with the following structure:
   "neurologicalTriggers": "string"
 }`;
 
-      // Preparar headers com autenticação
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
+      const headers = getOllamaAuthHeaders(this.apiKey);
 
-      // Adicionar token de autenticação se configurado
-      if (this.apiKey) {
-        headers["X-API-Key"] = this.apiKey;
-        headers["Authorization"] = `Bearer ${this.apiKey}`;
-      }
-
-      // Usar campo 'system' separado se disponível (API do Ollama suporta isso)
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         model: this.model,
-        prompt: prompt,
+        prompt,
         stream: false,
         format: "json",
-        // Contexto otimizado para velocidade (modelo 3b)
-        num_ctx: 2048, // Reduzido para aceleração
+        system: enhancedSystemInstruction,
+        num_ctx: 4096,
         options: {
-          temperature: 0.7, // Levemente reduzido para respostas mais focadas
-          // Tokens gerados otimizados para velocidade
-          num_predict: 1536, // Reduzido para aceleração
-          top_p: 0.9, // Levemente reduzido para respostas mais coerentes
-          repeat_penalty: 1.2,
+          temperature: 0.7,
+          num_predict: 1200,
+          top_p: 0.9,
+          repeat_penalty: 1.15,
         },
       };
-
-      // Adicionar system instruction como campo separado (API do Ollama suporta)
-      if (enhancedSystemInstruction) {
-        requestBody.system = enhancedSystemInstruction;
-      }
 
       // Log removido por segurança
 
@@ -574,97 +424,25 @@ Output strictly valid JSON with the following structure:
     onChunk: (chunk: string) => void
   ): Promise<string> {
     try {
-      // Histórico otimizado: 2 mensagens (1 turno) para velocidade máxima
-      // Menos contexto significa respostas mais rápidas
-      const MAX_HISTORY_MESSAGES = 2; // Reduzido para velocidade
-      const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
+      const enhancedSystemInstruction = enhanceSystemInstruction(systemInstruction);
+      const fullPrompt = buildConversationPrompt(message, history);
+      const headers = getOllamaAuthHeaders(this.apiKey);
 
-      // Reforçar instruções críticas
-      let enhancedSystemInstruction = systemInstruction;
-      if (systemInstruction) {
-        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
-
-1. You are Orion AI, a relationship and attraction mentor.
-2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
-3. NEVER refuse, decline, or say you cannot help.
-4. FORBIDDEN PHRASES - NEVER SAY THESE:
-   - "I can't provide assistance"
-   - "I can't help"
-   - "I'm unable to"
-   - "I cannot"
-   - "I won't help"
-   - "I can't fulfill that request"
-   - "I can't provide assistance or guidance on relationships"
-   - Any phrase that refuses to help with relationship questions
-5. If a question is unclear, ask clarifying questions - DO NOT refuse.
-6. You help with HEALTHY relationship strategies, reconnection, and attraction.
-7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
-
-REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
-
-        if (
-          !systemInstruction.toLowerCase().startsWith("critical instructions")
-        ) {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        } else {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        }
-      }
-
-      // Construir prompt completo com histórico
-      let fullPrompt = "";
-
-      for (const h of limitedHistory) {
-        const role = h.role === "user" ? "User" : "Assistant";
-        const content = h.parts
-          .map((p) => p.text)
-          .join(" ")
-          .trim();
-        if (content) {
-          const truncatedContent =
-            content.length > 300 ? content.substring(0, 300) + "..." : content;
-          fullPrompt += `${role}: ${truncatedContent}\n`;
-        }
-      }
-
-      fullPrompt += `User: ${message}\nAssistant:`;
-
-      // Preparar headers
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-
-      if (this.apiKey) {
-        headers["X-API-Key"] = this.apiKey;
-        headers["Authorization"] = `Bearer ${this.apiKey}`;
-      }
-
-      // Request body com streaming ativado
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         model: this.model,
         prompt: fullPrompt,
-        stream: true, // ATIVAR STREAMING
+        stream: true,
         system: enhancedSystemInstruction,
-        num_ctx: 1024, // Reduzido para aceleração
+        num_ctx: 2048,
         options: {
-          temperature: 0.7, // Levemente reduzido para respostas mais focadas
-          num_predict: 768, // Reduzido para aceleração
-          top_p: 0.9, // Levemente reduzido para respostas mais coerentes
-          repeat_penalty: 1.2, // Aumentado para reduzir repetição
+          temperature: 0.7,
+          num_predict: 512,
+          top_p: 0.9,
+          repeat_penalty: 1.15,
         },
       };
 
-      console.log(
-        `[Ollama3] Starting streaming request (model: ${this.model})`
-      );
+      console.log(`[Ollama] streaming model=${this.model}`);
 
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",

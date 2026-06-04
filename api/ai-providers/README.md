@@ -5,7 +5,7 @@ Sistema de fallback para múltiplos provedores de IA, garantindo alta disponibil
 ## Estrutura
 
 - `base.ts` - Interface comum e tipos para todos os providers
-- `gemini.ts` - Implementação do provider Gemini (Google)
+- `orion-ai.ts` - Fachada única: apenas Ollama
 - `grok.ts` - Implementação do provider Grok (xAI)
 - `fallback.ts` - Sistema de fallback sequencial
 - `README.md` - Esta documentação

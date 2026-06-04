@@ -48,6 +48,7 @@ model Conversation {
 
   @@map("conversations")
   @@index([userId])
+  @@index([userId, updatedAt])
 }
 
 model SystemPrompt {

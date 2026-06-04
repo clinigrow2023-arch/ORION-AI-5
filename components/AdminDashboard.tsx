@@ -352,7 +352,7 @@ const AdminDashboard: React.FC = () => {
         setPromptUpdatedAt(date.toLocaleString());
       }
       setPromptSuccess(
-        `✅ Prompt saved successfully! Version ${data.version} is now active. All AI providers (Ollama, Groq, OpenAI, etc.) will use this prompt.`
+        `✅ Prompt saved successfully! Version ${data.version} is now active. Ollama will use this prompt.`
       );
       setError(null);
       
@@ -856,7 +856,7 @@ const AdminDashboard: React.FC = () => {
                 System Prompt Management
               </h2>
               <p className="text-sm md:text-base text-slate-400 mb-3">
-                Edit the system instruction that all AI providers (Ollama, Groq, OpenAI, etc.) will use. Changes apply globally to all AI responses.
+                Edit the system instruction that Ollama uses. Changes apply globally to all AI responses.
               </p>
               
               {/* Status do Prompt Atual */}

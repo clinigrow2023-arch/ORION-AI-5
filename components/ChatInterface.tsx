@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Message, Sender } from "../types";
-import { geminiService } from "../services/geminiService";
+import { chatService } from "../services/chatService";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 import ReactMarkdown from "react-markdown";
@@ -31,7 +31,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   addMessage,
   onResetChat,
 }) => {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     string | null
   >(null);
   const [conversations, setConversations] = useState<
-    Array<{ id: string; createdAt: string; updatedAt: string }>
+    Array<{
+      id: string;
+      createdAt: string;
+      updatedAt: string;
+      messageCount?: number;
+    }>
   >([]);
   const [showConversationsList, setShowConversationsList] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<{
@@ -65,125 +70,98 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamedResponse]);
+  }, [messages]);
 
-  // Carregar histórico ao montar (apenas uma vez)
   useEffect(() => {
-    // Evitar carregar múltiplas vezes
-    if (hasLoadedHistory.current) return;
+    if (streamedResponse) {
+      scrollToBottom();
+    }
+  }, [streamedResponse.length]);
 
-    const loadConversation = async () => {
-      try {
-        const token = authService.getToken();
-        if (!token) return;
-
-        // Se já tem mensagens, não carregar novamente
-        if (messages.length > 0) {
-          hasLoadedHistory.current = true;
-          return;
-        }
-
-        const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(getApiEndpoint("conversations"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-
-          // Carregar última conversa se existir e não houver conversa atual selecionada
-          if (
-            data.conversations &&
-            data.conversations.length > 0 &&
-            !currentConversationId
-          ) {
-            const lastConv = data.conversations[0];
-            setCurrentConversationId(lastConv.id);
-            if (
-              lastConv.messages &&
-              Array.isArray(lastConv.messages) &&
-              lastConv.messages.length > 0
-            ) {
-              // Limpar histórico do geminiService para evitar compartilhamento entre usuários
-              geminiService.clearHistory();
-
-              // Reconstruir histórico do geminiService a partir das mensagens salvas
-              lastConv.messages.forEach((msg: any) => {
-                if (msg.sender === "user") {
-                  geminiService.addToHistory("user", msg.text);
-                } else {
-                  geminiService.addToHistory("model", msg.text);
-                }
-              });
-
-              // Converter mensagens do histórico para o formato do componente
-              const loadedMessages: Message[] = lastConv.messages.map(
-                (msg: any, index: number) => ({
-                  id: msg.id || generateUniqueId(),
-                  text: msg.text || "",
-                  sender: msg.sender === "user" ? Sender.User : Sender.Bot,
-                  timestamp: msg.timestamp
-                    ? new Date(msg.timestamp)
-                    : new Date(),
-                })
-              );
-
-              // Adicionar mensagens ao estado apenas se ainda não foram carregadas
-              if (loadedMessages.length > 0 && messages.length === 0) {
-                hasLoadedHistory.current = true;
-                // Verificar duplicação antes de adicionar
-                const existingIds = new Set(messages.map((m) => m.id));
-                const uniqueMessages = loadedMessages.filter(
-                  (msg) => !existingIds.has(msg.id)
-                );
-
-                // Adicionar todas as mensagens de uma vez
-                uniqueMessages.forEach((msg) => addMessage(msg));
-              }
-            }
-          } else if (!currentConversationId) {
-            // Se não há conversas, limpar histórico do geminiService
-            geminiService.clearHistory();
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load conversation:", error);
-      }
-    };
-
-    loadConversation();
-    loadConversations(); // Carregar lista de conversas
-  }, [messages.length, addMessage]);
-
-  const loadConversations = async () => {
+  const loadConversationsList = async () => {
     try {
       const token = authService.getToken();
-      if (!token) return;
+      if (!token) return [];
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("conversations"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${getApiEndpoint("conversations")}?summary=1`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       if (response.ok) {
         const data = await response.json();
         if (data.conversations && Array.isArray(data.conversations)) {
-          // Garantir que só carregamos conversas válidas (com id e messages)
-          const validConversations = data.conversations.filter(
-            (conv: any) =>
-              conv.id && conv.messages && Array.isArray(conv.messages)
-          );
-          setConversations(validConversations);
+          setConversations(data.conversations);
+          return data.conversations;
         }
       }
     } catch (error) {
       console.error("Failed to load conversations:", error);
     }
+    return [];
   };
+
+  const loadConversationById = async (conversationId: string) => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(
+        `${getApiEndpoint("conversations")}?conversationId=${conversationId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const conv = data.conversation;
+      if (!conv?.messages?.length) return;
+
+      setCurrentConversationId(conv.id);
+      chatService.clearHistory();
+
+      conv.messages.forEach((msg: any) => {
+        if (msg.sender === "user") {
+          chatService.addToHistory("user", msg.text);
+        } else {
+          chatService.addToHistory("model", msg.text);
+        }
+      });
+
+      const loadedMessages: Message[] = conv.messages.map((msg: any) => ({
+        id: msg.id || generateUniqueId(),
+        text: msg.text || "",
+        sender: msg.sender === "user" ? Sender.User : Sender.Bot,
+        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+      }));
+
+      loadedMessages.forEach((msg) => addMessage(msg));
+    } catch (error) {
+      console.error("Failed to load conversation:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (hasLoadedHistory.current) return;
+
+    const bootstrap = async () => {
+      const token = authService.getToken();
+      if (!token) return;
+
+      const list = await loadConversationsList();
+      if (list.length > 0 && messages.length === 0) {
+        await loadConversationById(list[0].id);
+      } else if (list.length === 0) {
+        chatService.clearHistory();
+      }
+
+      hasLoadedHistory.current = true;
+    };
+
+    bootstrap();
+  }, []);
 
   const handleDeleteClick = (conversationId: string, updatedAt: string) => {
     const date = new Date(updatedAt).toLocaleDateString();
@@ -207,7 +185,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       if (response.ok) {
-        await loadConversations();
+        await loadConversationsList();
         if (currentConversationId === conversationId) {
           // Se deletou a conversa atual, limpar mensagens
           onResetChat();
@@ -269,7 +247,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             if (data.conversation) {
               // CRÍTICO: Setar o ID da conversa criada para usar nas próximas mensagens
               setCurrentConversationId(data.conversation.id);
-              await loadConversations();
+              await loadConversationsList();
             }
           } else if (response.status === 403) {
             const errorData = await response.json().catch(() => ({}));
@@ -308,7 +286,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (!currentConversationId) {
             setCurrentConversationId(data.conversation.id);
           }
-          await loadConversations();
+          setConversations((prev) => {
+            const existing = prev.find((c) => c.id === data.conversation.id);
+            if (existing) {
+              return prev.map((c) =>
+                c.id === data.conversation.id
+                  ? {
+                      ...c,
+                      updatedAt: data.conversation.updatedAt,
+                      messageCount: messagesToSave.length,
+                    }
+                  : c
+              );
+            }
+            return [
+              {
+                id: data.conversation.id,
+                createdAt: data.conversation.createdAt,
+                updatedAt: data.conversation.updatedAt,
+                messageCount: messagesToSave.length,
+              },
+              ...prev,
+            ];
+          });
         }
       } else if (response.status === 403) {
         const errorData = await response.json().catch(() => ({}));
@@ -374,23 +374,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
     }
 
-    // Atualizar estado do usuário antes de enviar (garantir dados mais recentes)
-    await refreshUser();
-
-    // Obter usuário atualizado após refresh
-    const updatedUser = user; // refreshUser já atualiza o estado, mas vamos usar o user do contexto
-
-    // Verificar novamente após refresh (caso tenha sido bloqueado durante o uso)
-    // Nota: O backend também valida, mas esta verificação dupla garante que não gastamos tokens
-    if (updatedUser && updatedUser.role !== "admin") {
-      if (updatedUser.isBlocked) {
-        alert(
-          "Your account has been blocked. Please contact an administrator."
-        );
-        return;
-      }
-    }
-
     // Só adiciona mensagem e chama API se passou todas as validações
     const userMsg: Message = {
       id: generateUniqueId(),
@@ -408,7 +391,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     try {
       console.log("📤 Sending message:", input);
 
-      const fullResponse = await geminiService.sendMessageStream(
+      const fullResponse = await chatService.sendMessageStream(
         input,
         (chunk) => {
           setStreamedResponse((prev) => prev + chunk);
@@ -483,15 +466,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       let errorText =
         "I encountered an error processing your strategy. Please try again.";
 
-      // Check for leaked API key error
-      if (
-        error?.message?.includes("vazada") ||
-        error?.message?.includes("leaked") ||
-        error?.code === 403
-      ) {
-        errorText = `🔒 **Security Error Detected**\n\nYour API key has been reported as leaked by Google.\n\n**To resolve:**\n1. Visit [Google AI Studio](https://aistudio.google.com/apikey)\n2. Generate a new API key\n3. Update the \`.env\` file with the new key:\n   \`GEMINI_API_KEY=your_new_key_here\`\n4. Restart the server (\`npm run dev\`)`;
-      } else if (error?.message?.includes("API key is missing")) {
-        errorText = `⚠️ **API Key Not Found**\n\nPlease add your Gemini API key to the \`.env\` file:\n\`GEMINI_API_KEY=your_key_here\`\n\nThen, restart the server.`;
+      if (error?.message?.includes("Ollama")) {
+        errorText =
+          "⚠️ **AI service unavailable**\n\nCould not reach Ollama on the server. Check OLLAMA_URL and that the model is running.";
       } else if (
         error?.message?.includes("access not granted") ||
         error?.message?.includes("access has expired")
@@ -582,83 +559,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           >
                             <button
                               onClick={async () => {
-                                // Carregar conversa selecionada
-                                setCurrentConversationId(conv.id);
                                 setShowConversationsList(false);
-
-                                // Carregar mensagens da conversa selecionada
-                                try {
-                                  const token = authService.getToken();
-                                  if (!token) return;
-
-                                  const { getApiEndpoint } = await import(
-                                    "../lib/api-endpoints"
-                                  );
-                                  const response = await fetch(
-                                    getApiEndpoint("conversations"),
-                                    {
-                                      headers: {
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                    }
-                                  );
-
-                                  if (response.ok) {
-                                    const data = await response.json();
-                                    const selectedConv =
-                                      data.conversations.find(
-                                        (c: any) => c.id === conv.id
-                                      );
-
-                                    if (selectedConv && selectedConv.messages) {
-                                      // Limpar mensagens atuais e histórico do geminiService
-                                      onResetChat();
-
-                                      // Reconstruir histórico do geminiService a partir das mensagens salvas
-                                      selectedConv.messages.forEach(
-                                        (msg: any) => {
-                                          if (msg.sender === "user") {
-                                            geminiService.addToHistory(
-                                              "user",
-                                              msg.text
-                                            );
-                                          } else {
-                                            geminiService.addToHistory(
-                                              "model",
-                                              msg.text
-                                            );
-                                          }
-                                        }
-                                      );
-
-                                      // Carregar mensagens da conversa selecionada
-                                      const loadedMessages: Message[] =
-                                        selectedConv.messages.map(
-                                          (msg: any) => ({
-                                            id: msg.id || generateUniqueId(),
-                                            text: msg.text || "",
-                                            sender:
-                                              msg.sender === "user"
-                                                ? Sender.User
-                                                : Sender.Bot,
-                                            timestamp: msg.timestamp
-                                              ? new Date(msg.timestamp)
-                                              : new Date(),
-                                          })
-                                        );
-
-                                      loadedMessages.forEach((msg) =>
-                                        addMessage(msg)
-                                      );
-                                      hasLoadedHistory.current = true;
-                                    }
-                                  }
-                                } catch (error) {
-                                  console.error(
-                                    "Failed to load conversation:",
-                                    error
-                                  );
-                                }
+                                onResetChat();
+                                await loadConversationById(conv.id);
+                                hasLoadedHistory.current = true;
                               }}
                               className="flex-1 text-left text-sm text-slate-300"
                             >
@@ -798,8 +702,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <Bot size={20} className="text-indigo-300" />
             </div>
             <div className="max-w-[80%] rounded-2xl p-4 bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700">
-              <div className="prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{streamedResponse}</ReactMarkdown>
+              <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
+                {streamedResponse}
               </div>
               <span className="flex gap-1 mt-2">
                 <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>

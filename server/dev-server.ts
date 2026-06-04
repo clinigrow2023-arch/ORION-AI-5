@@ -32,21 +32,12 @@ if (!dbUrl.startsWith("mongodb://") && !dbUrl.startsWith("mongodb+srv://")) {
   process.exit(1);
 }
 
-// Log removido por segurança
-
-// Verify GEMINI_API_KEY is loaded
-if (!process.env.GEMINI_API_KEY) {
-  // Log removido por segurança (não expor informações de .env)
-} else {
-  // Log removido por segurança
-}
-
 // Import Vercel API functions
 import adminUsersHandler from "../api/admin-users.js";
 import authHandler from "../api/auth.js";
 import conversationsHandler from "../api/conversations.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
-import geminiHandler from "../api/gemini.js";
+import chatHandler from "../api/chat.js";
 import systemPromptHandler from "../api/system-prompt.js";
 
 const app = express();
@@ -101,7 +92,8 @@ app.options("/api/:functionName", (req, res) => {
 
 // Routes - usando /api/ em vez de /.netlify/functions/
 app.post("/api/auth-register", authHandler);
-app.post("/api/gemini", geminiHandler);
+app.post("/api/chat", chatHandler);
+app.post("/api/gemini", chatHandler);
 app.post("/api/auth-login", authHandler);
 app.get("/api/auth-verify", authHandler);
 app.get("/api/conversations", conversationsHandler);

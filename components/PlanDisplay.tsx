@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ActionPlan } from "../types";
-import { geminiService } from "../services/geminiService";
+import { chatService } from "../services/chatService";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 import {
@@ -76,8 +76,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
 
   const getSelectedConversationHistory = (): string => {
     if (!selectedConversationId) {
-      // Fallback para histórico do geminiService
-      return geminiService.getHistoryAsString() || "";
+      // Fallback para histórico do chatService
+      return chatService.getHistoryAsString() || "";
     }
 
     const selectedConv = conversations.find(
@@ -88,7 +88,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       !selectedConv.messages ||
       selectedConv.messages.length === 0
     ) {
-      return geminiService.getHistoryAsString() || "";
+      return chatService.getHistoryAsString() || "";
     }
 
     // Converter mensagens da conversa para string de histórico
@@ -117,7 +117,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     setIsGenerating(true);
     setError(null);
     try {
-      const newPlan = await geminiService.generateFormalPlan(history);
+      const newPlan = await chatService.generateFormalPlan(history);
 
       // Validar que o plano recebido está completo
       if (

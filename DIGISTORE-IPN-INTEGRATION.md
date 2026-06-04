@@ -95,6 +95,15 @@ DIGISTORE_ALLOWED_PRODUCT_IDS=686819,686820,683588,686804
 
 > **Importante:** não existe fallback hardcoded no código; se essa env estiver vazia, nenhum produto será liberado.
 
+### Mapeamento de Produtos DigiStore (referência)
+
+Use esta lista para identificar rapidamente cada produto por ID:
+
+- `686819` = Upsell Orion AI ILC MASCULINO
+- `686820` = Downsell Orion AI ILC MASCULINO
+- `683588` = Upsell Orion AI URM MASCULINO
+- `686804` = Downsell Orion AI URM MASCULINO
+
 ### 2. Configuração na DigiStore
 
 **⚠️ IMPORTANTE:** A DigiStore **NÃO aceita** URLs de túneis temporários (como Cloudflare Tunnel `.trycloudflare.com`). Você **DEVE** usar a URL de produção do Vercel.

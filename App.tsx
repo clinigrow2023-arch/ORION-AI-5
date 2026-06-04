@@ -10,7 +10,7 @@ import SetNewPassword from "./components/SetNewPassword";
 import { useAuth } from "./contexts/AuthContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
 import { Menu, X, Loader2 } from "lucide-react";
-import { geminiService } from "./services/geminiService";
+import { chatService } from "./services/chatService";
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
@@ -42,8 +42,8 @@ const App: React.FC = () => {
   const resetChat = () => {
     setMessages([]);
     setPlan(null);
-    // Limpar histórico do geminiService
-    geminiService.clearHistory();
+    // Limpar histórico do chatService
+    chatService.clearHistory();
   };
 
   const renderContent = () => {

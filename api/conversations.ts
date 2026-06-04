@@ -65,8 +65,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // GET - Buscar conversas do usuário
+    // GET - Listar conversas ou buscar uma com mensagens (?conversationId=...)
     if (req.method === "GET") {
+      const conversationId =
+        typeof req.query.conversationId === "string"
+          ? req.query.conversationId
+          : undefined;
+
+      if (conversationId) {
+        const conversation = await prisma.conversation.findFirst({
+          where: { id: conversationId, userId: auth.userId },
+          select: {
+            id: true,
+            messages: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        if (!conversation) {
+          return res.status(404).json({ error: "Conversation not found" });
+        }
+
+        return res.status(200).json({
+          conversation: {
+            ...conversation,
+            messages: JSON.parse(conversation.messages || "[]"),
+          },
+        });
+      }
+
       const conversations = await prisma.conversation.findMany({
         where: { userId: auth.userId },
         orderBy: { updatedAt: "desc" },
@@ -78,11 +106,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      // Parse messages JSON string para objeto
-      const parsedConversations = conversations.map((conv) => ({
-        ...conv,
-        messages: JSON.parse(conv.messages || "[]"),
-      }));
+      const summaryOnly = req.query.summary === "1";
+
+      const parsedConversations = conversations.map((conv) => {
+        const raw = conv.messages || "[]";
+        if (summaryOnly) {
+          let messageCount = 0;
+          try {
+            messageCount = JSON.parse(raw).length;
+          } catch {
+            messageCount = 0;
+          }
+          return {
+            id: conv.id,
+            createdAt: conv.createdAt,
+            updatedAt: conv.updatedAt,
+            messageCount,
+          };
+        }
+        return {
+          ...conv,
+          messages: JSON.parse(raw),
+        };
+      });
 
       return res.status(200).json({ conversations: parsedConversations });
     }

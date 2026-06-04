@@ -7,7 +7,7 @@ import React, {
   ReactNode,
 } from "react";
 import { authService, User } from "../lib/auth";
-import { geminiService } from "../services/geminiService";
+import { chatService } from "../services/chatService";
 import { getApiEndpoint } from "../lib/api-endpoints";
 
 export interface ExtendedUser extends User {
@@ -128,8 +128,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const data = await response.json();
           const userData = data.user;
           localStorage.setItem("user", JSON.stringify(userData));
-          // Limpar histórico do geminiService ao carregar usuário para evitar compartilhamento
-          geminiService.clearHistory();
+          // Limpar histórico do chatService ao carregar usuário para evitar compartilhamento
+          chatService.clearHistory();
           setUser(userData);
 
           // Se usuário foi bloqueado, fazer logout imediatamente
@@ -226,8 +226,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [user?.isBlocked]); // Re-executar se isBlocked mudar
 
   const login = async (email: string, password: string) => {
-    // Limpar histórico do geminiService ao fazer login para evitar compartilhamento entre usuários
-    geminiService.clearHistory();
+    // Limpar histórico do chatService ao fazer login para evitar compartilhamento entre usuários
+    chatService.clearHistory();
     const response = await authService.login(email, password);
     // Após login, atualizar localStorage e estado com dados completos do servidor
     // O login agora retorna isActive e accessExpiresAt, então não precisa fazer refreshUser
@@ -249,8 +249,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    // Limpar histórico do geminiService ao fazer logout para evitar compartilhamento entre usuários
-    geminiService.clearHistory();
+    // Limpar histórico do chatService ao fazer logout para evitar compartilhamento entre usuários
+    chatService.clearHistory();
 
     authService.logout();
     setUser(null);

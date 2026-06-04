@@ -6,7 +6,7 @@ import {
   handleOptions,
   getTokenFromHeader,
 } from "./_helpers.js";
-import { clearPromptCache } from "./ai-providers/fallback.js";
+import { clearPromptCache } from "./ai-providers/prompts.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";

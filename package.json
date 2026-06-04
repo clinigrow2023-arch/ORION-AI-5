@@ -9,6 +9,8 @@
     "dev:server": "tsx watch server/dev-server.ts",
     "dev:vite-only": "vite",
     "build": "vite build",
+    "start": "tsx server/production-server.ts",
+    "start:prod": "npm run build && npm run start",
     "preview": "vite preview",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -19,7 +21,6 @@
     "postinstall": "prisma generate || (echo '⚠️ Prisma generate failed, setting dummy DATABASE_URL and retrying...' && DATABASE_URL='mongodb://localhost:27017/dummy' prisma generate) || echo '⚠️ Prisma generate skipped (this is OK if DATABASE_URL is not set during build)'"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
     "@netlify/functions": "^5.1.0",
     "@prisma/client": "^6.19.0",
     "@types/nodemailer": "^7.0.4",

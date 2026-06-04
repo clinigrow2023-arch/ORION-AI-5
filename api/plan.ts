@@ -7,6 +7,7 @@ import {
   buildPlanContextFromMessages,
   isValidActionPlan,
   normalizeActionPlan,
+  parseConversationMessages,
   parsePlanJsonFromText,
 } from "../lib/plan-utils.js";
 import { truncatePlanContext } from "./ai-providers/ollama-helpers.js";
@@ -69,13 +70,7 @@ export default async function planHandler(
         return res.status(404).json({ error: "Conversation not found" });
       }
 
-      let messages: Array<{ text?: string; sender?: string }> = [];
-      try {
-        messages = JSON.parse(conversation.messages || "[]");
-      } catch {
-        messages = [];
-      }
-
+      const messages = parseConversationMessages(conversation.messages);
       historyText = buildPlanContextFromMessages(messages);
     }
 
@@ -92,17 +87,7 @@ export default async function planHandler(
       `[plan] user=${userId} ctxChars=${historyText.length} model=${process.env.OLLAMA_PLAN_MODEL || "llama3.2:3b"}`
     );
     const raw = await generatePlanWithOllama(historyText);
-    let parsed: unknown;
-    try {
-      parsed = parsePlanJsonFromText(raw);
-    } catch (parseErr: unknown) {
-      console.error("[plan] parse failed:", parseErr);
-      return res.status(502).json({
-        error:
-          "Plan response was not valid JSON. Please try again in a moment.",
-        retryable: true,
-      });
-    }
+    const parsed = parsePlanJsonFromText(raw);
     const plan = normalizeActionPlan(parsed);
 
     if (!isValidActionPlan(plan)) {
@@ -147,7 +132,8 @@ export default async function planHandler(
       });
     }
     return res.status(500).json({
-      error: error.message || "Failed to generate action plan",
+      error: "Failed to generate action plan. Please try again.",
+      retryable: true,
     });
   }
 }

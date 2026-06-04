@@ -1,5 +1,6 @@
 import { ActionPlan } from "../types";
 import { authService } from "../lib/auth";
+import { friendlyPlanErrorMessage } from "../lib/plan-utils";
 
 export type PlanJobStatus = "pending" | "ready" | "error";
 
@@ -113,8 +114,10 @@ export function startPlanGeneration(options: {
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
         throw new Error(
-          (err as { error?: string }).error ||
-            `Plan failed (${response.status})`
+          friendlyPlanErrorMessage(
+            (err as { error?: string }).error ||
+              `Plan failed (${response.status})`
+          )
         );
       }
 
@@ -134,8 +137,9 @@ export function startPlanGeneration(options: {
       notifyPlanReady(conversationId);
       onComplete?.(plan);
     } catch (e: unknown) {
-      const message =
-        e instanceof Error ? e.message : "Failed to generate action plan";
+      const message = friendlyPlanErrorMessage(
+        e instanceof Error ? e.message : "Failed to generate action plan"
+      );
       setPlanJob({
         conversationId,
         status: "error",

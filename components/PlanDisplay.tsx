@@ -17,6 +17,7 @@ import {
   requestPlanNotificationPermission,
   subscribePlanReady,
 } from "../services/planJobService";
+import { friendlyPlanErrorMessage } from "../lib/plan-utils";
 import {
   Target,
   Clock,
@@ -87,6 +88,11 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       const pick =
         active && list.some((c) => c.id === active) ? active : list[0]?.id;
       if (pick) {
+        const staleJob = getPlanJob(pick);
+        if (staleJob?.status === "error") {
+          clearPlanJob(pick);
+          setError(null);
+        }
         setSelectedConversationId(pick);
         await loadConversationPlan(pick);
       }
@@ -126,7 +132,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       if (job?.status === "error") {
         setIsGenerating(false);
         setBackgroundNote(null);
-        setError(job.error || "Plan generation failed");
+        setError(
+          friendlyPlanErrorMessage(job.error || "Plan generation failed")
+        );
       }
     };
 
@@ -197,7 +205,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
         void loadConversationPlan(selectedConversationId);
       },
       onError: (message) => {
-        setError(message);
+        setError(friendlyPlanErrorMessage(message));
         setIsGenerating(false);
         setBackgroundNote(null);
       },
@@ -266,9 +274,21 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
           )}
 
           {error && (
-            <div className="mb-6 p-3 bg-red-900/30 border border-red-800 text-red-300 rounded-lg flex items-center gap-2 text-sm text-left">
-              <AlertTriangle size={16} />
-              {error}
+            <div className="mb-6 p-3 bg-red-900/30 border border-red-800 text-red-300 rounded-lg flex items-start gap-2 text-sm text-left">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <span className="flex-1">{error}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  if (selectedConversationId) {
+                    clearPlanJob(selectedConversationId);
+                  }
+                }}
+                className="shrink-0 text-red-200/80 hover:text-white underline text-xs"
+              >
+                Dismiss
+              </button>
             </div>
           )}
 

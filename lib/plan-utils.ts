@@ -35,38 +35,154 @@ function stripMarkdownFences(text: string): string {
 /** Fix common LLM JSON mistakes (trailing commas, smart quotes). */
 export function repairPlanJsonText(raw: string): string {
   let s = stripMarkdownFences(raw);
-  const match = s.match(/\{[\s\S]*\}/);
-  if (match) s = match[0];
+  const obj = s.match(/\{[\s\S]*\}/);
+  const arr = s.match(/\[[\s\S]*\]/);
+  if (obj) s = obj[0];
+  else if (arr) s = arr[0];
   s = s.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
   s = s.replace(/,\s*([}\]])/g, "$1");
+  s = s.replace(/'\s*:/g, '":').replace(/:\s*'/g, ': "');
   return s;
 }
 
-export function parsePlanJsonFromText(raw: string): unknown {
-  const attempts = [raw.trim(), repairPlanJsonText(raw)];
-  let lastError: Error | null = null;
+/** Close unbalanced { } [ ] outside of JSON strings. */
+export function closeIncompleteJson(raw: string): string {
+  let depth = 0;
+  let depthB = 0;
+  let inStr = false;
+  let esc = false;
 
-  for (const candidate of attempts) {
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") depth = Math.max(0, depth - 1);
+    else if (c === "[") depthB++;
+    else if (c === "]") depthB = Math.max(0, depthB - 1);
+  }
+
+  let out = raw;
+  while (depthB > 0) {
+    out += "]";
+    depthB--;
+  }
+  while (depth > 0) {
+    out += "}";
+    depth--;
+  }
+  return out;
+}
+
+function parsePositionFromSyntaxError(msg: string): number | null {
+  const m = msg.match(/position\s+(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
+function tryJsonParse(candidate: string): unknown | null {
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function buildParseCandidates(raw: string): string[] {
+  const trimmed = raw.trim();
+  const repaired = repairPlanJsonText(raw);
+  const closed = closeIncompleteJson(repaired);
+  const objSlice = trimmed.match(/\{[\s\S]*\}/)?.[0];
+  const arrSlice = trimmed.match(/\[[\s\S]*\]/)?.[0];
+
+  const out = [
+    trimmed,
+    repaired,
+    closed,
+    closeIncompleteJson(trimmed),
+  ];
+  if (objSlice) {
+    out.push(objSlice, repairPlanJsonText(objSlice), closeIncompleteJson(objSlice));
+  }
+  if (arrSlice) {
+    out.push(arrSlice, repairPlanJsonText(arrSlice), closeIncompleteJson(arrSlice));
+  }
+  return [...new Set(out.filter(Boolean))];
+}
+
+/** Lenient JSON parse — never throws; returns {} or [] fallback. */
+export function tryParseJsonLoose(
+  raw: string,
+  fallback: unknown = {}
+): unknown {
+  let lastMsg = "";
+  const candidates = buildParseCandidates(raw);
+
+  for (const candidate of candidates) {
+    const parsed = tryJsonParse(candidate);
+    if (parsed !== null) return parsed;
     try {
-      return JSON.parse(candidate);
+      JSON.parse(candidate);
     } catch (e) {
-      lastError = e instanceof Error ? e : new Error(String(e));
-      const match = candidate.match(/\{[\s\S]*\}/);
-      if (match && match[0] !== candidate) {
-        try {
-          return JSON.parse(repairPlanJsonText(match[0]));
-        } catch (inner) {
-          lastError = inner instanceof Error ? inner : lastError;
+      lastMsg = e instanceof Error ? e.message : String(e);
+      const pos = parsePositionFromSyntaxError(lastMsg);
+      if (pos != null && pos > 10) {
+        for (const cut of [pos, pos - 1, pos - 2, pos - 5, pos - 20]) {
+          if (cut < 10) continue;
+          const slice = closeIncompleteJson(
+            repairPlanJsonText(candidate.slice(0, cut))
+          );
+          const sliced = tryJsonParse(slice);
+          if (sliced !== null) return sliced;
         }
       }
     }
   }
 
-  console.warn(
-    "[plan] JSON parse failed, using empty object + normalizeActionPlan fillers:",
-    lastError?.message
+  console.warn("[json] loose parse failed:", lastMsg);
+  return fallback;
+}
+
+export function parsePlanJsonFromText(raw: string): unknown {
+  return tryParseJsonLoose(raw, {});
+}
+
+export type StoredMessage = {
+  id?: string;
+  text?: string;
+  sender?: string;
+  timestamp?: string;
+};
+
+export function parseConversationMessages(
+  raw: string | null | undefined
+): StoredMessage[] {
+  const text = (raw || "[]").trim();
+  if (!text) return [];
+
+  const parsed = tryParseJsonLoose(text, []);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.filter(
+    (m): m is StoredMessage =>
+      !!m && typeof m === "object" && ("text" in m || "sender" in m)
   );
-  return {};
+}
+
+/** Don't show raw SyntaxError text in the UI. */
+export function friendlyPlanErrorMessage(message: string): string {
+  if (
+    /JSON at position/i.test(message) ||
+    /Unexpected token/i.test(message) ||
+    /not valid JSON/i.test(message)
+  ) {
+    return "The AI response had a formatting glitch. Tap Generate again — we’ll build your plan from the chat.";
+  }
+  return message;
 }
 
 function asString(v: unknown, fallback: string): string {

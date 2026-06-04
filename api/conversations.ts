@@ -6,7 +6,10 @@ import {
   handleOptions,
   getTokenFromHeader,
 } from "./_helpers.js";
-import { parseStoredActionPlan } from "../lib/plan-utils.js";
+import {
+  parseConversationMessages,
+  parseStoredActionPlan,
+} from "../lib/plan-utils.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -96,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             id: conversation.id,
             createdAt: conversation.createdAt,
             updatedAt: conversation.updatedAt,
-            messages: JSON.parse(conversation.messages || "[]"),
+            messages: parseConversationMessages(conversation.messages),
             actionPlan: actionPlan ?? undefined,
             hasActionPlan: !!actionPlan,
           },
@@ -121,11 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const raw = conv.messages || "[]";
         if (summaryOnly) {
           let messageCount = 0;
-          try {
-            messageCount = JSON.parse(raw).length;
-          } catch {
-            messageCount = 0;
-          }
+          messageCount = parseConversationMessages(raw).length;
           return {
             id: conv.id,
             createdAt: conv.createdAt,
@@ -136,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         return {
           ...conv,
-          messages: JSON.parse(raw),
+          messages: parseConversationMessages(raw),
         };
       });
 
@@ -182,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json({
         conversation: {
           ...conversation,
-          messages: JSON.parse(conversation.messages),
+          messages: parseConversationMessages(conversation.messages),
         },
       });
     }
@@ -225,7 +224,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         conversation: {
           ...updated,
-          messages: JSON.parse(updated.messages),
+          messages: parseConversationMessages(updated.messages),
         },
       });
     }

@@ -8,13 +8,14 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 BASE_MODEL="${OLLAMA_BASE_MODEL:-llama3.2:3b}"
 CUSTOM_MODEL="${OLLAMA_MODEL:-orion-ai}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=env-docker-helpers.sh
+source "$SCRIPT_DIR/env-docker-helpers.sh"
+
 cd "$INSTALL_DIR"
 
 if [ -f "$ENV_FILE" ]; then
-  # shellcheck disable=SC1090
-  set -a
-  source "$ENV_FILE"
-  set +a
+  load_ollama_vars_from_env_file "$ENV_FILE"
   BASE_MODEL="${OLLAMA_BASE_MODEL:-$BASE_MODEL}"
   CUSTOM_MODEL="${OLLAMA_MODEL:-$CUSTOM_MODEL}"
 fi

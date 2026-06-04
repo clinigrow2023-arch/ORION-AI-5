@@ -48,10 +48,13 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-# shellcheck disable=SC1090
-set -a
-source "$ENV_FILE"
-set +a
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=env-docker-helpers.sh
+source "$SCRIPT_DIR/env-docker-helpers.sh"
+load_ollama_vars_from_env_file "$ENV_FILE"
+BASE_MODEL="${OLLAMA_BASE_MODEL:-$BASE_MODEL}"
+CUSTOM_MODEL="${OLLAMA_MODEL:-$CUSTOM_MODEL}"
+USE_MODELFILE="${OLLAMA_USE_MODELFILE:-$USE_MODELFILE}"
 
 log "Build e subida dos containers..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --pull

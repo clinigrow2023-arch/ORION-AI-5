@@ -2,6 +2,7 @@ import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 import {
   CHAT_NUM_PREDICT,
   PLAN_NUM_PREDICT,
+  PLAN_TIMEOUT_MS,
 } from "../../lib/chat-constants.js";
 import {
   buildConversationPrompt,
@@ -206,9 +207,9 @@ export class Ollama3Provider implements AIProvider {
         prompt,
         stream: false,
         format: "json",
-        num_ctx: 3072,
+        num_ctx: 2048,
         options: {
-          temperature: 0.35,
+          temperature: 0.3,
           num_predict: PLAN_NUM_PREDICT,
           top_p: 0.85,
           repeat_penalty: 1.1,
@@ -217,13 +218,13 @@ export class Ollama3Provider implements AIProvider {
       attachSystemIfPresent(requestBody, PLAN_SYSTEM_PROMPT);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), PLAN_TIMEOUT_MS);
 
       const startTime = Date.now();
       let response: Response;
       try {
-        ollamaLog(
-          `[Ollama3] generatePlan model=${this.model} ctxLen=${contextHistory.length}`
+        console.log(
+          `[Ollama] plan model=${this.model} ctxLen=${contextHistory.length}`
         );
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
@@ -241,7 +242,7 @@ export class Ollama3Provider implements AIProvider {
         if (fetchError.name === "AbortError") {
           throw createProviderError(
             this.name,
-            "Plan generation timeout after 180 seconds",
+            `Plan generation timeout after ${PLAN_TIMEOUT_MS / 1000} seconds`,
             "TIMEOUT",
             true
           );

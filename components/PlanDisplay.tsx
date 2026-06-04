@@ -82,6 +82,45 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
     loadConversations();
   }, []);
 
+  const refreshConversationList = async () => {
+    try {
+      const token = authService.getToken();
+      if (!token) return;
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(
+        `${getApiEndpoint("conversations")}?summary=1`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.conversations?.length) setConversations(data.conversations);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const fetchConversationById = async (
+    conversationId: string
+  ): Promise<ConversationDetail | null> => {
+    try {
+      const token = authService.getToken();
+      if (!token) return null;
+
+      const { getApiEndpoint } = await import("../lib/api-endpoints");
+      const response = await fetch(
+        `${getApiEndpoint("conversations")}?conversationId=${encodeURIComponent(conversationId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.conversation ?? null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const loadSelectedMessages = async () => {
       if (!selectedConversationId) {
@@ -90,21 +129,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       }
 
       try {
-        const token = authService.getToken();
-        if (!token) return;
-
-        const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(
-          `${getApiEndpoint("conversations")}?conversationId=${encodeURIComponent(selectedConversationId)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.conversation) {
-            setLoadedConversation(data.conversation);
-          }
-        }
+        const conv = await fetchConversationById(selectedConversationId);
+        setLoadedConversation(conv);
       } catch (e) {
         console.error("Failed to load conversation for plan:", e);
       }
@@ -134,7 +160,21 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       return;
     }
 
-    const history = getSelectedConversationHistory();
+    let conv = loadedConversation;
+    if (selectedConversationId) {
+      conv = (await fetchConversationById(selectedConversationId)) ?? conv;
+      if (conv) setLoadedConversation(conv);
+    }
+
+    const history = conv?.messages?.length
+      ? conv.messages
+          .map(
+            (msg) =>
+              `${msg.sender === "user" ? "User" : "Orion"}: ${msg.text}`
+          )
+          .join("\n\n")
+      : getSelectedConversationHistory();
+
     if (!history.trim()) {
       setError(
         "Please select a conversation or chat with Orion first to provide context about your situation."
@@ -144,6 +184,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
 
     setIsGenerating(true);
     setError(null);
+    await refreshConversationList();
     try {
       const newPlan = await chatService.generateFormalPlan({
         conversationId: selectedConversationId,
@@ -254,7 +295,11 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
                           {new Date(conv.updatedAt).toLocaleDateString()}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {conv.messages?.length || 0} messages •{" "}
+                          {conv.messageCount ??
+                            loadedConversation?.id === conv.id
+                              ? loadedConversation.messages?.length ?? 0
+                              : 0}{" "}
+                          messages •{" "}
                           {new Date(conv.updatedAt).toLocaleTimeString()}
                         </div>
                       </button>

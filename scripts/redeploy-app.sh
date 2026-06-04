@@ -15,6 +15,11 @@ echo "[orion-app] Restarting container..."
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --force-recreate orion-app
 
 sleep 3
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs orion-app --tail 8
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs orion-app --tail 12
 
-echo "[orion-app] Logs devem mostrar: Prompt: Modelfile (no API system field)"
+echo "[orion-app] Esperado nos logs:"
+echo "  Chat model: orion-ai"
+echo "  Plan model: llama3.2:3b"
+echo "  Prompt: Modelfile (no API system field)"
+echo ""
+echo "Se ainda aparecer só 'Model:' ou timeout 180s → imagem antiga; rode este script de novo."

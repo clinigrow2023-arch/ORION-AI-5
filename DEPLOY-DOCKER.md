@@ -147,9 +147,41 @@ Respostas **quase instantâneas** com LLM local em CPU não são realistas; o al
 **Na VPS (`.env.docker`):**
 
 ```env
-OLLAMA_NUM_PARALLEL=4
+OLLAMA_NUM_PARALLEL=8
+OLLAMA_PLAN_MODEL=llama3.2:3b
 ```
+
+Chat usa `orion-ai` (Modelfile). **Plano** usa `llama3.2:3b` (sem system gigante) — evita timeout de 180s.
+
+**Nginx:** `proxy_read_timeout 300s` em `deploy/nginx-orion.conf`.
+
+**Teste de carga (50 usuários simultâneos):**
+
+```bash
+cd /opt/orion-ai-docker
+git pull
+./scripts/redeploy-app.sh
+
+export LOAD_TEST_URL=https://orionaii.com
+export LOAD_TEST_EMAIL=seu@email.com
+export LOAD_TEST_PASSWORD=sua_senha
+export LOAD_TEST_CONCURRENT=50
+# planos: no máximo 10 em paralelo (CPU); desligar com LOAD_TEST_PLAN=0
+./scripts/run-load-test-vps.sh
+```
+
+Requer `git pull` + `./scripts/redeploy-app.sh` (código do plano) e `docker compose up -d --force-recreate orion-app` (volume `./scripts`).
+
+Sem rebuild, só o teste (após `git pull`):
+
+```bash
+docker compose --env-file .env.docker up -d --force-recreate orion-app
+export LOAD_TEST_EMAIL=... LOAD_TEST_PASSWORD=...
+./scripts/run-load-test-vps.sh
+```
+
+Interpretação: em 1 VPS CPU, 50 chats ao mesmo tempo vão **enfileirar** no Ollama (`OLLAMA_NUM_PARALLEL`). Espere p95 alto; o teste mostra OK/FAIL e latência.
 
 **Para máxima velocidade (quando validar):** apontar o app para o Ollama **8B do host** (`:11434`) com GPU/RAM — ver seção “Migrar para o Ollama grande”.
 
-**Escala:** 1000 usuários cadastrados OK; picos simultâneos limitados pelo CPU. KVM8 + `OLLAMA_NUM_PARALLEL=4` aguenta dezenas de chats leves; acima disso considere fila ou segundo nó Ollama.
+**Escala:** 1000 usuários cadastrados OK; picos simultâneos limitados pelo CPU. KVM8 + `OLLAMA_NUM_PARALLEL=8` aguenta dezenas de chats leves; 50 simultâneos reais exigem GPU ou vários nós.

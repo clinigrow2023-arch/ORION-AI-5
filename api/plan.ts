@@ -87,6 +87,9 @@ export default async function planHandler(
       });
     }
 
+    console.log(
+      `[plan] user=${userId} ctxChars=${historyText.length} model=${process.env.OLLAMA_PLAN_MODEL || "llama3.2:3b"}`
+    );
     const raw = await generatePlanWithOllama(historyText);
     const parsed = parsePlanJsonFromText(raw);
     const plan = normalizeActionPlan(parsed);

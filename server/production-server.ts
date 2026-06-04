@@ -109,7 +109,10 @@ app.listen(PORT, "0.0.0.0", () => {
     process.env.OLLAMA_USE_MODELFILE === "true";
   console.log(`✅ Orion production server http://0.0.0.0:${PORT}`);
   console.log(`   Ollama: ${process.env.OLLAMA_URL || "http://127.0.0.1:11434"}`);
-  console.log(`   Model: ${process.env.OLLAMA_MODEL || "llama3-8b-fast"}`);
+  console.log(`   Chat model: ${process.env.OLLAMA_MODEL || "llama3-8b-fast"}`);
+  console.log(
+    `   Plan model: ${process.env.OLLAMA_PLAN_MODEL || process.env.OLLAMA_BASE_MODEL || "llama3.2:3b"}`
+  );
   console.log(
     `   Prompt: ${modelfile ? "Modelfile (no API system field)" : "database/API"}`
   );

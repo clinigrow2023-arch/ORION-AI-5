@@ -52,10 +52,19 @@ export async function sendMessageStreamWithOllama(
   return response;
 }
 
+function getPlanOllamaProvider(): Ollama3Provider {
+  const baseUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+  const planModel =
+    process.env.OLLAMA_PLAN_MODEL || process.env.OLLAMA_BASE_MODEL || "llama3.2:3b";
+  const apiKey = process.env.OLLAMA_API_KEY;
+  return new Ollama3Provider(baseUrl, planModel, apiKey);
+}
+
+/** Plan uses lightweight base model — avoids orion-ai Modelfile system (~3k tokens). */
 export async function generatePlanWithOllama(
   contextHistory: string
 ): Promise<string> {
-  const provider = getOllamaProvider();
+  const provider = getPlanOllamaProvider();
   const response = await provider.generatePlan(contextHistory);
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty plan response");

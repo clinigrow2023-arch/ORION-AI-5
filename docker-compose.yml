@@ -8,8 +8,8 @@ services:
     container_name: orion-ollama
     restart: unless-stopped
     environment:
-      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-4}"
-      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-8}"
+      OLLAMA_MAX_LOADED_MODELS: "2"
     volumes:
       - ollama_orion_data:/root/.ollama
       - ./deploy/modelfile:/modelfile:ro
@@ -38,8 +38,12 @@ services:
       OLLAMA_USE_MODELFILE: "${OLLAMA_USE_MODELFILE:-1}"
       OLLAMA_BASE_MODEL: "${OLLAMA_BASE_MODEL:-llama3.2:3b}"
       OLLAMA_MODEL: ${OLLAMA_MODEL:-orion-ai}
+      OLLAMA_PLAN_MODEL: ${OLLAMA_PLAN_MODEL:-llama3.2:3b}
     ports:
       - "${ORION_APP_HOST_PORT:-3001}:3000"
+    volumes:
+      # Scripts no host (git pull) — load test sem rebuild só do .mjs
+      - ./scripts:/app/scripts:ro
     depends_on:
       ollama-orion:
         condition: service_healthy

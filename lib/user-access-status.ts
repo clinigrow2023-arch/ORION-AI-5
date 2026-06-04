@@ -9,9 +9,13 @@ export type UserAccessRow = {
 
 export type AccessFilter = "all" | "active" | "inactive" | "blocked";
 
+function isBlockedUser(u: UserAccessRow): boolean {
+  return u.isBlocked === true;
+}
+
 export function isUserAccessActive(u: UserAccessRow, now = new Date()): boolean {
-  if (u.role === "admin") return !u.isBlocked;
-  if (u.isBlocked) return false;
+  if (u.role === "admin") return !isBlockedUser(u);
+  if (isBlockedUser(u)) return false;
   if (!u.isActive) return false;
   if (u.accessExpiresAt) {
     const exp = new Date(u.accessExpiresAt);
@@ -21,7 +25,7 @@ export function isUserAccessActive(u: UserAccessRow, now = new Date()): boolean 
 }
 
 export function classifyAccessFilter(u: UserAccessRow, now = new Date()): AccessFilter {
-  if (u.isBlocked) return "blocked";
+  if (isBlockedUser(u)) return "blocked";
   if (isUserAccessActive(u, now)) return "active";
   return "inactive";
 }
@@ -46,10 +50,9 @@ export function accessFilterPrismaWhere(
     return { isBlocked: true };
   }
   if (status === "active") {
-    return { isBlocked: false, OR: activeOr };
+    return { NOT: { isBlocked: true }, OR: activeOr };
   }
   return {
-    isBlocked: false,
-    NOT: { OR: activeOr },
+    NOT: [{ isBlocked: true }, { OR: activeOr }],
   };
 }

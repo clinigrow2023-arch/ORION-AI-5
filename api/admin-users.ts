@@ -7,10 +7,37 @@ import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js
 import { prisma } from "./_prisma.js";
 import {
   type AccessFilter,
-  accessFilterPrismaWhere,
   classifyAccessFilter,
   isUserAccessActive,
 } from "../lib/user-access-status.js";
+
+const userListSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  isBlocked: true,
+  isActive: true,
+  accessExpiresAt: true,
+  subscriptionStatus: true,
+  lastPaymentDate: true,
+  nextPaymentDate: true,
+  createdAt: true,
+  updatedAt: true,
+  digistoreOrderId: true,
+  productId: true,
+} as const;
+
+function matchesUserSearch(
+  u: { name: string; email: string },
+  search: string
+): boolean {
+  const q = search.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+}
 
 function generateRandomPassword(length: number = 12): string {
   const charset =
@@ -75,73 +102,41 @@ export default async function adminUsersHandler(
       const finalLimit = Math.min(limitNumber, maxLimit);
       const offset = (pageNumber - 1) * finalLimit;
       const now = new Date();
+      const searchStr = String(search || "");
 
-      const andParts: Record<string, unknown>[] = [];
-
-      if (search) {
-        andParts.push({
-          OR: [
-            { name: { contains: search as string, mode: "insensitive" } },
-            { email: { contains: search as string, mode: "insensitive" } },
-          ],
-        });
-      }
-
-      if (
-        statusFilter === "blocked" ||
-        statusFilter === "active" ||
-        statusFilter === "inactive"
-      ) {
-        andParts.push(accessFilterPrismaWhere(statusFilter, now));
-      }
-
-      const whereClause =
-        andParts.length > 0 ? { AND: andParts } : {};
-
-      const allForStats = await prisma.user.findMany({
-        select: {
-          role: true,
-          isBlocked: true,
-          isActive: true,
-          accessExpiresAt: true,
-        },
+      // Uma leitura + filtro em memória: mesma regra dos cards (Prisma/Mongo
+      // não replica bem isBlocked ausente vs false para ~1900 usuários).
+      const allUsers = await prisma.user.findMany({
+        select: userListSelect,
+        orderBy: { createdAt: "desc" },
       });
 
       let activeCount = 0;
       let inactiveCount = 0;
       let blockedCount = 0;
-      for (const u of allForStats) {
+      for (const u of allUsers) {
         const bucket = classifyAccessFilter(u, now);
         if (bucket === "active") activeCount++;
         else if (bucket === "blocked") blockedCount++;
         else inactiveCount++;
       }
 
-      const users = await prisma.user.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isBlocked: true,
-          isActive: true,
-          subscriptionStatus: true,
-          lastPaymentDate: true,
-          nextPaymentDate: true,
-          createdAt: true,
-          updatedAt: true,
-          digistoreOrderId: true,
-          productId: true,
-        },
-        skip: offset,
-        take: finalLimit,
-        orderBy: { createdAt: "desc" },
-      });
+      let filtered = allUsers.filter((u) => matchesUserSearch(u, searchStr));
 
-      const total = await prisma.user.count({ where: whereClause });
+      if (
+        statusFilter === "active" ||
+        statusFilter === "inactive" ||
+        statusFilter === "blocked"
+      ) {
+        filtered = filtered.filter(
+          (u) => classifyAccessFilter(u, now) === statusFilter
+        );
+      }
 
-      const usersWithAccess = users.map((u) => ({
+      const total = filtered.length;
+      const pageUsers = filtered.slice(offset, offset + finalLimit);
+
+      const usersWithAccess = pageUsers.map((u) => ({
         ...u,
         accessStatus: classifyAccessFilter(u, now),
         canUseApp: isUserAccessActive(u, now),
@@ -150,7 +145,7 @@ export default async function adminUsersHandler(
       return res.status(200).json({
         users: usersWithAccess,
         stats: {
-          total: allForStats.length,
+          total: allUsers.length,
           active: activeCount,
           inactive: inactiveCount,
           blocked: blockedCount,

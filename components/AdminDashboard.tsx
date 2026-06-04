@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   Ban,
-  Bot,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -21,13 +20,26 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 
+type UserStatusFilter = "all" | "active" | "inactive" | "blocked";
+
 interface User {
   id: string;
   name: string;
   email: string;
   role: string;
   isBlocked: boolean;
+  isActive?: boolean;
+  accessExpiresAt?: string | null;
+  accessStatus?: UserStatusFilter;
+  canUseApp?: boolean;
   createdAt: string;
+}
+
+interface UserStats {
+  total: number;
+  active: number;
+  inactive: number;
+  blocked: number;
 }
 
 const USER_PAGE_SIZES = [25, 50, 100] as const;
@@ -113,7 +125,7 @@ const AdminDashboard: React.FC = () => {
   const usersFetchSeq = useRef(0);
   const prevSearchForLoadRef = useRef<string | null>(null);
   const lastSuccessfulListKey = useRef("");
-  const listParamsRef = useRef({ page: 1, size: 25, q: "" });
+  const listParamsRef = useRef({ page: 1, size: 25, q: "", status: "all" as UserStatusFilter });
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [blockConfirm, setBlockConfirm] = useState<{
@@ -136,12 +148,16 @@ const AdminDashboard: React.FC = () => {
   const [listCurrentPage, setListCurrentPage] = useState(1);
   const [listTotalPages, setListTotalPages] = useState(1);
   const [searchBarKey, setSearchBarKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<"users" | "create" | "prompt">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "create">("users");
+  const [userStatusFilter, setUserStatusFilter] =
+    useState<UserStatusFilter>("all");
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
 
   listParamsRef.current = {
     page: userPage,
     size: pageSize,
     q: debouncedSearchQuery,
+    status: userStatusFilter,
   };
   const [createUserEmail, setCreateUserEmail] = useState("");
   const [createUserName, setCreateUserName] = useState("");
@@ -154,20 +170,15 @@ const AdminDashboard: React.FC = () => {
     selectedRole: "user" | "admin";
   } | null>(null);
   const [createUserSuccess, setCreateUserSuccess] = useState<string | null>(null);
-  const [aiConfig, setAiConfig] = useState<{
-    model?: string;
-    modelfilePath?: string;
-    rebuildCommand?: string;
-  } | null>(null);
-  const [aiConfigLoading, setAiConfigLoading] = useState(false);
 
   const loadUserList = async (
     page: number,
     limit: number,
     search: string,
+    status: UserStatusFilter,
     opts?: { bypassDedupe?: boolean }
   ) => {
-    const dedupeKey = `${search}|${page}|${limit}`;
+    const dedupeKey = `${search}|${page}|${limit}|${status}`;
     if (!opts?.bypassDedupe && dedupeKey === lastSuccessfulListKey.current) {
       return;
     }
@@ -192,7 +203,7 @@ const AdminDashboard: React.FC = () => {
       const response = await fetch(
         `${getApiEndpoint(
           "admin-users"
-        )}?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
+        )}?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -214,6 +225,9 @@ const AdminDashboard: React.FC = () => {
 
       const list = data.users || [];
       setUsers(list);
+      if (data.stats) {
+        setUserStats(data.stats as UserStats);
+      }
       const total = data.pagination?.totalItems;
       setTotalUsersMatching(
         typeof total === "number" ? total : list.length
@@ -242,8 +256,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const reloadAfterMutation = () => {
-    const { page, size, q } = listParamsRef.current;
-    return loadUserList(page, size, q, { bypassDedupe: true });
+    const { page, size, q, status } = listParamsRef.current;
+    return loadUserList(page, size, q, status, { bypassDedupe: true });
   };
 
   useEffect(() => {
@@ -258,41 +272,13 @@ const AdminDashboard: React.FC = () => {
 
     const pageToFetch = searchChanged ? 1 : userPage;
 
-    void loadUserList(pageToFetch, pageSize, debouncedSearchQuery);
-  }, [activeTab, debouncedSearchQuery, userPage, pageSize]);
-
-  useEffect(() => {
-    if (activeTab !== "prompt") return;
-
-    const loadAiConfig = async () => {
-      try {
-        setAiConfigLoading(true);
-        setError(null);
-        const token = authService.getToken();
-        if (!token) return;
-
-        const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(getApiEndpoint("system-prompt"), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setAiConfig({
-            model: data.model,
-            modelfilePath: data.modelfilePath,
-            rebuildCommand: data.rebuildCommand,
-          });
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to load AI config");
-      } finally {
-        setAiConfigLoading(false);
-      }
-    };
-
-    void loadAiConfig();
-  }, [activeTab]);
+    void loadUserList(
+      pageToFetch,
+      pageSize,
+      debouncedSearchQuery,
+      userStatusFilter
+    );
+  }, [activeTab, debouncedSearchQuery, userPage, pageSize, userStatusFilter]);
 
   const updateUser = async (
     userId: string,
@@ -537,7 +523,7 @@ const AdminDashboard: React.FC = () => {
       setCreateUserName("");
       setCreateUserRole("user");
       setUserPage(1);
-      await loadUserList(1, pageSize, debouncedSearchQuery, {
+      await loadUserList(1, pageSize, debouncedSearchQuery, userStatusFilter, {
         bypassDedupe: true,
       });
     } catch (err: any) {
@@ -650,19 +636,6 @@ const AdminDashboard: React.FC = () => {
               Create User
             </span>
           </button>
-          <button
-            onClick={() => setActiveTab("prompt")}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === "prompt"
-                ? "text-indigo-400 border-b-2 border-indigo-400"
-                : "text-slate-400 hover:text-slate-300"
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <Bot size={18} />
-              AI (VPS)
-            </span>
-          </button>
         </div>
 
         {/* Create User Tab */}
@@ -772,62 +745,80 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* AI config — prompt lives in Ollama Modelfile on VPS */}
-        {activeTab === "prompt" && (
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6">
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-              AI prompt (Ollama Modelfile)
-            </h2>
-            <p className="text-sm md:text-base text-slate-400 mb-6">
-              The chat prompt is no longer edited here. It is baked into the{" "}
-              <code className="text-indigo-300">orion-ai</code> model on the VPS
-              for faster responses.
-            </p>
-
-            {aiConfigLoading ? (
-              <div className="flex items-center gap-2 text-slate-400">
-                <Loader2 className="animate-spin" size={20} />
-                Loading…
-              </div>
-            ) : (
-              <div className="space-y-4 text-sm text-slate-300">
-                <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-                  <p>
-                    <span className="text-slate-500">Active model:</span>{" "}
-                    <strong>{aiConfig?.model || "orion-ai"}</strong>
-                  </p>
-                </div>
-                <ol className="list-decimal list-inside space-y-2 text-slate-400">
-                  <li>
-                    SSH:{" "}
-                    <code className="text-slate-200">cd /opt/orion-ai-docker</code>
-                  </li>
-                  <li>
-                    Edit:{" "}
-                    <code className="text-slate-200">
-                      {aiConfig?.modelfilePath || "deploy/modelfile/Modelfile"}
-                    </code>{" "}
-                    (block <code className="text-slate-200">SYSTEM</code>)
-                  </li>
-                  <li>
-                    Rebuild:{" "}
-                    <code className="text-slate-200">
-                      {aiConfig?.rebuildCommand ||
-                        "./scripts/rebuild-ollama-model.sh"}
-                    </code>
-                  </li>
-                </ol>
-                <p className="text-xs text-slate-500">
-                  See <code>MODELFILE-PROMPT.md</code> in the repository.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Users Tab */}
         {activeTab === "users" && (
           <>
+        {userStats && (
+          <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setUserStatusFilter("all");
+                setUserPage(1);
+              }}
+              className={`p-3 rounded-xl border text-left transition-colors ${
+                userStatusFilter === "all"
+                  ? "border-indigo-500 bg-indigo-500/10"
+                  : "border-slate-700 bg-slate-900 hover:border-slate-600"
+              }`}
+            >
+              <p className="text-xs text-slate-400">Total users</p>
+              <p className="text-2xl font-bold text-white">{userStats.total}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUserStatusFilter("active");
+                setUserPage(1);
+              }}
+              className={`p-3 rounded-xl border text-left transition-colors ${
+                userStatusFilter === "active"
+                  ? "border-emerald-500 bg-emerald-500/10"
+                  : "border-slate-700 bg-slate-900 hover:border-slate-600"
+              }`}
+            >
+              <p className="text-xs text-emerald-400">Active (can use app)</p>
+              <p className="text-2xl font-bold text-emerald-300">
+                {userStats.active}
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUserStatusFilter("inactive");
+                setUserPage(1);
+              }}
+              className={`p-3 rounded-xl border text-left transition-colors ${
+                userStatusFilter === "inactive"
+                  ? "border-amber-500 bg-amber-500/10"
+                  : "border-slate-700 bg-slate-900 hover:border-slate-600"
+              }`}
+            >
+              <p className="text-xs text-amber-400">Inactive</p>
+              <p className="text-2xl font-bold text-amber-300">
+                {userStats.inactive}
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUserStatusFilter("blocked");
+                setUserPage(1);
+              }}
+              className={`p-3 rounded-xl border text-left transition-colors ${
+                userStatusFilter === "blocked"
+                  ? "border-red-500 bg-red-500/10"
+                  : "border-slate-700 bg-slate-900 hover:border-slate-600"
+              }`}
+            >
+              <p className="text-xs text-red-400">Blocked</p>
+              <p className="text-2xl font-bold text-red-300">
+                {userStats.blocked}
+              </p>
+            </button>
+          </div>
+        )}
+
         <AdminUserSearchBar
           key={searchBarKey}
           onDebouncedChange={setDebouncedSearchQuery}
@@ -931,7 +922,7 @@ const AdminDashboard: React.FC = () => {
                     Role
                   </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
-                    Blocked
+                    Access
                   </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
                     Actions
@@ -979,15 +970,20 @@ const AdminDashboard: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
-                      {user.isBlocked ? (
+                      {user.accessStatus === "blocked" || user.isBlocked ? (
                         <span className="flex items-center gap-1.5 lg:gap-2 text-red-400">
                           <Ban size={14} className="lg:w-4 lg:h-4" />
                           <span className="text-xs lg:text-sm">Blocked</span>
                         </span>
-                      ) : (
+                      ) : user.canUseApp || user.accessStatus === "active" ? (
                         <span className="flex items-center gap-1.5 lg:gap-2 text-green-400">
                           <CheckCircle size={14} className="lg:w-4 lg:h-4" />
                           <span className="text-xs lg:text-sm">Active</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 lg:gap-2 text-amber-400">
+                          <AlertCircle size={14} className="lg:w-4 lg:h-4" />
+                          <span className="text-xs lg:text-sm">Inactive</span>
                         </span>
                       )}
                     </td>
@@ -1130,15 +1126,20 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                {user.isBlocked ? (
+                {user.accessStatus === "blocked" || user.isBlocked ? (
                   <span className="flex items-center gap-1.5 text-red-400 text-xs">
                     <Ban size={14} />
                     <span>Blocked</span>
                   </span>
-                ) : (
+                ) : user.canUseApp || user.accessStatus === "active" ? (
                   <span className="flex items-center gap-1.5 text-green-400 text-xs">
                     <CheckCircle size={14} />
                     <span>Active</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-amber-400 text-xs">
+                    <AlertCircle size={14} />
+                    <span>Inactive</span>
                   </span>
                 )}
               </div>

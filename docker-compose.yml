@@ -47,9 +47,11 @@ services:
     volumes:
       # Scripts no host (git pull) — load test sem rebuild só do .mjs
       - ./scripts:/app/scripts:ro
+    # Sem depends_on obrigatório — permite ./scripts/use-host-ollama.sh (Ollama :11434 no host)
     depends_on:
       ollama-orion:
         condition: service_healthy
+        required: false
 
 volumes:
   ollama_orion_data:

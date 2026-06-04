@@ -1,0 +1,13 @@
+# Override: Orion app usa Ollama do HOST (:11434) — produção legada intacta.
+# O container orion-ollama (porta 11435) pode ficar parado.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up -d orion-app
+# ou: ./scripts/use-host-ollama.sh
+
+services:
+  orion-app:
+    environment:
+      OLLAMA_URL: ${OLLAMA_HOST_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: []

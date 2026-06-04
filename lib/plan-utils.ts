@@ -25,17 +25,48 @@ export function buildPlanContextFromMessages(
     .join("\n\n");
 }
 
+function stripMarkdownFences(text: string): string {
+  return text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+}
+
+/** Fix common LLM JSON mistakes (trailing commas, smart quotes). */
+export function repairPlanJsonText(raw: string): string {
+  let s = stripMarkdownFences(raw);
+  const match = s.match(/\{[\s\S]*\}/);
+  if (match) s = match[0];
+  s = s.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
+  s = s.replace(/,\s*([}\]])/g, "$1");
+  return s;
+}
+
 export function parsePlanJsonFromText(raw: string): unknown {
-  const trimmed = raw.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) {
-      throw new Error("No valid JSON found in plan response");
+  const attempts = [raw.trim(), repairPlanJsonText(raw)];
+  let lastError: Error | null = null;
+
+  for (const candidate of attempts) {
+    try {
+      return JSON.parse(candidate);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      const match = candidate.match(/\{[\s\S]*\}/);
+      if (match && match[0] !== candidate) {
+        try {
+          return JSON.parse(repairPlanJsonText(match[0]));
+        } catch (inner) {
+          lastError = inner instanceof Error ? inner : lastError;
+        }
+      }
     }
-    return JSON.parse(match[0]);
   }
+
+  console.warn(
+    "[plan] JSON parse failed, using empty object + normalizeActionPlan fillers:",
+    lastError?.message
+  );
+  return {};
 }
 
 function asString(v: unknown, fallback: string): string {

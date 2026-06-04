@@ -151,21 +151,32 @@ Teste: `https://orion.orionaii.com` (sem `:3001`).
 
 Digistore IPN (quando for cortar Vercel): `https://orion.orionaii.com/api/digistore-ipn`
 
-## Migrar para o Ollama grande do host (futuro)
+## Usar Ollama do host (:11434) sem derrubar produção
 
-Quando quiser usar o Ollama já existente na 11434, **sem** o container `ollama-orion`:
+O Ollama de **produção no host** continua na **11434**. O container `orion-ollama` usa **11435** — são portas diferentes.
 
-1. No `.env.docker`, defina `OLLAMA_URL=http://host.docker.internal:11434` (Linux: adicione em `docker-compose.yml` under `orion-app`:
+```bash
+cd /opt/orion-ai-docker
+chmod +x scripts/use-host-ollama.sh scripts/use-container-ollama.sh
+./scripts/use-host-ollama.sh
+```
 
-   ```yaml
-   extra_hosts:
-     - "host.docker.internal:host-gateway"
-   ```
+Isso:
+- Para só o container `orion-ollama` (11435)
+- Recria `orion-app` apontando para `http://host.docker.internal:11434`
+- **Não** reinicia o systemd Ollama do host
 
-2. Remova ou comente o serviço `ollama-orion` e a dependência `depends_on`.
-3. Use o mesmo `OLLAMA_MODEL` que já está no host.
+Crie `orion-ai` no Ollama do host (uma vez):
 
-Até lá, os dois Ollamas coexistem: produção em **11434**, teste Orion em **11435**.
+```bash
+OLLAMA_HOST=127.0.0.1:11434 ./scripts/rebuild-ollama-model.sh
+```
+
+Voltar ao Ollama do container:
+
+```bash
+./scripts/use-container-ollama.sh
+```
 
 ## Persistência (chat + plano)
 

@@ -5,6 +5,11 @@ import jwt from "jsonwebtoken";
 import { sendNewUserEmail } from "../lib/email.js";
 import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
+import {
+  type AccessFilter,
+  classifyAccessFilter,
+  isUserAccessActive,
+} from "../lib/user-access-status.js";
 
 function generateRandomPassword(length: number = 12): string {
   const charset =
@@ -58,22 +63,69 @@ export default async function adminUsersHandler(
 
     if (req.method === "GET") {
       // Listar usuários
-      const { page = 1, limit = 500, search = "" } = req.query;
+      const { page = 1, limit = 500, search = "", status = "all" } =
+        req.query;
 
       const pageNumber = parseInt(page as string) || 1;
       const limitNumber = parseInt(limit as string) || 500;
+      const statusFilter = (status as string) as AccessFilter;
 
-      // Impor limite máximo para evitar sobrecarga
       const maxLimit = 500;
       const finalLimit = Math.min(limitNumber, maxLimit);
       const offset = (pageNumber - 1) * finalLimit;
+      const now = new Date();
 
-      let whereClause: any = {};
+      const andParts: Record<string, unknown>[] = [];
+
       if (search) {
-        whereClause.OR = [
-          { name: { contains: search as string, mode: "insensitive" } },
-          { email: { contains: search as string, mode: "insensitive" } },
-        ];
+        andParts.push({
+          OR: [
+            { name: { contains: search as string, mode: "insensitive" } },
+            { email: { contains: search as string, mode: "insensitive" } },
+          ],
+        });
+      }
+
+      if (statusFilter === "blocked") {
+        andParts.push({ isBlocked: true });
+      } else if (statusFilter === "active") {
+        andParts.push({ isBlocked: false, isActive: true });
+        andParts.push({
+          OR: [
+            { accessExpiresAt: null },
+            { accessExpiresAt: { gt: now } },
+          ],
+        });
+      } else if (statusFilter === "inactive") {
+        andParts.push({ isBlocked: false });
+        andParts.push({
+          OR: [
+            { isActive: false },
+            { accessExpiresAt: { lte: now } },
+          ],
+        });
+      }
+
+      const whereClause =
+        andParts.length > 0 ? { AND: andParts } : {};
+
+      const allForStats = await prisma.user.findMany({
+        select: {
+          role: true,
+          isBlocked: true,
+          isActive: true,
+          accessExpiresAt: true,
+        },
+      });
+
+      let activeCount = 0;
+      let inactiveCount = 0;
+      let blockedCount = 0;
+      for (const u of allForStats) {
+        const bucket = classifyAccessFilter(u, now);
+        if (bucket === "active") activeCount++;
+        else if (bucket === "blocked") blockedCount++;
+        else inactiveCount++;
       }
 
       const users = await prisma.user.findMany({
@@ -100,14 +152,27 @@ export default async function adminUsersHandler(
 
       const total = await prisma.user.count({ where: whereClause });
 
+      const usersWithAccess = users.map((u) => ({
+        ...u,
+        accessStatus: classifyAccessFilter(u, now),
+        canUseApp: isUserAccessActive(u, now),
+      }));
+
       return res.status(200).json({
-        users,
+        users: usersWithAccess,
+        stats: {
+          total: allForStats.length,
+          active: activeCount,
+          inactive: inactiveCount,
+          blocked: blockedCount,
+        },
         pagination: {
           currentPage: pageNumber,
           totalPages: Math.max(1, Math.ceil(total / finalLimit)),
           totalItems: total,
           itemsPerPage: finalLimit,
         },
+        filter: statusFilter,
       });
     } else if (req.method === "POST") {
       // Criar novo usuário (admin). Senha opcional: se omitida, gera temporária e envia e-mail.

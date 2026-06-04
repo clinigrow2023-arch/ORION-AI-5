@@ -92,7 +92,17 @@ export default async function planHandler(
       `[plan] user=${userId} ctxChars=${historyText.length} model=${process.env.OLLAMA_PLAN_MODEL || "llama3.2:3b"}`
     );
     const raw = await generatePlanWithOllama(historyText);
-    const parsed = parsePlanJsonFromText(raw);
+    let parsed: unknown;
+    try {
+      parsed = parsePlanJsonFromText(raw);
+    } catch (parseErr: unknown) {
+      console.error("[plan] parse failed:", parseErr);
+      return res.status(502).json({
+        error:
+          "Plan response was not valid JSON. Please try again in a moment.",
+        retryable: true,
+      });
+    }
     const plan = normalizeActionPlan(parsed);
 
     if (!isValidActionPlan(plan)) {

@@ -45,4 +45,4 @@ SAFETY:
 PARAMETER temperature 0.65
 PARAMETER top_p 0.9
 PARAMETER repeat_penalty 1.15
-PARAMETER num_ctx 3072
+PARAMETER num_ctx 2048

@@ -26,10 +26,12 @@ interface ConversationSummary {
   createdAt: string;
   updatedAt: string;
   messageCount?: number;
+  hasActionPlan?: boolean;
 }
 
 interface ConversationDetail extends ConversationSummary {
   messages: Array<{ text: string; sender: string; timestamp?: string }>;
+  actionPlan?: ActionPlan;
 }
 
 const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
@@ -138,6 +140,12 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
 
     loadSelectedMessages();
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (isGenerating) return;
+    const saved = loadedConversation?.actionPlan;
+    if (saved) setPlan(saved);
+  }, [loadedConversation?.id, loadedConversation?.actionPlan, isGenerating]);
 
   const getSelectedConversationHistory = (): string => {
     if (loadedConversation?.messages?.length) {

@@ -172,3 +172,15 @@ export function isValidActionPlan(plan: ActionPlan): boolean {
     plan.messageTemplates.length >= 3
   );
 }
+
+/** Parse actionPlan JSON stored on Conversation (Mongo). */
+export function parseStoredActionPlan(raw: string | null | undefined): ActionPlan | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = parsePlanJsonFromText(raw);
+    const plan = normalizeActionPlan(parsed);
+    return isValidActionPlan(plan) ? plan : null;
+  } catch {
+    return null;
+  }
+}

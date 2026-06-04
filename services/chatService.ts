@@ -81,7 +81,11 @@ export class ChatService {
         if (!line.startsWith("data: ")) continue;
         try {
           const data = JSON.parse(line.substring(6));
-          if (data.error) throw new Error(data.error);
+          if (data.error) {
+            const err = new Error(data.error) as Error & { code?: string };
+            if (data.code) err.code = data.code;
+            throw err;
+          }
           if (data.chunk) {
             fullResponse += data.chunk;
             onChunk(data.chunk);

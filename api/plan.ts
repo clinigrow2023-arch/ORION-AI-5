@@ -101,10 +101,31 @@ export default async function planHandler(
       });
     }
 
+    const planJson = JSON.stringify(plan);
+    let savedConversationId = conversationId;
+
+    if (!savedConversationId) {
+      const latest = await prisma.conversation.findFirst({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+      savedConversationId = latest?.id;
+    }
+
+    if (savedConversationId) {
+      await prisma.conversation.updateMany({
+        where: { id: savedConversationId, userId },
+        data: { actionPlan: planJson },
+      });
+    }
+
     return res.status(200).json({
       plan,
       response: plan,
       provider: "Ollama",
+      conversationId: savedConversationId ?? undefined,
+      saved: !!savedConversationId,
     });
   } catch (error: any) {
     console.error("Plan API Error:", error);

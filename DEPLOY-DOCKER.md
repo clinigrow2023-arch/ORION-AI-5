@@ -136,6 +136,19 @@ Quando quiser usar o Ollama já existente na 11434, **sem** o container `ollama-
 
 Até lá, os dois Ollamas coexistem: produção em **11434**, teste Orion em **11435**.
 
+## Persistência (chat + plano)
+
+- **Chat:** mensagens em `Conversation.messages` (MongoDB).
+- **Plano:** após gerar, gravado em `Conversation.actionPlan` na mesma conversa.
+
+Após deploy com campo novo no schema:
+
+```bash
+docker compose --env-file .env.docker exec orion-app npx prisma db push
+```
+
+Detalhes e metas de latência: **`docs/PERFORMANCE-VPS.md`**.
+
 ## Performance e escala (~1000 usuários)
 
 Respostas **quase instantâneas** com LLM local em CPU não são realistas; o alvo é **5–12 s no chat** e **15–30 s no Action Plan** após otimizações.

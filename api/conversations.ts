@@ -6,6 +6,7 @@ import {
   handleOptions,
   getTokenFromHeader,
 } from "./_helpers.js";
+import { parseStoredActionPlan } from "../lib/plan-utils.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -78,6 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           select: {
             id: true,
             messages: true,
+            actionPlan: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -87,10 +89,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(404).json({ error: "Conversation not found" });
         }
 
+        const actionPlan = parseStoredActionPlan(conversation.actionPlan);
+
         return res.status(200).json({
           conversation: {
-            ...conversation,
+            id: conversation.id,
+            createdAt: conversation.createdAt,
+            updatedAt: conversation.updatedAt,
             messages: JSON.parse(conversation.messages || "[]"),
+            actionPlan: actionPlan ?? undefined,
+            hasActionPlan: !!actionPlan,
           },
         });
       }
@@ -101,6 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         select: {
           id: true,
           messages: true,
+          actionPlan: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -122,6 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             createdAt: conv.createdAt,
             updatedAt: conv.updatedAt,
             messageCount,
+            hasActionPlan: !!parseStoredActionPlan(conv.actionPlan),
           };
         }
         return {

@@ -45,7 +45,7 @@ async function acquireSlot(): Promise<void> {
   while (active >= maxSlots()) {
     if (Date.now() >= deadline) {
       throw new OllamaBusyError(
-        `Orion is busy (${maxSlots()} AI requests at once). Please wait a moment and try again.`
+        `Orion is at capacity (max ${maxSlots()} simultaneous AI requests). Please wait a moment and try again.`
       );
     }
     await new Promise((r) => setTimeout(r, pollMs));

@@ -61,7 +61,7 @@ function parseChatSse(buf) {
   return { gotDone, chunkChars, error, code };
 }
 
-async function chatStream(token, i) {
+async function chatStream(token, i, attempt = 0) {
   const t0 = Date.now();
   const res = await fetch(`${BASE}/api/chat?stream=true`, {
     method: "POST",
@@ -97,6 +97,10 @@ async function chatStream(token, i) {
   }
   const { gotDone, chunkChars, error, code } = parseChatSse(buf);
   if (error) {
+    if (code === "BUSY" && attempt < 3) {
+      await new Promise((r) => setTimeout(r, 8000));
+      return chatStream(token, i, attempt + 1);
+    }
     return {
       i,
       ok: false,
@@ -176,7 +180,14 @@ function summarize(label, results) {
 }
 
 async function main() {
+  const appMax = Number(process.env.OLLAMA_APP_MAX_CONCURRENT || 6);
   console.log(`Target: ${BASE}  concurrent: ${CONCURRENT}`);
+  if (CONCURRENT > appMax) {
+    console.warn(
+      `Warning: CONCURRENT (${CONCURRENT}) > OLLAMA_APP_MAX_CONCURRENT (~${appMax}) → expect BUSY unless you raise the limit in .env.docker`
+    );
+  }
+  console.log("Do not run load test while using the site in the browser (same queue).");
   const token = await login();
   console.log("Login OK");
 

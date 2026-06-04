@@ -71,6 +71,23 @@ Mais de 6–8 inferências paralelas em CPU costuma **piorar** o tempo por usuá
 - GPU na VPS ou servidor dedicado com CUDA
 - API cloud só para pico (não é o escopo atual do branch Ollama-only)
 
+## Load test: `BUSY` / 2 de 6 OK
+
+`OLLAMA_APP_MAX_CONCURRENT=6` = no máximo **6** inferências ao mesmo tempo. Se você manda **6** no teste **e** abre o chat no navegador, sobra fila → após **45s** de espera vem **503 BUSY** (comportamento esperado).
+
+**Teste limpo:**
+
+```bash
+# Não use o site no browser durante o teste
+export LOAD_TEST_CONCURRENT=4
+export LOAD_TEST_PLAN=0
+./scripts/run-load-test-vps.sh
+```
+
+`CONCURRENT` deve ser **≤** `OLLAMA_APP_MAX_CONCURRENT` no `.env.docker`.
+
+Chat real **~90–120s** em CPU com `orion-ai` é normal hoje; meta &lt;30s exige GPU ou Ollama no host mais rápido.
+
 ## Load test: `stream ended without done`
 
 Se **4/8 chats** falham com ~**72s** e mensagem `stream ended without done`, quase sempre é **nginx cortando o SSE** (timeout padrão 60s no vhost **443**), não o Ollama.

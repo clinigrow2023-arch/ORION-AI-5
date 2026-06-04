@@ -1,5 +1,6 @@
 import { Ollama3Provider } from "./ollama3.js";
 import { getSystemInstruction, useOllamaModelfile } from "./prompts.js";
+import { withOllamaInference } from "../../lib/ollama-queue.js";
 
 async function resolveChatSystemInstruction(): Promise<string> {
   if (useOllamaModelfile()) {
@@ -26,7 +27,9 @@ export async function sendMessageWithOllama(
 ): Promise<string> {
   const provider = getOllamaProvider();
   const systemInstruction = await resolveChatSystemInstruction();
-  const response = await provider.sendMessage(message, history, systemInstruction);
+  const response = await withOllamaInference(() =>
+    provider.sendMessage(message, history, systemInstruction)
+  );
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty response");
   }
@@ -40,11 +43,8 @@ export async function sendMessageStreamWithOllama(
 ): Promise<string> {
   const provider = getOllamaProvider();
   const systemInstruction = await resolveChatSystemInstruction();
-  const response = await provider.sendMessageStream(
-    message,
-    history,
-    systemInstruction,
-    onChunk
+  const response = await withOllamaInference(() =>
+    provider.sendMessageStream(message, history, systemInstruction, onChunk)
   );
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty response");
@@ -65,7 +65,9 @@ export async function generatePlanWithOllama(
   contextHistory: string
 ): Promise<string> {
   const provider = getPlanOllamaProvider();
-  const response = await provider.generatePlan(contextHistory);
+  const response = await withOllamaInference(() =>
+    provider.generatePlan(contextHistory)
+  );
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty plan response");
   }

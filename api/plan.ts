@@ -10,6 +10,7 @@ import {
   parsePlanJsonFromText,
 } from "../lib/plan-utils.js";
 import { truncatePlanContext } from "./ai-providers/ollama-helpers.js";
+import { isOllamaBusyError } from "../lib/ollama-queue.js";
 
 export default async function planHandler(
   req: VercelRequest,
@@ -107,6 +108,13 @@ export default async function planHandler(
     });
   } catch (error: any) {
     console.error("Plan API Error:", error);
+    if (isOllamaBusyError(error)) {
+      return res.status(503).json({
+        error: error.message,
+        code: "BUSY",
+        retryable: true,
+      });
+    }
     return res.status(500).json({
       error: error.message || "Failed to generate action plan",
     });

@@ -116,4 +116,7 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(
     `   Prompt: ${modelfile ? "Modelfile (no API system field)" : "database/API"}`
   );
+  console.log(
+    `   Queue: max ${process.env.OLLAMA_APP_MAX_CONCURRENT || 4} concurrent, wait ${process.env.OLLAMA_QUEUE_MAX_WAIT_MS || 45000}ms`
+  );
 });

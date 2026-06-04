@@ -6,6 +6,7 @@ import {
   sendMessageStreamWithOllama,
   sendMessageWithOllama,
 } from "./ai-providers/orion-ai.js";
+import { isOllamaBusyError } from "../lib/ollama-queue.js";
 
 export default async function chatHandler(
   req: VercelRequest,
@@ -78,7 +79,10 @@ export default async function chatHandler(
         );
         res.end();
       } catch (error: any) {
-        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        const payload = isOllamaBusyError(error)
+          ? { error: error.message, code: "BUSY", retryable: true }
+          : { error: error.message };
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
         res.end();
       }
       return;
@@ -97,6 +101,13 @@ export default async function chatHandler(
     });
   } catch (error: any) {
     console.error("Chat API Error:", error);
+    if (isOllamaBusyError(error)) {
+      return res.status(503).json({
+        error: error.message,
+        code: "BUSY",
+        retryable: true,
+      });
+    }
     return res
       .status(500)
       .send(`ERROR: ${error.message || "Internal server error"}`);

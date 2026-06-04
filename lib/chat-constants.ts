@@ -12,3 +12,6 @@ export const PLAN_NUM_PREDICT = 480;
 
 /** Plan uses base model (not orion-ai Modelfile) — set OLLAMA_PLAN_MODEL */
 export const PLAN_TIMEOUT_MS = 120_000;
+
+/** Chat stream / non-stream HTTP timeout to Ollama */
+export const CHAT_TIMEOUT_MS = 120_000;

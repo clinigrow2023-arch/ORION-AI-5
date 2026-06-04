@@ -19,6 +19,8 @@ const EMAIL = process.env.LOAD_TEST_EMAIL;
 const PASSWORD = process.env.LOAD_TEST_PASSWORD;
 const CONCURRENT = Number(process.env.LOAD_TEST_CONCURRENT || 50);
 const RUN_PLAN = process.env.LOAD_TEST_PLAN !== "0";
+const PLAN_CONCURRENT = Number(process.env.LOAD_TEST_PLAN_CONCURRENT || 2);
+const STRESS = process.env.LOAD_TEST_STRESS === "1";
 
 if (!EMAIL || !PASSWORD) {
   console.error("Set LOAD_TEST_EMAIL and LOAD_TEST_PASSWORD");
@@ -136,13 +138,33 @@ async function main() {
   summarize("CHAT (stream)", chatResults);
 
   if (RUN_PLAN) {
-    const planJobs = Array.from({ length: Math.min(CONCURRENT, 10) }, (_, i) =>
-      generatePlan(token, i + 1)
+    const planCount = STRESS ? Math.min(CONCURRENT, 10) : PLAN_CONCURRENT;
+    console.log(
+      STRESS
+        ? `Starting ${planCount} plan requests in parallel (STRESS mode)...`
+        : `Starting ${planCount} plan requests (${PLAN_CONCURRENT} at a time, realistic)...`
     );
-    console.log(`Starting ${planJobs.length} plan requests (max 10 at once)...`);
-    const planResults = await Promise.all(planJobs);
+    const planResults = [];
+    if (STRESS) {
+      planResults.push(
+        ...(await Promise.all(
+          Array.from({ length: planCount }, (_, i) => generatePlan(token, i + 1))
+        ))
+      );
+    } else {
+      for (let i = 0; i < planCount; i++) {
+        planResults.push(await generatePlan(token, i + 1));
+      }
+    }
     summarize("PLAN (JSON)", planResults);
   }
+
+  console.log(
+    "\nNote: 50 parallel chats on 1 CPU VPS is a stress test — expect minutes of wait."
+  );
+  console.log(
+    "Realistic: LOAD_TEST_CONCURRENT=8  LOAD_TEST_PLAN_CONCURRENT=1  (omit LOAD_TEST_STRESS)"
+  );
 }
 
 main().catch((e) => {

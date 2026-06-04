@@ -1,6 +1,7 @@
 import { AIProvider, createProviderError, isRetryableError } from "./base.js";
 import {
   CHAT_NUM_PREDICT,
+  CHAT_TIMEOUT_MS,
   PLAN_NUM_PREDICT,
   PLAN_TIMEOUT_MS,
 } from "../../lib/chat-constants.js";
@@ -72,7 +73,7 @@ export class Ollama3Provider implements AIProvider {
 
       // Timeout reduzido para respostas mais rápidas: 60 segundos
       const controller = new AbortController(); 
-      const timeoutMs = 120000;
+      const timeoutMs = CHAT_TIMEOUT_MS;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const startTime = Date.now();
@@ -397,11 +398,29 @@ export class Ollama3Provider implements AIProvider {
 
       ollamaLog(`[Ollama] stream model=${this.model} systemLen=${systemForRequest.length}`);
 
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+      let response: Response;
+      try {
+        response = await fetch(`${this.baseUrl}/api/generate`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === "AbortError") {
+          throw createProviderError(
+            this.name,
+            `Chat stream timeout after ${CHAT_TIMEOUT_MS / 1000} seconds`,
+            "TIMEOUT",
+            true
+          );
+        }
+        throw fetchError;
+      }
 
       if (!response.ok) {
         let errorData: any = {};

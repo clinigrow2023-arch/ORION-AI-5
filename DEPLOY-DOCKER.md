@@ -180,7 +180,27 @@ export LOAD_TEST_EMAIL=... LOAD_TEST_PASSWORD=...
 ./scripts/run-load-test-vps.sh
 ```
 
-Interpretação: em 1 VPS CPU, 50 chats ao mesmo tempo vão **enfileirar** no Ollama (`OLLAMA_NUM_PARALLEL`). Espere p95 alto; o teste mostra OK/FAIL e latência.
+**Interpretação (exemplo real):** 50 chats OK mas p50 ~150s = CPU saturada; mensagem real durante o teste pode levar ~4 min. Isso é esperado no stress test.
+
+**Teste realista** (8 usuários + 1 plano por vez):
+
+```bash
+export LOAD_TEST_CONCURRENT=8
+export LOAD_TEST_PLAN_CONCURRENT=1
+export LOAD_TEST_PLAN=1
+./scripts/run-load-test-vps.sh
+```
+
+**Proteção em produção** (após `git pull` + redeploy):
+
+```env
+OLLAMA_APP_MAX_CONCURRENT=4
+OLLAMA_QUEUE_MAX_WAIT_MS=45000
+```
+
+Acima de 4 inferências simultâneas, novos pedidos esperam até ~45s e recebem **503 BUSY** em vez de ficar 4 min na fila.
+
+Stress (10 planos paralelos): `LOAD_TEST_STRESS=1 ./scripts/run-load-test-vps.sh`
 
 **Para máxima velocidade (quando validar):** apontar o app para o Ollama **8B do host** (`:11434`) com GPU/RAM — ver seção “Migrar para o Ollama grande”.
 

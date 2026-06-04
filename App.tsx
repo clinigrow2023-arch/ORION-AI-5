@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatInterface from "./components/ChatInterface";
 import PlanDisplay from "./components/PlanDisplay";
@@ -65,6 +65,11 @@ const App: React.FC = () => {
     chatService.clearHistory();
   };
 
+  const applyPlan = useCallback((p: ActionPlan | null) => {
+    setPlan(p);
+    if (p) setPlanNotice(null);
+  }, []);
+
   const renderContent = () => {
     switch (currentView) {
       case "admin":
@@ -88,13 +93,7 @@ const App: React.FC = () => {
         );
       case "plan":
         return (
-          <PlanDisplay
-            plan={plan}
-            setPlan={(p) => {
-              setPlan(p);
-              if (p) setPlanNotice(null);
-            }}
-          />
+          <PlanDisplay plan={plan} setPlan={applyPlan} />
         );
       case "guide":
         return <GuideView />;

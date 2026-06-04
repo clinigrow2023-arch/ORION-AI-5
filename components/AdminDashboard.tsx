@@ -578,7 +578,14 @@ const AdminDashboard: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    Total users:{" "}
+                    {userStatusFilter === "all"
+                      ? "Total users"
+                      : userStatusFilter === "active"
+                        ? "Active users"
+                        : userStatusFilter === "inactive"
+                          ? "Inactive users"
+                          : "Blocked users"}
+                    :{" "}
                     <span className="font-semibold">{totalUsersMatching}</span>
                     {listTotalPages > 1 ? (
                       <span className="text-slate-500 font-normal">

@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ActionPlan } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
 import { getActiveConversationId } from "../lib/active-conversation";
+import {
+  type ConversationDetail,
+  type ConversationSummary,
+  fetchConversationDetail,
+  fetchConversationsSummary,
+  invalidateConversationsCache,
+} from "../lib/conversations-client";
 import {
   startPlanGeneration,
   getPlanJob,
@@ -29,19 +36,6 @@ interface PlanDisplayProps {
   setPlan: (plan: ActionPlan | null) => void;
 }
 
-interface ConversationSummary {
-  id: string;
-  createdAt: string;
-  updatedAt: string;
-  messageCount?: number;
-  hasActionPlan?: boolean;
-}
-
-interface ConversationDetail extends ConversationSummary {
-  messages: Array<{ text: string; sender: string; timestamp?: string }>;
-  actionPlan?: ActionPlan;
-}
-
 const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
   const { user } = useAuth();
   const [viewPlan, setViewPlan] = useState<ActionPlan | null>(null);
@@ -58,99 +52,52 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     useState(false);
 
   const hasAccess = !!user;
+  const setPlanRef = useRef(setPlan);
+  setPlanRef.current = setPlan;
+  const planInitDone = useRef(false);
+  const readyJobHandled = useRef<string | null>(null);
 
-  const refreshConversationList = async () => {
-    try {
-      const token = authService.getToken();
-      if (!token) return;
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?summary=1`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data.conversations?.length) {
-          setConversations(data.conversations);
-        }
-      }
-    } catch {
-      /* ignore */
-    }
+  const refreshConversationList = async (force = false) => {
+    const list = await fetchConversationsSummary(force);
+    if (list.length) setConversations(list);
+    return list;
   };
 
-  const fetchConversationById = async (
-    conversationId: string
-  ): Promise<ConversationDetail | null> => {
-    try {
-      const token = authService.getToken();
-      if (!token) return null;
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?conversationId=${encodeURIComponent(conversationId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.conversation ?? null;
-    } catch {
-      return null;
+  const loadConversationPlan = useCallback(async (conversationId: string) => {
+    const conv = await fetchConversationDetail(conversationId);
+    setLoadedConversation(conv);
+    const plan = (conv?.actionPlan as ActionPlan | undefined) ?? null;
+    if (plan?.steps?.length) {
+      setViewPlan(plan);
+      setPlanRef.current(plan);
+    } else {
+      setViewPlan(null);
+      setPlanRef.current(null);
     }
-  };
-
-  const loadConversationPlan = useCallback(
-    async (conversationId: string) => {
-      const conv = await fetchConversationById(conversationId);
-      setLoadedConversation(conv);
-      if (conv?.actionPlan) {
-        setViewPlan(conv.actionPlan);
-        setPlan(conv.actionPlan);
-      } else {
-        setViewPlan(null);
-        setPlan(null);
-      }
-      return conv;
-    },
-    [setPlan]
-  );
+    return conv;
+  }, []);
 
   useEffect(() => {
-    const init = async () => {
-      await refreshConversationList();
+    if (planInitDone.current) return;
+    planInitDone.current = true;
+
+    void (async () => {
+      const list = await refreshConversationList();
       const active = getActiveConversationId();
-      const token = authService.getToken();
-      if (!token) return;
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?summary=1`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!response.ok) return;
-
-      const data = await response.json();
-      const list = data.conversations || [];
-      setConversations(list);
-
       const pick =
-        active && list.some((c: ConversationSummary) => c.id === active)
-          ? active
-          : list[0]?.id;
+        active && list.some((c) => c.id === active) ? active : list[0]?.id;
       if (pick) {
         setSelectedConversationId(pick);
         await loadConversationPlan(pick);
       }
-    };
-
-    init();
+    })();
   }, [loadConversationPlan]);
 
-  useEffect(() => {
-    if (!selectedConversationId) return;
-    loadConversationPlan(selectedConversationId);
-  }, [selectedConversationId, loadConversationPlan]);
+  const selectConversation = (conversationId: string) => {
+    if (conversationId === selectedConversationId) return;
+    setSelectedConversationId(conversationId);
+    void loadConversationPlan(conversationId);
+  };
 
   useEffect(() => {
     if (!selectedConversationId) return;
@@ -162,11 +109,21 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
         setBackgroundNote(
           "Generating in the background. You can leave this page — we'll notify you when it's ready."
         );
-      } else if (job?.status === "ready") {
+        return;
+      }
+      if (job?.status === "ready") {
         setIsGenerating(false);
         setBackgroundNote(null);
-        void loadConversationPlan(selectedConversationId);
-      } else if (job?.status === "error") {
+        if (readyJobHandled.current === selectedConversationId) return;
+        readyJobHandled.current = selectedConversationId;
+        void loadConversationPlan(selectedConversationId).then(() => {
+          clearPlanJob(selectedConversationId);
+          readyJobHandled.current = null;
+          invalidateConversationsCache(selectedConversationId);
+        });
+        return;
+      }
+      if (job?.status === "error") {
         setIsGenerating(false);
         setBackgroundNote(null);
         setError(job.error || "Plan generation failed");
@@ -174,17 +131,19 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     };
 
     syncJob();
-    const interval = setInterval(syncJob, 2000);
+    const interval = setInterval(syncJob, 5000);
     return () => clearInterval(interval);
   }, [selectedConversationId, loadConversationPlan]);
 
   useEffect(() => {
     return subscribePlanReady((conversationId) => {
-      if (conversationId === selectedConversationId) {
-        void loadConversationPlan(conversationId);
-        setIsGenerating(false);
-        setBackgroundNote(null);
-      }
+      if (conversationId !== selectedConversationId) return;
+      void loadConversationPlan(conversationId).then(() => {
+        clearPlanJob(conversationId);
+        invalidateConversationsCache(conversationId);
+      });
+      setIsGenerating(false);
+      setBackgroundNote(null);
     });
   }, [selectedConversationId, loadConversationPlan]);
 
@@ -205,7 +164,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
 
     let conv = loadedConversation;
     conv =
-      (await fetchConversationById(selectedConversationId)) ?? conv;
+      (await fetchConversationDetail(selectedConversationId, true)) ?? conv;
     if (conv) setLoadedConversation(conv);
 
     const history = buildHistoryText(conv);
@@ -223,7 +182,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     );
 
     await requestPlanNotificationPermission();
-    await refreshConversationList();
+    await refreshConversationList(true);
 
     startPlanGeneration({
       conversationId: selectedConversationId,
@@ -233,7 +192,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
         setPlan(newPlan);
         setIsGenerating(false);
         setBackgroundNote(null);
-        void refreshConversationList();
+        invalidateConversationsCache(selectedConversationId);
+        void refreshConversationList(true);
         void loadConversationPlan(selectedConversationId);
       },
       onError: (message) => {
@@ -264,8 +224,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       clearPlanJob(selectedConversationId);
       setViewPlan(null);
       setPlan(null);
+      invalidateConversationsCache(selectedConversationId);
       await loadConversationPlan(selectedConversationId);
-      await refreshConversationList();
+      await refreshConversationList(true);
     } catch (e) {
       console.error("Failed to delete plan:", e);
       setError("Could not delete the saved plan.");
@@ -352,7 +313,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
                         type="button"
                         key={conv.id}
                         onClick={() => {
-                          setSelectedConversationId(conv.id);
+                          selectConversation(conv.id);
                           setShowConversationSelector(false);
                           setError(null);
                         }}

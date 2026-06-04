@@ -25,3 +25,31 @@ export function classifyAccessFilter(u: UserAccessRow, now = new Date()): Access
   if (isUserAccessActive(u, now)) return "active";
   return "inactive";
 }
+
+/** Prisma `where` for list queries — must match classifyAccessFilter / stats. */
+export function accessFilterPrismaWhere(
+  status: Exclude<AccessFilter, "all">,
+  now = new Date()
+): Record<string, unknown> {
+  const activeOr = [
+    { role: "admin" },
+    {
+      isActive: true,
+      OR: [
+        { accessExpiresAt: null },
+        { accessExpiresAt: { gt: now } },
+      ],
+    },
+  ];
+
+  if (status === "blocked") {
+    return { isBlocked: true };
+  }
+  if (status === "active") {
+    return { isBlocked: false, OR: activeOr };
+  }
+  return {
+    isBlocked: false,
+    NOT: { OR: activeOr },
+  };
+}

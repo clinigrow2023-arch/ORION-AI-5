@@ -20,9 +20,16 @@ import {
   getActiveConversationId,
   setActiveConversationId,
 } from "../lib/active-conversation";
+import {
+  fetchConversationDetail,
+  fetchConversationsSummary,
+  invalidateConversationsCache,
+} from "../lib/conversations-client";
 import ReactMarkdown from "react-markdown";
 import ResetChatModal from "./ResetChatModal";
 import DeleteConversationModal from "./DeleteConversationModal";
+
+let chatBootstrapInFlight: Promise<void> | null = null;
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -85,45 +92,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [streamedResponse.length]);
 
-  const loadConversationsList = async () => {
+  const loadConversationsList = async (force = false) => {
     try {
-      const token = authService.getToken();
-      if (!token) return [];
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?summary=1`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.conversations && Array.isArray(data.conversations)) {
-          setConversations(data.conversations);
-          return data.conversations;
-        }
-      }
+      const list = await fetchConversationsSummary(force);
+      if (list.length) setConversations(list);
+      return list;
     } catch (error) {
       console.error("Failed to load conversations:", error);
+      return [];
     }
-    return [];
   };
 
   const loadConversationById = async (conversationId: string) => {
     try {
-      const token = authService.getToken();
-      if (!token) return;
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?conversationId=${conversationId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (!response.ok) return;
-
-      const data = await response.json();
-      const conv = data.conversation;
+      const conv = await fetchConversationDetail(conversationId);
       if (!conv?.messages?.length) return;
 
       conversationIdRef.current = conv.id;
@@ -156,29 +138,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (bootstrapStarted.current) return;
     bootstrapStarted.current = true;
 
-    const bootstrap = async () => {
-      const token = authService.getToken();
-      if (!token) return;
+    if (!chatBootstrapInFlight) {
+      chatBootstrapInFlight = (async () => {
+        const token = authService.getToken();
+        if (!token) return;
 
-      const list = await loadConversationsList();
-      const storedId = getActiveConversationId();
-      const preferred =
-        storedId && list.some((c: { id: string }) => c.id === storedId)
-          ? storedId
-          : list[0]?.id;
+        const list = await loadConversationsList();
+        const storedId = getActiveConversationId();
+        const preferred =
+          storedId && list.some((c: { id: string }) => c.id === storedId)
+            ? storedId
+            : list[0]?.id;
 
-      if (preferred && messages.length === 0) {
-        await loadConversationById(preferred);
-      } else if (list.length === 0) {
-        conversationIdRef.current = null;
-        setActiveConversationId(null);
-        chatService.clearHistory();
-      }
+        if (preferred && messages.length === 0) {
+          await loadConversationById(preferred);
+        } else if (list.length === 0) {
+          conversationIdRef.current = null;
+          setActiveConversationId(null);
+          chatService.clearHistory();
+        }
 
-      hasLoadedHistory.current = true;
-    };
+        hasLoadedHistory.current = true;
+      })();
+    }
 
-    bootstrap();
+    void chatBootstrapInFlight;
   }, []);
 
   const handleDeleteClick = (conversationId: string, updatedAt: string) => {
@@ -203,7 +187,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       if (response.ok) {
-        await loadConversationsList();
+        invalidateConversationsCache(conversationId);
+        await loadConversationsList(true);
         if (conversationIdRef.current === conversationId) {
           onResetChat();
           conversationIdRef.current = null;
@@ -282,7 +267,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       conversationIdRef.current = id;
       setCurrentConversationId(id);
       setActiveConversationId(id);
-      await loadConversationsList();
+      invalidateConversationsCache();
+      await loadConversationsList(true);
       return id;
     })();
 
@@ -325,6 +311,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (response.ok) {
         const data = await response.json();
         if (data.conversation) {
+          invalidateConversationsCache(conversationId);
           setConversations((prev) => {
             const existing = prev.find((c) => c.id === data.conversation.id);
             if (existing) {

@@ -7,6 +7,7 @@ import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js
 import { prisma } from "./_prisma.js";
 import {
   type AccessFilter,
+  accessFilterPrismaWhere,
   classifyAccessFilter,
   isUserAccessActive,
 } from "../lib/user-access-status.js";
@@ -86,24 +87,12 @@ export default async function adminUsersHandler(
         });
       }
 
-      if (statusFilter === "blocked") {
-        andParts.push({ isBlocked: true });
-      } else if (statusFilter === "active") {
-        andParts.push({ isBlocked: false, isActive: true });
-        andParts.push({
-          OR: [
-            { accessExpiresAt: null },
-            { accessExpiresAt: { gt: now } },
-          ],
-        });
-      } else if (statusFilter === "inactive") {
-        andParts.push({ isBlocked: false });
-        andParts.push({
-          OR: [
-            { isActive: false },
-            { accessExpiresAt: { lte: now } },
-          ],
-        });
+      if (
+        statusFilter === "blocked" ||
+        statusFilter === "active" ||
+        statusFilter === "inactive"
+      ) {
+        andParts.push(accessFilterPrismaWhere(statusFilter, now));
       }
 
       const whereClause =

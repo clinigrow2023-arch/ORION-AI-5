@@ -15,7 +15,7 @@ cd /opt/orion-ai-docker
 nano deploy/modelfile/Modelfile
 ```
 
-2. Altere o bloco `SYSTEM """ ... """`.
+2. Altere o bloco `SYSTEM """ ... """` (prompt completo Orion já está no repo; versão otimizada sem perder regras/etapas/sinais).
 
 3. Recrie o modelo:
 

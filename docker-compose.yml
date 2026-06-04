@@ -1,0 +1,43 @@
+# Orion AI — stack isolado em containers.
+# NÃO usa a porta 11434 do Ollama já rodando no host (produção legada).
+# Ollama deste stack: host 11435 → container 11434, volume próprio.
+
+services:
+  ollama-orion:
+    image: ollama/ollama:latest
+    container_name: orion-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_orion_data:/root/.ollama
+    ports:
+      - "${OLLAMA_ORION_HOST_PORT:-11435}:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+
+  orion-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPPORT_EMAIL: ${VITE_SUPPORT_EMAIL:-}
+    container_name: orion-app
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      PORT: "3000"
+      # Sempre o Ollama do compose — nunca o do host :11434
+      OLLAMA_URL: http://ollama-orion:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+    ports:
+      - "${ORION_APP_HOST_PORT:-3001}:3000"
+    depends_on:
+      ollama-orion:
+        condition: service_healthy
+
+volumes:
+  ollama_orion_data:

@@ -11,6 +11,8 @@
     "build": "vite build",
     "start": "tsx server/production-server.ts",
     "start:prod": "npm run build && npm run start",
+    "docker:up": "docker compose --env-file .env.docker up -d --build",
+    "docker:down": "docker compose --env-file .env.docker down",
     "preview": "vite preview",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

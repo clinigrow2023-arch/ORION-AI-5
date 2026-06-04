@@ -2,6 +2,8 @@
 
 Este branch (`feature/vps-ollama-only`) roda **frontend + API + Ollama** na mesma VPS. Não depende da Vercel para o app.
 
+**Recomendado:** deploy em Docker sem mexer no Ollama de produção do host — veja **[DEPLOY-DOCKER.md](./DEPLOY-DOCKER.md)** e `./scripts/deploy-vps-docker.sh`.
+
 ## Requisitos na VPS
 
 - Node.js 20+

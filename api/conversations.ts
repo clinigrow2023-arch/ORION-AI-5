@@ -32,7 +32,7 @@ const verifyAuth = (
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setCorsHeaders(res, "GET, POST, DELETE, OPTIONS, PUT");
+  setCorsHeaders(res, "GET, POST, DELETE, OPTIONS, PUT, PATCH");
 
   if (req.method === "OPTIONS") {
     return handleOptions(req, res);
@@ -228,6 +228,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           messages: JSON.parse(updated.messages),
         },
       });
+    }
+
+    // PATCH - Limpar plano salvo (mantém mensagens do chat)
+    if (req.method === "PATCH") {
+      const { conversationId, clearActionPlan } = req.body as {
+        conversationId?: string;
+        clearActionPlan?: boolean;
+      };
+
+      if (!conversationId) {
+        return res.status(400).json({ error: "conversationId is required" });
+      }
+
+      const existingConv = await prisma.conversation.findFirst({
+        where: { id: conversationId, userId: auth.userId },
+      });
+
+      if (!existingConv) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      if (clearActionPlan) {
+        await prisma.conversation.update({
+          where: { id: conversationId },
+          data: { actionPlan: null },
+        });
+      }
+
+      return res.status(200).json({ success: true, conversationId });
     }
 
     // DELETE - Deletar conversa

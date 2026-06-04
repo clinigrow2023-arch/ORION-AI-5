@@ -11,6 +11,10 @@ import { useAuth } from "./contexts/AuthContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
 import { Menu, X, Loader2 } from "lucide-react";
 import { chatService } from "./services/chatService";
+import {
+  getAnyPendingPlanJob,
+  subscribePlanReady,
+} from "./services/planJobService";
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
@@ -18,6 +22,21 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [planNotice, setPlanNotice] = useState<"pending" | "ready" | null>(null);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (getAnyPendingPlanJob()) setPlanNotice("pending");
+      else setPlanNotice(null);
+    };
+    refresh();
+    const id = setInterval(refresh, 2000);
+    const unsub = subscribePlanReady(() => setPlanNotice("ready"));
+    return () => {
+      clearInterval(id);
+      unsub();
+    };
+  }, []);
 
   useEffect(() => {
     if (currentView === "admin" && !isAdmin) {
@@ -68,7 +87,15 @@ const App: React.FC = () => {
           />
         );
       case "plan":
-        return <PlanDisplay plan={plan} setPlan={setPlan} />;
+        return (
+          <PlanDisplay
+            plan={plan}
+            setPlan={(p) => {
+              setPlan(p);
+              if (p) setPlanNotice(null);
+            }}
+          />
+        );
       case "guide":
         return <GuideView />;
       case "support":
@@ -135,9 +162,13 @@ const App: React.FC = () => {
       >
         <Sidebar
           currentView={currentView}
+          planNotice={planNotice}
           setView={(view) => {
             setCurrentView(view);
             setIsMobileMenuOpen(false);
+            if (view === "plan" && planNotice === "ready") {
+              setPlanNotice(null);
+            }
           }}
         />
       </div>

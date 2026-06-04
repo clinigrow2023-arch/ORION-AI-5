@@ -9,6 +9,7 @@ import {
   Shield,
   Lock,
   Mail,
+  Loader2,
 } from "lucide-react";
 import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
@@ -18,9 +19,14 @@ import LogoutModal from "./LogoutModal";
 interface SidebarProps {
   currentView: ViewState | "admin";
   setView: (view: ViewState | "admin") => void;
+  planNotice?: "pending" | "ready" | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  currentView,
+  setView,
+  planNotice,
+}) => {
   const { user, logout, isAdmin } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -75,7 +81,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           }`}
         >
           <FileText size={20} />
-          <span className="font-medium">My Action Plan</span>
+          <span className="font-medium flex-1 text-left">My Action Plan</span>
+          {planNotice === "pending" && (
+            <Loader2 size={16} className="animate-spin text-amber-300" />
+          )}
+          {planNotice === "ready" && (
+            <span className="text-[10px] uppercase tracking-wide bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+              Ready
+            </span>
+          )}
         </button>
 
         <button

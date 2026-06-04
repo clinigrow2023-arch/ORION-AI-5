@@ -16,6 +16,10 @@ import { Message, Sender } from "../types";
 import { chatService } from "../services/chatService";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
+import {
+  getActiveConversationId,
+  setActiveConversationId,
+} from "../lib/active-conversation";
 import ReactMarkdown from "react-markdown";
 import ResetChatModal from "./ResetChatModal";
 import DeleteConversationModal from "./DeleteConversationModal";
@@ -37,6 +41,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [streamedResponse, setStreamedResponse] = useState("");
   const hasLoadedHistory = useRef(false);
+  const bootstrapStarted = useRef(false);
+  const conversationIdRef = useRef<string | null>(null);
+  const pendingCreateRef = useRef<Promise<string | null> | null>(null);
   const messageIdCounter = useRef(0);
   const [showResetModal, setShowResetModal] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -119,7 +126,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const conv = data.conversation;
       if (!conv?.messages?.length) return;
 
+      conversationIdRef.current = conv.id;
       setCurrentConversationId(conv.id);
+      setActiveConversationId(conv.id);
       chatService.clearHistory();
 
       conv.messages.forEach((msg: any) => {
@@ -144,16 +153,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   useEffect(() => {
-    if (hasLoadedHistory.current) return;
+    if (bootstrapStarted.current) return;
+    bootstrapStarted.current = true;
 
     const bootstrap = async () => {
       const token = authService.getToken();
       if (!token) return;
 
       const list = await loadConversationsList();
-      if (list.length > 0 && messages.length === 0) {
-        await loadConversationById(list[0].id);
+      const storedId = getActiveConversationId();
+      const preferred =
+        storedId && list.some((c: { id: string }) => c.id === storedId)
+          ? storedId
+          : list[0]?.id;
+
+      if (preferred && messages.length === 0) {
+        await loadConversationById(preferred);
       } else if (list.length === 0) {
+        conversationIdRef.current = null;
+        setActiveConversationId(null);
         chatService.clearHistory();
       }
 
@@ -186,15 +204,92 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       if (response.ok) {
         await loadConversationsList();
-        if (currentConversationId === conversationId) {
-          // Se deletou a conversa atual, limpar mensagens
+        if (conversationIdRef.current === conversationId) {
           onResetChat();
+          conversationIdRef.current = null;
           setCurrentConversationId(null);
+          setActiveConversationId(null);
         }
         setConversationToDelete(null); // Fechar modal após deletar
       }
     } catch (error) {
       console.error("Failed to delete conversation:", error);
+    }
+  };
+
+  const ensureConversationId = async (
+    allMessages: Message[]
+  ): Promise<string | null> => {
+    if (conversationIdRef.current) return conversationIdRef.current;
+    if (allMessages.length === 0) return null;
+
+    if (pendingCreateRef.current) {
+      return pendingCreateRef.current;
+    }
+
+    const token = authService.getToken();
+    if (!token) return null;
+
+    if (conversations.length >= 3) {
+      const errorMsg: Message = {
+        id: generateUniqueId(),
+        text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+        sender: Sender.Bot,
+        timestamp: new Date(),
+      };
+      addMessage(errorMsg);
+      return null;
+    }
+
+    const { getApiEndpoint } = await import("../lib/api-endpoints");
+    const messagesToSave = allMessages.map((msg) => ({
+      id: msg.id,
+      text: msg.text,
+      sender: msg.sender === Sender.User ? "user" : "bot",
+      timestamp: msg.timestamp.toISOString(),
+    }));
+
+    pendingCreateRef.current = (async () => {
+      const response = await fetch(getApiEndpoint("conversations"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ messages: messagesToSave }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          const errorData = await response.json().catch(() => ({}));
+          if (errorData.maxConversations) {
+            const errorMsg: Message = {
+              id: generateUniqueId(),
+              text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
+              sender: Sender.Bot,
+              timestamp: new Date(),
+            };
+            addMessage(errorMsg);
+          }
+        }
+        return null;
+      }
+
+      const data = await response.json();
+      const id = data.conversation?.id as string | undefined;
+      if (!id) return null;
+
+      conversationIdRef.current = id;
+      setCurrentConversationId(id);
+      setActiveConversationId(id);
+      await loadConversationsList();
+      return id;
+    })();
+
+    try {
+      return await pendingCreateRef.current;
+    } finally {
+      pendingCreateRef.current = null;
     }
   };
 
@@ -212,61 +307,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       const { getApiEndpoint } = await import("../lib/api-endpoints");
 
-      // CRÍTICO: Sempre usar a conversa atual se existir
-      // Se não existe conversa atual, criar uma nova apenas se houver mensagens
-      // IMPORTANTE: Se não existe conversa atual, validar limite ANTES de criar
-      if (!currentConversationId) {
-        // Se não há conversa atual, verificar se pode criar uma nova
-        if (conversations.length >= 3) {
-          const errorMsg: Message = {
-            id: generateUniqueId(),
-            text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-            sender: Sender.Bot,
-            timestamp: new Date(),
-          };
-          addMessage(errorMsg);
-          return;
-        }
+      const conversationId = await ensureConversationId(allMessages);
+      if (!conversationId) return;
 
-        // Se não há conversa atual mas há mensagens, criar uma nova
-        // Isso acontece na primeira mensagem do chat
-        if (allMessages.length > 0) {
-          const response = await fetch(getApiEndpoint("conversations"), {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              messages: messagesToSave,
-            }),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.conversation) {
-              // CRÍTICO: Setar o ID da conversa criada para usar nas próximas mensagens
-              setCurrentConversationId(data.conversation.id);
-              await loadConversationsList();
-            }
-          } else if (response.status === 403) {
-            const errorData = await response.json().catch(() => ({}));
-            if (errorData.maxConversations) {
-              const errorMsg: Message = {
-                id: generateUniqueId(),
-                text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-                sender: Sender.Bot,
-                timestamp: new Date(),
-              };
-              addMessage(errorMsg);
-            }
-          }
-          return;
-        }
-        return; // Se não há mensagens, não fazer nada
-      }
-
-      // Se já existe conversa atual, SEMPRE atualizar (PUT)
       const response = await fetch(getApiEndpoint("conversations"), {
         method: "PUT",
         headers: {
@@ -274,7 +317,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          conversationId: currentConversationId,
+          conversationId,
           messages: messagesToSave,
         }),
       });
@@ -282,10 +325,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (response.ok) {
         const data = await response.json();
         if (data.conversation) {
-          // Garantir que o ID está setado (pode já estar, mas garantir)
-          if (!currentConversationId) {
-            setCurrentConversationId(data.conversation.id);
-          }
           setConversations((prev) => {
             const existing = prev.find((c) => c.id === data.conversation.id);
             if (existing) {
@@ -600,7 +639,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 setShowConversationsList(false);
                                 return;
                               }
+                              conversationIdRef.current = null;
                               setCurrentConversationId(null);
+                              setActiveConversationId(null);
                               onResetChat();
                               setShowConversationsList(false);
                             }}
@@ -753,17 +794,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       {showResetModal && (
         <ResetChatModal
           onConfirm={async () => {
-            // Limpar mensagens localmente
+            const idToDelete = conversationIdRef.current;
             onResetChat();
+            conversationIdRef.current = null;
             setCurrentConversationId(null);
+            setActiveConversationId(null);
             setShowResetModal(false);
-            hasLoadedHistory.current = false; // Permitir recarregar histórico se necessário
+            hasLoadedHistory.current = true;
 
-            // Deletar conversa do backend se houver uma conversa atual
-            if (currentConversationId) {
-              await deleteConversation(currentConversationId);
+            if (idToDelete) {
+              await deleteConversation(idToDelete);
             }
-            setCurrentConversationId(null);
           }}
           onCancel={() => setShowResetModal(false)}
         />

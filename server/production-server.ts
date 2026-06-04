@@ -80,6 +80,7 @@ app.post("/api/set-new-password", api(authHandler));
 app.get("/api/conversations", api(conversationsHandler));
 app.post("/api/conversations", api(conversationsHandler));
 app.put("/api/conversations", api(conversationsHandler));
+app.patch("/api/conversations", api(conversationsHandler));
 app.delete("/api/conversations", api(conversationsHandler));
 
 app.get("/api/admin-users", api(adminUsersHandler));

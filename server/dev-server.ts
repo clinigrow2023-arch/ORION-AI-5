@@ -101,6 +101,7 @@ app.get("/api/auth-verify", authHandler);
 app.get("/api/conversations", conversationsHandler);
 app.post("/api/conversations", conversationsHandler);
 app.put("/api/conversations", conversationsHandler);
+app.patch("/api/conversations", conversationsHandler);
 app.delete("/api/conversations", conversationsHandler);
 app.get("/api/admin-users", adminUsersHandler);
 app.post("/api/admin-users", adminUsersHandler);

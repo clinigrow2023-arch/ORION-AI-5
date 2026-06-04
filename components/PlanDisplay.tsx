@@ -18,6 +18,7 @@ import {
   subscribePlanReady,
 } from "../services/planJobService";
 import { friendlyPlanErrorMessage } from "../lib/plan-utils";
+import ConfirmModal from "./ConfirmModal";
 import {
   Target,
   Clock,
@@ -51,6 +52,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
   >(null);
   const [showConversationSelector, setShowConversationSelector] =
     useState(false);
+  const [confirmAction, setConfirmAction] = useState<
+    "delete-plan" | "regenerate-plan" | null
+  >(null);
 
   const hasAccess = !!user;
   const setPlanRef = useRef(setPlan);
@@ -218,7 +222,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       const token = authService.getToken();
       if (!token) return;
       const { getApiEndpoint } = await import("../lib/api-endpoints");
-      await fetch(getApiEndpoint("conversations"), {
+      const response = await fetch(getApiEndpoint("conversations"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -229,6 +233,15 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
           clearActionPlan: true,
         }),
       });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(
+          (err as { error?: string }).error ||
+            `Could not delete plan (${response.status})`
+        );
+      }
+
       clearPlanJob(selectedConversationId);
       setViewPlan(null);
       setPlan(null);
@@ -237,8 +250,17 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       await refreshConversationList(true);
     } catch (e) {
       console.error("Failed to delete plan:", e);
-      setError("Could not delete the saved plan.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not delete the saved plan."
+      );
     }
+  };
+
+  const runRegeneratePlan = async () => {
+    await deleteSavedPlan();
+    await generatePlan();
   };
 
   const conversationLabel = (conv: ConversationSummary) => {
@@ -401,17 +423,14 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
           </button>
           <button
             type="button"
-            onClick={deleteSavedPlan}
+            onClick={() => setConfirmAction("delete-plan")}
             className="text-xs px-3 py-1.5 rounded-lg border border-red-800/50 text-red-300 hover:bg-red-900/20 flex items-center gap-1"
           >
             <Trash2 size={14} /> Delete saved plan
           </button>
           <button
             type="button"
-            onClick={async () => {
-              await deleteSavedPlan();
-              await generatePlan();
-            }}
+            onClick={() => setConfirmAction("regenerate-plan")}
             disabled={isGenerating}
             className="text-xs px-3 py-1.5 rounded-lg border border-indigo-600 text-indigo-300 hover:bg-indigo-900/30 disabled:opacity-50"
           >
@@ -544,6 +563,36 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
           </p>
         </div>
       </section>
+
+      {confirmAction === "delete-plan" && (
+        <ConfirmModal
+          title="Delete saved plan"
+          subtitle="Chat messages are kept"
+          message="Remove only the action plan for this conversation? Your chat history stays saved. You can generate a new plan later."
+          confirmLabel="Delete plan"
+          variant="danger"
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => {
+            setConfirmAction(null);
+            void deleteSavedPlan();
+          }}
+        />
+      )}
+
+      {confirmAction === "regenerate-plan" && (
+        <ConfirmModal
+          title="Regenerate action plan"
+          subtitle="Replaces the current plan"
+          message="Orion will create a new plan from this chat. The current saved plan will be removed first. This may take up to a few minutes."
+          confirmLabel="Regenerate plan"
+          variant="warning"
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => {
+            setConfirmAction(null);
+            void runRegeneratePlan();
+          }}
+        />
+      )}
     </div>
   );
 };

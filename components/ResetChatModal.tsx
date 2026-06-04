@@ -36,8 +36,8 @@ const ResetChatModal: React.FC<ResetChatModalProps> = ({ onConfirm, onCancel }) 
 
         <div className="mb-6">
           <p className="text-slate-300 text-sm leading-relaxed">
-            Are you sure you want to reset the chat? This will clear all messages and start a fresh conversation. 
-            This action cannot be undone.
+            Are you sure you want to reset this chat? All messages will be permanently deleted from your account
+            and you will start fresh. This action cannot be undone.
           </p>
         </div>
 

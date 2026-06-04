@@ -57,7 +57,20 @@ cd /opt/orion-ai-docker
 ./scripts/deploy-vps-docker.sh
 ```
 
-O script faz `git pull` na branch de feature, `docker compose build` e `up -d`, e garante o modelo no Ollama **do container**.
+O script faz `git pull`, **`docker compose build orion-app`** (importante) e `up -d`, e garante o modelo no Ollama **do container**.
+
+**Atenção:** `docker compose up -d --force-recreate orion-app` **sem build** reutiliza a imagem antiga. Após `git pull`, rode:
+
+```bash
+./scripts/redeploy-app.sh
+```
+
+Logs corretos do app:
+
+```text
+Prompt: Modelfile (no API system field)
+[Ollama] chat model=orion-ai ... systemLen=0
+```
 
 ## Comandos úteis
 

@@ -71,16 +71,14 @@ export class Ollama3Provider implements AIProvider {
 
       // Timeout reduzido para respostas mais rápidas: 60 segundos
       const controller = new AbortController(); 
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutMs = 120000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const startTime = Date.now();
       let response: Response;
       try {
         console.log(
-          `[Ollama3] Starting sendMessage request (model: ${this.model})`
-        );
-        ollamaLog(
-          `[Ollama3] sendMessage model=${this.model} promptLen=${fullPrompt.length} systemLen=${systemForRequest.length}`
+          `[Ollama] chat model=${this.model} promptLen=${fullPrompt.length} systemLen=${systemForRequest.length}`
         );
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
@@ -96,7 +94,7 @@ export class Ollama3Provider implements AIProvider {
         if (fetchError.name === "AbortError") {
           throw createProviderError(
             this.name,
-            "Request timeout after 180 seconds",
+            `Request timeout after ${timeoutMs / 1000} seconds`,
             "TIMEOUT",
             true
           );
@@ -104,24 +102,19 @@ export class Ollama3Provider implements AIProvider {
         throw fetchError;
       }
 
-      // Log removido por segurança
-
       if (!response.ok) {
         let errorData: any = {};
         try {
           const errorText = await response.text();
-          // Log removido por segurança (não expor detalhes de erro)
           errorData = JSON.parse(errorText);
         } catch (e) {
-          // Log removido por segurança
+          // Fallback
         }
 
         const isRetryable = isRetryableError({
           message: errorData.error || `HTTP ${response.status}`,
           status: response.status,
         });
-
-        // Log removido por segurança (não expor detalhes de erro)
 
         throw createProviderError(
           this.name,
@@ -132,9 +125,6 @@ export class Ollama3Provider implements AIProvider {
       }
 
       const data = await response.json();
-      console.log(
-        `[Ollama3] Response status: ${response.status} ${response.statusText}`
-      );
       console.log(`[Ollama3] Response keys:`, Object.keys(data));
 
       // Ollama pode retornar response diretamente ou em diferentes formatos

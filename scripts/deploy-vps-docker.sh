@@ -56,8 +56,8 @@ BASE_MODEL="${OLLAMA_BASE_MODEL:-$BASE_MODEL}"
 CUSTOM_MODEL="${OLLAMA_MODEL:-$CUSTOM_MODEL}"
 USE_MODELFILE="${OLLAMA_USE_MODELFILE:-$USE_MODELFILE}"
 
-log "Build e subida dos containers..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --pull
+log "Build e subida dos containers (orion-app = rebuild da imagem)..."
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --pull orion-app
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
 
 log "Aguardando Ollama do stack..."

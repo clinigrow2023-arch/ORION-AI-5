@@ -1,5 +1,12 @@
 import { Ollama3Provider } from "./ollama3.js";
-import { getSystemInstruction } from "./prompts.js";
+import { getSystemInstruction, useOllamaModelfile } from "./prompts.js";
+
+async function resolveChatSystemInstruction(): Promise<string> {
+  if (useOllamaModelfile()) {
+    return "";
+  }
+  return getSystemInstruction();
+}
 
 let ollamaProvider: Ollama3Provider | null = null;
 
@@ -18,7 +25,7 @@ export async function sendMessageWithOllama(
   history: Array<{ role: string; parts: Array<{ text: string }> }>
 ): Promise<string> {
   const provider = getOllamaProvider();
-  const systemInstruction = await getSystemInstruction();
+  const systemInstruction = await resolveChatSystemInstruction();
   const response = await provider.sendMessage(message, history, systemInstruction);
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty response");
@@ -32,7 +39,7 @@ export async function sendMessageStreamWithOllama(
   onChunk: (chunk: string) => void
 ): Promise<string> {
   const provider = getOllamaProvider();
-  const systemInstruction = await getSystemInstruction();
+  const systemInstruction = await resolveChatSystemInstruction();
   const response = await provider.sendMessageStream(
     message,
     history,

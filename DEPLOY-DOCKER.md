@@ -72,6 +72,37 @@ Prompt: Modelfile (no API system field)
 [Ollama] chat model=orion-ai ... systemLen=0
 ```
 
+## Nginx + SSE (chat lento / `stream ended without done`)
+
+`grep proxy_read_timeout` vazio em `sites-enabled` = **timeout padrão 60s** → corta o chat ~72s.
+
+**Não cole** `proxy_read_timeout` no terminal — edite o arquivo nginx:
+
+```bash
+chmod +x scripts/nginx-find-orion.sh
+./scripts/nginx-find-orion.sh
+sudo nano /etc/nginx/sites-enabled/SEU_ARQUIVO   # o path que o script mostrar
+```
+
+Dentro de `location /` (proxy para `127.0.0.1:3001`):
+
+```nginx
+proxy_buffering off;
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+```
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+## Git pull na VPS (conflito em scripts)
+
+```bash
+./scripts/vps-git-pull.sh
+./scripts/redeploy-app.sh
+```
+
 ## Comandos úteis
 
 ```bash

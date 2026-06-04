@@ -154,12 +154,12 @@ const AdminDashboard: React.FC = () => {
     selectedRole: "user" | "admin";
   } | null>(null);
   const [createUserSuccess, setCreateUserSuccess] = useState<string | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [promptLoading, setPromptLoading] = useState(false);
-  const [promptSaving, setPromptSaving] = useState(false);
-  const [promptVersion, setPromptVersion] = useState(0);
-  const [promptUpdatedAt, setPromptUpdatedAt] = useState<string | null>(null);
-  const [promptSuccess, setPromptSuccess] = useState<string | null>(null);
+  const [aiConfig, setAiConfig] = useState<{
+    model?: string;
+    modelfilePath?: string;
+    rebuildCommand?: string;
+  } | null>(null);
+  const [aiConfigLoading, setAiConfigLoading] = useState(false);
 
   const loadUserList = async (
     page: number,
@@ -262,113 +262,37 @@ const AdminDashboard: React.FC = () => {
   }, [activeTab, debouncedSearchQuery, userPage, pageSize]);
 
   useEffect(() => {
-    if (activeTab === "prompt") {
-      fetchSystemPrompt();
-    }
+    if (activeTab !== "prompt") return;
+
+    const loadAiConfig = async () => {
+      try {
+        setAiConfigLoading(true);
+        setError(null);
+        const token = authService.getToken();
+        if (!token) return;
+
+        const { getApiEndpoint } = await import("../lib/api-endpoints");
+        const response = await fetch(getApiEndpoint("system-prompt"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAiConfig({
+            model: data.model,
+            modelfilePath: data.modelfilePath,
+            rebuildCommand: data.rebuildCommand,
+          });
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load AI config");
+      } finally {
+        setAiConfigLoading(false);
+      }
+    };
+
+    void loadAiConfig();
   }, [activeTab]);
-
-  const fetchSystemPrompt = async () => {
-    try {
-      setPromptLoading(true);
-      setError(null);
-      setPromptSuccess(null);
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("system-prompt"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error("Access denied. Admin privileges required.");
-        }
-        throw new Error("Failed to fetch system prompt");
-      }
-
-      const data = await response.json();
-      setSystemPrompt(data.prompt || "");
-      setPromptVersion(data.version || 0);
-      if (data.updatedAt) {
-        const date = new Date(data.updatedAt);
-        setPromptUpdatedAt(date.toLocaleString());
-      } else {
-        setPromptUpdatedAt(null);
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to load system prompt");
-    } finally {
-      setPromptLoading(false);
-    }
-  };
-
-  const saveSystemPrompt = async () => {
-    if (!systemPrompt.trim()) {
-      setError("Prompt cannot be empty");
-      return;
-    }
-
-    try {
-      setPromptSaving(true);
-      setError(null);
-      setPromptSuccess(null);
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("system-prompt"), {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          prompt: systemPrompt,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
-        }
-        throw new Error(errorData.error || "Failed to save system prompt");
-      }
-
-      const data = await response.json();
-      setPromptVersion(data.version);
-      if (data.updatedAt) {
-        const date = new Date(data.updatedAt);
-        setPromptUpdatedAt(date.toLocaleString());
-      }
-      setPromptSuccess(
-        `✅ Prompt saved successfully! Version ${data.version} is now active. Ollama will use this prompt.`
-      );
-      setError(null);
-      
-      // Limpar mensagem de sucesso após 5 segundos
-      setTimeout(() => {
-        setPromptSuccess(null);
-      }, 5000);
-    } catch (err: any) {
-      const errorMessage = err.message || "Failed to save system prompt";
-      setError(errorMessage);
-      setPromptSuccess(null);
-      console.error("Error saving prompt:", err);
-    } finally {
-      setPromptSaving(false);
-    }
-  };
 
   const updateUser = async (
     userId: string,
@@ -736,7 +660,7 @@ const AdminDashboard: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <Bot size={18} />
-              AI Prompt
+              AI (VPS)
             </span>
           </button>
         </div>
@@ -848,98 +772,54 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* AI Prompt Tab */}
+        {/* AI config — prompt lives in Ollama Modelfile on VPS */}
         {activeTab === "prompt" && (
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 flex-1 min-h-0 flex flex-col">
-            <div className="mb-6">
-              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-                System Prompt Management
-              </h2>
-              <p className="text-sm md:text-base text-slate-400 mb-3">
-                Edit the system instruction that Ollama uses. Changes apply globally to all AI responses.
-              </p>
-              
-              {/* Status do Prompt Atual */}
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 md:p-4 mb-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-slate-300 mb-1">
-                      Current Active Prompt
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                      {promptVersion > 0 ? (
-                        <>
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            Version {promptVersion}
-                          </span>
-                          {promptUpdatedAt && (
-                            <span>• Last updated: {promptUpdatedAt}</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-slate-500">No prompt saved yet</span>
-                      )}
-                    </div>
-                  </div>
-                  {promptVersion > 0 && (
-                    <div className="text-xs text-indigo-400 font-medium">
-                      ✅ Active on all AI providers
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6">
+            <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+              AI prompt (Ollama Modelfile)
+            </h2>
+            <p className="text-sm md:text-base text-slate-400 mb-6">
+              The chat prompt is no longer edited here. It is baked into the{" "}
+              <code className="text-indigo-300">orion-ai</code> model on the VPS
+              for faster responses.
+            </p>
 
-              {/* Mensagem de Sucesso */}
-              {promptSuccess && (
-                <div className="mb-4 p-3 md:p-4 bg-green-900/30 border border-green-700 rounded-lg">
-                  <p className="text-sm md:text-base text-green-300">{promptSuccess}</p>
-                </div>
-              )}
-            </div>
-
-            {promptLoading ? (
-              <div className="flex items-center justify-center flex-1">
-                <div className="text-center">
-                  <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={48} />
-                  <p className="text-slate-400">Loading prompt...</p>
-                </div>
+            {aiConfigLoading ? (
+              <div className="flex items-center gap-2 text-slate-400">
+                <Loader2 className="animate-spin" size={20} />
+                Loading…
               </div>
             ) : (
-              <div className="flex-1 min-h-0 flex flex-col">
-                <div className="flex-1 min-h-0 mb-4">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    System Instruction
-                  </label>
-                  <textarea
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
-                    className="w-full h-full min-h-[400px] p-4 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Enter the system instruction for all AI providers..."
-                  />
+              <div className="space-y-4 text-sm text-slate-300">
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                  <p>
+                    <span className="text-slate-500">Active model:</span>{" "}
+                    <strong>{aiConfig?.model || "orion-ai"}</strong>
+                  </p>
                 </div>
-                <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
-                  <div className="text-xs text-slate-500">
-                    {systemPrompt.length} characters
-                  </div>
-                  <button
-                    onClick={saveSystemPrompt}
-                    disabled={promptSaving || !systemPrompt.trim()}
-                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
-                  >
-                    {promptSaving ? (
-                      <>
-                        <Loader2 className="animate-spin" size={18} />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save size={18} />
-                        Save Prompt
-                      </>
-                    )}
-                  </button>
-                </div>
+                <ol className="list-decimal list-inside space-y-2 text-slate-400">
+                  <li>
+                    SSH:{" "}
+                    <code className="text-slate-200">cd /opt/orion-ai-docker</code>
+                  </li>
+                  <li>
+                    Edit:{" "}
+                    <code className="text-slate-200">
+                      {aiConfig?.modelfilePath || "deploy/modelfile/Modelfile"}
+                    </code>{" "}
+                    (block <code className="text-slate-200">SYSTEM</code>)
+                  </li>
+                  <li>
+                    Rebuild:{" "}
+                    <code className="text-slate-200">
+                      {aiConfig?.rebuildCommand ||
+                        "./scripts/rebuild-ollama-model.sh"}
+                    </code>
+                  </li>
+                </ol>
+                <p className="text-xs text-slate-500">
+                  See <code>MODELFILE-PROMPT.md</code> in the repository.
+                </p>
               </div>
             )}
           </div>

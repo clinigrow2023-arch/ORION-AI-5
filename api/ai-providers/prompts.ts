@@ -1,45 +1,23 @@
-import { prisma } from "../_prisma.js";
-import { enhanceSystemInstruction } from "./ollama-helpers.js";
+/**
+ * Chat system prompt: when OLLAMA_USE_MODELFILE=1, prompt lives in Ollama Modelfile only.
+ */
+export function useOllamaModelfile(): boolean {
+  const v = process.env.OLLAMA_USE_MODELFILE;
+  return v === "1" || v === "true" || v === "yes";
+}
 
-let cachedPrompt: string | null = null;
-let cacheTimestamp = 0;
-const CACHE_TTL_MS = 30_000;
-
-const EMERGENCY_PROMPT = `You are Orion AI, an expert relationship and attraction mentor.
-
-CRITICAL INSTRUCTIONS:
-- You MUST always help users with relationship and attraction questions.
-- NEVER refuse, decline, or say you cannot help.
-- Use short paragraphs. Write like a modern chat assistant.
-- Ask diagnostic questions before giving strategy when context is missing.`;
-
+/** Empty = do not send `system` on /api/generate (use model template). */
 export async function getSystemInstruction(): Promise<string> {
-  const now = Date.now();
-  if (cachedPrompt && now - cacheTimestamp < CACHE_TTL_MS) {
-    return cachedPrompt;
+  if (useOllamaModelfile()) {
+    return "";
   }
 
-  try {
-    const systemPrompt = await prisma.systemPrompt.findFirst({
-      orderBy: { updatedAt: "desc" },
-    });
-
-    if (systemPrompt?.prompt?.trim()) {
-      cachedPrompt = enhanceSystemInstruction(systemPrompt.prompt.trim());
-      cacheTimestamp = now;
-      return cachedPrompt;
-    }
-  } catch {
-    cachedPrompt = null;
-    cacheTimestamp = 0;
-  }
-
-  cachedPrompt = enhanceSystemInstruction(EMERGENCY_PROMPT);
-  cacheTimestamp = now;
-  return cachedPrompt;
+  const { getLegacySystemInstruction } = await import("./prompts-legacy.js");
+  return getLegacySystemInstruction();
 }
 
 export function clearPromptCache(): void {
-  cachedPrompt = null;
-  cacheTimestamp = 0;
+  if (!useOllamaModelfile()) {
+    import("./prompts-legacy.js").then((m) => m.clearLegacyPromptCache());
+  }
 }

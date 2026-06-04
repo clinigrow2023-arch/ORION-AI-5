@@ -12,6 +12,7 @@ services:
       OLLAMA_MAX_LOADED_MODELS: "1"
     volumes:
       - ollama_orion_data:/root/.ollama
+      - ./deploy/modelfile:/modelfile:ro
     ports:
       - "${OLLAMA_ORION_HOST_PORT:-11435}:11434"
     healthcheck:
@@ -33,9 +34,10 @@ services:
       - .env.docker
     environment:
       PORT: "3000"
-      # Sempre o Ollama do compose — nunca o do host :11434
       OLLAMA_URL: http://ollama-orion:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      OLLAMA_USE_MODELFILE: "${OLLAMA_USE_MODELFILE:-1}"
+      OLLAMA_BASE_MODEL: "${OLLAMA_BASE_MODEL:-llama3.2:3b}"
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-orion-ai}
     ports:
       - "${ORION_APP_HOST_PORT:-3001}:3000"
     depends_on:

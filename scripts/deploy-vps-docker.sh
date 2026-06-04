@@ -8,7 +8,9 @@ BRANCH="${ORION_GIT_BRANCH:-feature/vps-ollama-only}"
 INSTALL_DIR="${ORION_INSTALL_DIR:-/opt/orion-ai-docker}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 ENV_FILE="${ENV_FILE:-.env.docker}"
-MODEL="${OLLAMA_MODEL:-llama3.2:3b}"
+BASE_MODEL="${OLLAMA_BASE_MODEL:-llama3.2:3b}"
+CUSTOM_MODEL="${OLLAMA_MODEL:-orion-ai}"
+USE_MODELFILE="${OLLAMA_USE_MODELFILE:-1}"
 
 log() { echo "[orion-deploy] $*"; }
 
@@ -63,11 +65,20 @@ for i in $(seq 1 30); do
   sleep 2
 done
 
-if docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T ollama-orion ollama show "$MODEL" >/dev/null 2>&1; then
-  log "Modelo $MODEL já presente no volume do container."
+log "Baixando modelo base $BASE_MODEL..."
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T ollama-orion ollama pull "$BASE_MODEL"
+
+if [ "$USE_MODELFILE" = "1" ] || [ "$USE_MODELFILE" = "true" ]; then
+  log "Criando modelo custom $CUSTOM_MODEL (Modelfile)..."
+  chmod +x scripts/rebuild-ollama-model.sh 2>/dev/null || true
+  ORION_INSTALL_DIR="$INSTALL_DIR" ENV_FILE="$ENV_FILE" COMPOSE_FILE="$COMPOSE_FILE" \
+    OLLAMA_BASE_MODEL="$BASE_MODEL" OLLAMA_MODEL="$CUSTOM_MODEL" \
+    ./scripts/rebuild-ollama-model.sh
 else
-  log "Baixando modelo $MODEL (pode demorar na primeira vez)..."
-  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T ollama-orion ollama pull "$MODEL"
+  if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T ollama-orion ollama show "$CUSTOM_MODEL" >/dev/null 2>&1; then
+    log "Baixando modelo $CUSTOM_MODEL..."
+    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T ollama-orion ollama pull "$CUSTOM_MODEL"
+  fi
 fi
 
 APP_PORT="${ORION_APP_HOST_PORT:-3001}"

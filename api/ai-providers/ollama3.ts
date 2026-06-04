@@ -5,6 +5,7 @@ import {
 } from "../../lib/chat-constants.js";
 import {
   buildConversationPrompt,
+  attachSystemIfPresent,
   buildPlanUserPrompt,
   enhanceSystemInstruction,
   getOllamaAuthHeaders,
@@ -46,15 +47,16 @@ export class Ollama3Provider implements AIProvider {
     try {
       // Log removido por segurança (não expor URL da VPS)
 
-      const enhancedSystemInstruction = enhanceSystemInstruction(systemInstruction);
       const fullPrompt = buildConversationPrompt(message, history);
       const headers = getOllamaAuthHeaders(this.apiKey);
+      const systemForRequest = systemInstruction.trim()
+        ? enhanceSystemInstruction(systemInstruction)
+        : "";
 
       const requestBody: Record<string, unknown> = {
         model: this.model,
         prompt: fullPrompt,
         stream: false,
-        system: enhancedSystemInstruction,
         num_ctx: 2048,
         options: {
           temperature: 0.65,
@@ -63,6 +65,7 @@ export class Ollama3Provider implements AIProvider {
           repeat_penalty: 1.15,
         },
       };
+      attachSystemIfPresent(requestBody, systemForRequest);
 
       // Logs removidos por segurança (não expor modelo, URL, ou detalhes de requisição)
 
@@ -76,18 +79,8 @@ export class Ollama3Provider implements AIProvider {
         console.log(
           `[Ollama3] Starting sendMessage request (model: ${this.model})`
         );
-        console.log(
-          `[Ollama3] System instruction length: ${
-            enhancedSystemInstruction?.length || 0
-          }`
-        );
-        console.log(
-          `[Ollama3] Request body prepared, prompt length: ${fullPrompt.length}`
-        );
-        console.log(
-          `[Ollama3] System instruction preview: ${
-            enhancedSystemInstruction?.substring(0, 200) || "none"
-          }...`
+        ollamaLog(
+          `[Ollama3] sendMessage model=${this.model} promptLen=${fullPrompt.length} systemLen=${systemForRequest.length}`
         );
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
@@ -223,7 +216,6 @@ export class Ollama3Provider implements AIProvider {
         prompt,
         stream: false,
         format: "json",
-        system: PLAN_SYSTEM_PROMPT,
         num_ctx: 3072,
         options: {
           temperature: 0.35,
@@ -232,31 +224,16 @@ export class Ollama3Provider implements AIProvider {
           repeat_penalty: 1.1,
         },
       };
+      attachSystemIfPresent(requestBody, PLAN_SYSTEM_PROMPT);
 
-      // Log removido por segurança
-
-      // Timeout reduzido para respostas mais rápidas: 60 segundos
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       const startTime = Date.now();
       let response: Response;
       try {
-        console.log(
-          `[Ollama3] Starting generatePlan request (model: ${this.model})`
-        );
-        console.log(
-          `[Ollama3] System instruction length: ${
-            enhancedSystemInstruction?.length || 0
-          }`
-        );
-        console.log(
-          `[Ollama3] Context history length: ${contextHistory.length}`
-        );
-        console.log(
-          `[Ollama3] System instruction preview: ${
-            enhancedSystemInstruction?.substring(0, 200) || "none"
-          }...`
+        ollamaLog(
+          `[Ollama3] generatePlan model=${this.model} ctxLen=${contextHistory.length}`
         );
         response = await fetch(`${this.baseUrl}/api/generate`, {
           method: "POST",
@@ -407,15 +384,16 @@ export class Ollama3Provider implements AIProvider {
     onChunk: (chunk: string) => void
   ): Promise<string> {
     try {
-      const enhancedSystemInstruction = enhanceSystemInstruction(systemInstruction);
       const fullPrompt = buildConversationPrompt(message, history);
       const headers = getOllamaAuthHeaders(this.apiKey);
+      const systemForRequest = systemInstruction.trim()
+        ? enhanceSystemInstruction(systemInstruction)
+        : "";
 
       const requestBody: Record<string, unknown> = {
         model: this.model,
         prompt: fullPrompt,
         stream: true,
-        system: enhancedSystemInstruction,
         num_ctx: 2048,
         options: {
           temperature: 0.65,
@@ -424,8 +402,9 @@ export class Ollama3Provider implements AIProvider {
           repeat_penalty: 1.15,
         },
       };
+      attachSystemIfPresent(requestBody, systemForRequest);
 
-      console.log(`[Ollama] streaming model=${this.model}`);
+      ollamaLog(`[Ollama] stream model=${this.model} systemLen=${systemForRequest.length}`);
 
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",

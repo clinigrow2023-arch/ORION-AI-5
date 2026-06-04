@@ -127,7 +127,9 @@ Até lá, os dois Ollamas coexistem: produção em **11434**, teste Orion em **1
 
 Respostas **quase instantâneas** com LLM local em CPU não são realistas; o alvo é **5–12 s no chat** e **15–30 s no Action Plan** após otimizações.
 
-**Já no código:** prompt do chat truncado, histórico curto (2 msgs), `num_predict` menor, endpoint `/api/plan` dedicado (JSON, sem prompt gigante do admin).
+**Prompt do chat:** embutido no modelo Ollama `orion-ai` via `deploy/modelfile/Modelfile` (não usa mais painel admin). Ver `MODELFILE-PROMPT.md`.
+
+**Já no código:** histórico curto (2 msgs), `num_predict` menor, endpoint `/api/plan` dedicado (JSON compacto).
 
 **Na VPS (`.env.docker`):**
 

@@ -108,6 +108,17 @@ export function truncatePlanContext(contextHistory: string): string {
   );
 }
 
+/** Only attach `system` when non-empty (Modelfile models omit it). */
+export function attachSystemIfPresent(
+  body: Record<string, unknown>,
+  systemInstruction: string
+): void {
+  const sys = systemInstruction?.trim();
+  if (sys) {
+    body.system = sys;
+  }
+}
+
 export function getOllamaAuthHeaders(apiKey: string): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

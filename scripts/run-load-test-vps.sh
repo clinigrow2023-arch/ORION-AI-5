@@ -34,4 +34,6 @@ docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec \
   -e LOAD_TEST_PASSWORD \
   -e LOAD_TEST_CONCURRENT \
   -e LOAD_TEST_PLAN="${LOAD_TEST_PLAN:-1}" \
+  -e LOAD_TEST_PLAN_CONCURRENT="${LOAD_TEST_PLAN_CONCURRENT:-2}" \
+  -e LOAD_TEST_STRESS="${LOAD_TEST_STRESS:-0}" \
   orion-app node /app/scripts/load-test-50.mjs

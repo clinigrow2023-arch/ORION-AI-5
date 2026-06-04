@@ -39,6 +39,28 @@ async function login() {
   return data.token;
 }
 
+function parseChatSse(buf) {
+  let gotDone = false;
+  let chunkChars = 0;
+  let error = null;
+  let code = null;
+  for (const line of buf.split("\n")) {
+    if (!line.startsWith("data: ")) continue;
+    try {
+      const data = JSON.parse(line.slice(6));
+      if (data.done === true) gotDone = true;
+      if (typeof data.chunk === "string") chunkChars += data.chunk.length;
+      if (data.error) {
+        error = data.error;
+        code = data.code ?? null;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return { gotDone, chunkChars, error, code };
+}
+
 async function chatStream(token, i) {
   const t0 = Date.now();
   const res = await fetch(`${BASE}/api/chat?stream=true`, {
@@ -54,7 +76,13 @@ async function chatStream(token, i) {
     }),
   });
   if (!res.ok) {
-    return { i, ok: false, ms: Date.now() - t0, err: `HTTP ${res.status}` };
+    const text = await res.text().catch(() => "");
+    return {
+      i,
+      ok: false,
+      ms: Date.now() - t0,
+      err: `HTTP ${res.status} ${text.slice(0, 80)}`,
+    };
   }
   const reader = res.body?.getReader();
   if (!reader) {
@@ -62,20 +90,33 @@ async function chatStream(token, i) {
   }
   const dec = new TextDecoder();
   let buf = "";
-  let chars = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buf += dec.decode(value, { stream: true });
-    chars += value?.length || 0;
   }
-  const hasDone = buf.includes('"done"');
+  const { gotDone, chunkChars, error, code } = parseChatSse(buf);
+  if (error) {
+    return {
+      i,
+      ok: false,
+      ms: Date.now() - t0,
+      err: code ? `${code}: ${error}` : error,
+      chunkChars,
+    };
+  }
+  const ok = gotDone || chunkChars >= 80;
   return {
     i,
-    ok: hasDone,
+    ok,
     ms: Date.now() - t0,
-    err: hasDone ? null : "stream ended without done",
-    chars,
+    err: ok
+      ? gotDone
+        ? null
+        : "partial stream (chunks ok, no done — check nginx timeout)"
+      : "empty stream",
+    chunkChars,
+    gotDone,
   };
 }
 
@@ -121,7 +162,16 @@ function summarize(label, results) {
     );
   }
   if (fail.length) {
-    console.log("Sample errors:", fail.slice(0, 5).map((f) => f.err));
+    console.log(
+      "Sample errors:",
+      fail.slice(0, 5).map((f) => `${f.err} (chunks=${f.chunkChars ?? 0})`)
+    );
+  }
+  const partial = results.filter((r) => r.ok && r.gotDone === false);
+  if (partial.length) {
+    console.log(
+      `Partial OK (no done event): ${partial.length} — often nginx proxy_read_timeout < 120s on SSL vhost`
+    );
   }
 }
 

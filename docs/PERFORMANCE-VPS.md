@@ -71,6 +71,20 @@ Mais de 6–8 inferências paralelas em CPU costuma **piorar** o tempo por usuá
 - GPU na VPS ou servidor dedicado com CUDA
 - API cloud só para pico (não é o escopo atual do branch Ollama-only)
 
+## Load test: `stream ended without done`
+
+Se **4/8 chats** falham com ~**72s** e mensagem `stream ended without done`, quase sempre é **nginx cortando o SSE** (timeout padrão 60s no vhost **443**), não o Ollama.
+
+No servidor:
+
+```bash
+grep -r proxy_read_timeout /etc/nginx/sites-enabled/
+```
+
+Deve ser **300s** no bloco HTTPS de `orionaii.com`. Depois: `sudo nginx -t && sudo systemctl reload nginx`.
+
+O app agora envia **keepalive SSE** a cada 12s durante a geração (após redeploy).
+
 ## Dados não se perdem
 
 | Dado | Onde fica |

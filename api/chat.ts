@@ -65,6 +65,10 @@ export default async function chatHandler(
         "X-Accel-Buffering": "no",
       });
 
+      const keepalive = setInterval(() => {
+        res.write(": keepalive\n\n");
+      }, 12_000);
+
       try {
         const response = await sendMessageStreamWithOllama(
           message,
@@ -84,6 +88,8 @@ export default async function chatHandler(
           : { error: error.message };
         res.write(`data: ${JSON.stringify(payload)}\n\n`);
         res.end();
+      } finally {
+        clearInterval(keepalive);
       }
       return;
     }

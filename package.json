@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"npm run dev:server\" \"vite\"",
-    "dev:client": "concurrently -k \"npm run dev:server\" \"vite\"",
+    "dev": "concurrently -k \"npm run dev:server\" \"npm run dev:vite\"",
+    "dev:client": "concurrently -k \"npm run dev:server\" \"npm run dev:vite\"",
+    "dev:vite": "wait-on -t 120000 tcp:127.0.0.1:8888 && vite",
     "dev:server": "tsx watch server/dev-server.ts",
     "dev:vite-only": "vite",
     "build": "vite build",
@@ -56,6 +57,7 @@
     "tailwindcss": "^4.1.17",
     "tsx": "^4.20.6",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "wait-on": "^8.0.5"
   }
 }

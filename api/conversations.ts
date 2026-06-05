@@ -10,6 +10,7 @@ import {
   parseConversationMessages,
   parseStoredActionPlan,
 } from "../lib/plan-utils.js";
+import { deriveConversationPreview } from "../lib/conversation-label.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -102,6 +103,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             messages: parseConversationMessages(conversation.messages),
             actionPlan: actionPlan ?? undefined,
             hasActionPlan: !!actionPlan,
+            preview: deriveConversationPreview(
+              parseConversationMessages(conversation.messages)
+            ),
           },
         });
       }
@@ -123,14 +127,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const parsedConversations = conversations.map((conv) => {
         const raw = conv.messages || "[]";
         if (summaryOnly) {
-          let messageCount = 0;
-          messageCount = parseConversationMessages(raw).length;
+          const parsedMessages = parseConversationMessages(raw);
           return {
             id: conv.id,
             createdAt: conv.createdAt,
             updatedAt: conv.updatedAt,
-            messageCount,
+            messageCount: parsedMessages.length,
             hasActionPlan: !!parseStoredActionPlan(conv.actionPlan),
+            preview: deriveConversationPreview(parsedMessages),
           };
         }
         return {

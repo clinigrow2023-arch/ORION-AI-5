@@ -13,7 +13,9 @@ import { Menu, X, Loader2 } from "lucide-react";
 import { chatService } from "./services/chatService";
 import {
   getAnyPendingPlanJob,
+  getReadyPlanJob,
   subscribePlanReady,
+  subscribePlanOpen,
 } from "./services/planJobService";
 import { fetchConversationsSummary } from "./lib/conversations-client";
 
@@ -24,20 +26,52 @@ const App: React.FC = () => {
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [planNotice, setPlanNotice] = useState<"pending" | "ready" | null>(null);
+  const [planReadyConversationId, setPlanReadyConversationId] = useState<
+    string | null
+  >(null);
+  const [planOpenRequest, setPlanOpenRequest] = useState<{
+    conversationId: string;
+    display: boolean;
+  } | null>(null);
   const [hasSavedPlan, setHasSavedPlan] = useState(false);
+
+  const openPlanForConversation = useCallback(
+    (conversationId: string, display = true) => {
+      setPlanOpenRequest({ conversationId, display });
+      setCurrentView("plan");
+      setPlanNotice(null);
+      setPlanReadyConversationId(null);
+    },
+    []
+  );
 
   useEffect(() => {
     const refresh = () => {
-      if (getAnyPendingPlanJob()) setPlanNotice("pending");
+      if (getAnyPendingPlanJob()) {
+        setPlanNotice("pending");
+        return;
+      }
+      const ready = getReadyPlanJob();
+      if (ready) {
+        setPlanNotice("ready");
+        setPlanReadyConversationId(ready.conversationId);
+      }
     };
     refresh();
     const id = setInterval(refresh, 2000);
-    const unsub = subscribePlanReady(() => setPlanNotice("ready"));
+    const unsubReady = subscribePlanReady((conversationId) => {
+      setPlanNotice("ready");
+      setPlanReadyConversationId(conversationId);
+    });
+    const unsubOpen = subscribePlanOpen((conversationId) => {
+      openPlanForConversation(conversationId, true);
+    });
     return () => {
       clearInterval(id);
-      unsub();
+      unsubReady();
+      unsubOpen();
     };
-  }, []);
+  }, [openPlanForConversation]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -111,7 +145,12 @@ const App: React.FC = () => {
         );
       case "plan":
         return (
-          <PlanDisplay plan={plan} setPlan={applyPlan} />
+          <PlanDisplay
+            plan={plan}
+            setPlan={applyPlan}
+            openPlanRequest={planOpenRequest}
+            onOpenPlanRequestHandled={() => setPlanOpenRequest(null)}
+          />
         );
       case "guide":
         return <GuideView />;
@@ -181,12 +220,15 @@ const App: React.FC = () => {
           currentView={currentView}
           planNotice={planNotice}
           hasSavedPlan={hasSavedPlan}
+          onOpenReadyPlan={() => {
+            const id =
+              planReadyConversationId ?? getReadyPlanJob()?.conversationId;
+            if (id) openPlanForConversation(id, true);
+            else setCurrentView("plan");
+          }}
           setView={(view) => {
             setCurrentView(view);
             setIsMobileMenuOpen(false);
-            if (view === "plan" && planNotice === "ready") {
-              setPlanNotice(null);
-            }
           }}
         />
       </div>

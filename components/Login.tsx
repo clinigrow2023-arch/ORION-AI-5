@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import OrionLogo from './OrionLogo';
 
 const Login: React.FC = () => {
   const { login } = useAuth();
@@ -51,8 +52,10 @@ const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md">
         <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Orion AI</h1>
+          <div className="text-center mb-4">
+            <div className="flex justify-center mb-0">
+              <OrionLogo size={250} className="drop-shadow-lg shadow-indigo-500/30" />
+            </div>
             <p className="text-slate-400">Sign in to continue</p>
           </div>
 

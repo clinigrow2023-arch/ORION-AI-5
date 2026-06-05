@@ -41,6 +41,11 @@ import digistoreIpnHandler from "../api/digistore-ipn.js";
 import chatHandler from "../api/chat.js";
 import planHandler from "../api/plan.js";
 import systemPromptHandler from "../api/system-prompt.js";
+import {
+  ollamaHasModel,
+  resolveOllamaChatModel,
+  resolveOllamaPlanModel,
+} from "../lib/ollama-model-env.js";
 
 const app = express();
 const PORT = 8888;
@@ -116,7 +121,73 @@ app.post("/api/digistore-ipn", digistoreIpnHandler);
 app.get("/api/system-prompt", systemPromptHandler);
 app.put("/api/system-prompt", systemPromptHandler);
 
+async function logOllamaDevTarget(): Promise<void> {
+  const url = (process.env.OLLAMA_URL || "http://127.0.0.1:11434").replace(
+    /\/$/,
+    ""
+  );
+  const chatModel = resolveOllamaChatModel();
+  const planModel = resolveOllamaPlanModel();
+  const planTimeout =
+    process.env.OLLAMA_PLAN_TIMEOUT_MS || "180000 (default)";
+
+  console.log(`[dev-server] Ollama target: ${url}`);
+  console.log(
+    `[dev-server] Models: chat=${chatModel} plan=${planModel} | plan timeout ms=${planTimeout}`
+  );
+
+  if (
+    !process.env.OLLAMA_API_KEY &&
+    !url.includes("127.0.0.1") &&
+    !url.includes("localhost")
+  ) {
+    console.warn(
+      "[dev-server] OLLAMA_API_KEY vazio — requisições remotas podem falhar."
+    );
+  }
+
+  try {
+    const headers: Record<string, string> = {};
+    const key = process.env.OLLAMA_API_KEY;
+    if (key) {
+      headers["X-API-Key"] = key;
+      headers.Authorization = `Bearer ${key}`;
+    }
+    const res = await fetch(`${url}/api/tags`, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) {
+      console.log("[dev-server] Ollama reachable ✓");
+      const data = (await res.json()) as { models?: { name: string }[] };
+      const installed = (data.models ?? []).map((m) => m.name);
+      for (const [label, name] of [
+        ["chat", chatModel],
+        ["plan", planModel],
+      ] as const) {
+        if (!ollamaHasModel(installed, name)) {
+          console.warn(
+            `[dev-server] Modelo ${label} "${name}" não está no Ollama local.`
+          );
+        }
+      }
+      if (installed.length) {
+        console.log(`[dev-server] Modelos instalados: ${installed.join(", ")}`);
+      }
+      return;
+    }
+    console.warn(
+      `[dev-server] Ollama HTTP ${res.status} — confira URL, túnel SSH e OLLAMA_API_KEY`
+    );
+  } catch {
+    console.warn(
+      "[dev-server] Ollama inalcançável. Para usar a VPS: abra túnel SSH e veja docs/DEV-REMOTE-OLLAMA.md"
+    );
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`✅ Development server running on http://localhost:${PORT}`);
   console.log(`📡 API routes available at http://localhost:${PORT}/api/`);
+  void logOllamaDevTarget();
 });

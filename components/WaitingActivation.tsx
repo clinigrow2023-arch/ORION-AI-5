@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Clock, Mail, LogOut, RefreshCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
+import OrionLogo from "./OrionLogo";
 
 const WaitingActivation: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
@@ -66,8 +67,8 @@ const WaitingActivation: React.FC = () => {
   return (
     <div className="flex h-screen bg-slate-950 items-center justify-center p-4">
       <div className="max-w-md w-full bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
-        <div className="w-20 h-20 bg-indigo-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Clock className="w-10 h-10 text-indigo-400 animate-pulse" />
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-indigo-500/30 bg-slate-950">
+          <OrionLogo size={56} />
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-3">

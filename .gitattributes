@@ -1,0 +1,10 @@
+# Keep images/icons intact (no CRLF or text merges on Windows)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary

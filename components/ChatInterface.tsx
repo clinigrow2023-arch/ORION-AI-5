@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   Send,
-  Bot,
   User,
   Loader2,
   AlertCircle,
@@ -11,6 +10,7 @@ import {
   Trash2,
   ChevronDown,
   X,
+  Bot,
 } from "lucide-react";
 import { Message, Sender } from "../types";
 import { chatService } from "../services/chatService";
@@ -25,6 +25,11 @@ import {
   fetchConversationsSummary,
   invalidateConversationsCache,
 } from "../lib/conversations-client";
+import {
+  formatConversationSubtitle,
+  formatConversationTitle,
+} from "../lib/conversation-label";
+import OrionLogo from "./OrionLogo";
 import ReactMarkdown from "react-markdown";
 import ResetChatModal from "./ResetChatModal";
 import DeleteConversationModal from "./DeleteConversationModal";
@@ -607,12 +612,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               }}
                               className="flex-1 text-left text-sm text-slate-300"
                             >
-                              <div className="font-medium">
-                                Chat{" "}
-                                {new Date(conv.updatedAt).toLocaleDateString()}
+                              <div className="font-medium text-slate-200 line-clamp-2 text-sm leading-snug">
+                                {formatConversationTitle(conv)}
                               </div>
                               <div className="text-xs text-slate-500">
-                                {new Date(conv.updatedAt).toLocaleTimeString()}
+                                {formatConversationSubtitle(conv)}
                               </div>
                             </button>
                             <button
@@ -679,7 +683,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
-            <Bot size={48} className="text-indigo-500 mb-4" />
+            <OrionLogo size={150} className="mb-4 opacity-90" />
             <h3 className="text-xl font-medium text-slate-200">
               Welcome to Orion AI
             </h3>
@@ -705,7 +709,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               {msg.sender === Sender.User ? (
                 <User size={20} />
               ) : (
-                <Bot size={20} className="text-indigo-300" />
+                <Bot size={30} />
               )}
             </div>
 
@@ -742,7 +746,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {isLoading && streamedResponse && (
           <div className="flex gap-4 flex-row">
             <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-slate-700">
-              <Bot size={20} className="text-indigo-300" />
+              <Bot size={50} />
             </div>
             <div className="max-w-[80%] rounded-2xl p-4 bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700">
               <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">

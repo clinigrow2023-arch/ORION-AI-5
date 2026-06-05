@@ -1,10 +1,11 @@
 import { AIProvider, createProviderError, isRetryableError } from "./base.js";
+import { CHAT_NUM_PREDICT } from "../../lib/chat-constants.js";
 import {
-  CHAT_NUM_PREDICT,
   CHAT_TIMEOUT_MS,
   PLAN_NUM_PREDICT,
   PLAN_TIMEOUT_MS,
-} from "../../lib/chat-constants.js";
+} from "../../lib/ollama-server-constants.js";
+import { parsePlanJsonFromText } from "../../lib/plan-utils.js";
 import {
   buildConversationPrompt,
   attachSystemIfPresent,
@@ -203,158 +204,153 @@ export class Ollama3Provider implements AIProvider {
   ): Promise<string> {
     try {
       const truncatedHistory = truncatePlanContext(contextHistory);
-      const prompt = buildPlanUserPrompt(truncatedHistory, options);
-      const headers = getOllamaAuthHeaders(this.apiKey);
+      const compact = /:1b|1b:|\.1b/i.test(this.model);
       const regenerating = !!options?.regenerate;
+      const headers = getOllamaAuthHeaders(this.apiKey);
 
-      const requestBody: Record<string, unknown> = {
-        model: this.model,
-        prompt,
-        stream: false,
-        format: "json",
-        num_ctx: 2048,
-        options: {
-          temperature: regenerating ? 0.82 : 0.3,
-          num_predict: PLAN_NUM_PREDICT,
-          top_p: regenerating ? 0.92 : 0.85,
-          repeat_penalty: regenerating ? 1.25 : 1.1,
-          seed: regenerating ? Math.floor(Math.random() * 2_147_483_647) : 42,
-        },
-      };
-      attachSystemIfPresent(requestBody, PLAN_SYSTEM_PROMPT);
+      let numPredict = PLAN_NUM_PREDICT;
+      let lastError = "Invalid plan JSON from model";
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), PLAN_TIMEOUT_MS);
-
-      const startTime = Date.now();
-      let response: Response;
-      try {
-        console.log(
-          `[Ollama] plan model=${this.model} ctxLen=${contextHistory.length}`
-        );
-        response = await fetch(`${this.baseUrl}/api/generate`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const prompt = buildPlanUserPrompt(truncatedHistory, {
+          regenerate: regenerating,
+          compact,
         });
-        clearTimeout(timeoutId);
-        const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(
-          `[Ollama3] Plan generation response received after ${elapsedTime} seconds`
-        );
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === "AbortError") {
+
+        const requestBody: Record<string, unknown> = {
+          model: this.model,
+          prompt,
+          stream: false,
+          format: "json",
+          num_ctx: 2048,
+          options: {
+            temperature: regenerating ? 0.82 : 0.3,
+            num_predict: numPredict,
+            top_p: regenerating ? 0.92 : 0.85,
+            repeat_penalty: regenerating ? 1.25 : 1.1,
+            seed: regenerating
+              ? Math.floor(Math.random() * 2_147_483_647)
+              : 42,
+          },
+        };
+        attachSystemIfPresent(requestBody, PLAN_SYSTEM_PROMPT);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), PLAN_TIMEOUT_MS);
+
+        const startTime = Date.now();
+        let response: Response;
+        try {
+          console.log(
+            `[Ollama] plan model=${this.model} ctxLen=${contextHistory.length} num_predict=${numPredict} attempt=${attempt + 1}`
+          );
+          response = await fetch(`${this.baseUrl}/api/generate`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
+          console.log(
+            `[Ollama3] Plan generation response received after ${elapsedTime} seconds`
+          );
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === "AbortError") {
+            throw createProviderError(
+              this.name,
+              `Plan generation timeout after ${PLAN_TIMEOUT_MS / 1000} seconds`,
+              "TIMEOUT",
+              true
+            );
+          }
+          throw fetchError;
+        }
+
+        if (!response.ok) {
+          let errorData: any = {};
+          try {
+            const errorText = await response.text();
+            errorData = JSON.parse(errorText);
+          } catch {
+            /* ignore */
+          }
+
+          const isRetryable = isRetryableError({
+            message: errorData.error || `HTTP ${response.status}`,
+            status: response.status,
+          });
+
           throw createProviderError(
             this.name,
-            `Plan generation timeout after ${PLAN_TIMEOUT_MS / 1000} seconds`,
-            "TIMEOUT",
-            true
+            errorData.error || `HTTP error! status: ${response.status}`,
+            response.status,
+            isRetryable
           );
         }
-        throw fetchError;
-      }
 
-      // Log removido por segurança
+        const data = await response.json();
+        console.log(
+          `[Ollama3] Plan generation response status: ${response.status} ${response.statusText}`
+        );
 
-      if (!response.ok) {
-        let errorData: any = {};
-        try {
-          const errorText = await response.text();
-          // Log removido por segurança (não expor detalhes de erro)
-          errorData = JSON.parse(errorText);
-        } catch (e) {
-          // Log removido por segurança
+        let jsonText = "";
+        if (data.response) {
+          jsonText = data.response;
+        } else if (typeof data === "string") {
+          jsonText = data;
+        } else if (data.text) {
+          jsonText = data.text;
+        } else {
+          throw createProviderError(
+            this.name,
+            `Invalid response format from Ollama API`,
+            undefined,
+            false
+          );
         }
 
-        const isRetryable = isRetryableError({
-          message: errorData.error || `HTTP ${response.status}`,
-          status: response.status,
-        });
+        if (!jsonText.trim()) {
+          throw createProviderError(
+            this.name,
+            "No data received from plan generation",
+            undefined,
+            false
+          );
+        }
 
-        // Log removido por segurança (não expor detalhes de erro)
+        const parsed = parsePlanJsonFromText(jsonText);
+        const hasContent =
+          parsed &&
+          typeof parsed === "object" &&
+          Object.keys(parsed as object).length > 0;
 
-        throw createProviderError(
-          this.name,
-          errorData.error || `HTTP error! status: ${response.status}`,
-          response.status,
-          isRetryable
-        );
+        if (hasContent) {
+          console.log(
+            `[Ollama3] Plan JSON OK (len=${jsonText.length}, done=${data.done_reason ?? "?"})`
+          );
+          return JSON.stringify(parsed);
+        }
+
+        lastError =
+          data.done_reason === "length"
+            ? "Plan JSON was truncated (model token limit)"
+            : "Plan response was not valid JSON";
+
+        if (data.done_reason === "length" && attempt === 0) {
+          numPredict = Math.min(numPredict * 2, 1400);
+          console.warn(
+            `[Ollama3] Plan truncated — retry with num_predict=${numPredict}`
+          );
+          continue;
+        }
+
+        console.error(`[Ollama3] Plan parse failed: ${lastError}`);
+        break;
       }
 
-      const data = await response.json();
-      console.log(
-        `[Ollama3] Plan generation response status: ${response.status} ${response.statusText}`
-      );
-      console.log(
-        `[Ollama3] Plan generation response keys:`,
-        Object.keys(data)
-      );
-
-      // Ollama pode retornar response diretamente ou em diferentes formatos
-      let jsonText = "";
-      if (data.response) {
-        jsonText = data.response;
-      } else if (typeof data === "string") {
-        jsonText = data;
-      } else if (data.text) {
-        jsonText = data.text;
-      } else {
-        console.error(
-          `[Ollama3] Invalid plan response format. Keys:`,
-          Object.keys(data)
-        );
-        throw createProviderError(
-          this.name,
-          `Invalid response format from Ollama API. Expected 'response' field, got: ${JSON.stringify(
-            data
-          ).substring(0, 100)}`,
-          undefined,
-          false
-        );
-      }
-
-      if (!jsonText || jsonText.trim() === "") {
-        console.error(`[Ollama3] Empty plan response received`);
-        throw createProviderError(
-          this.name,
-          "No data received from plan generation",
-          undefined,
-          false
-        );
-      }
-
-      // Tentar validar se é JSON válido
-      try {
-        JSON.parse(jsonText);
-        console.log(
-          `[Ollama3] Plan generation success! JSON length: ${jsonText.length}`
-        );
-        console.log(`[Ollama3] Plan preview: ${jsonText.substring(0, 200)}...`);
-      } catch (parseError) {
-        console.error(`[Ollama3] Plan response is not valid JSON:`, parseError);
-      }
-
-      if (data.total_duration) {
-        console.log(
-          `[Ollama3] Plan total duration: ${data.total_duration / 1e9}s`
-        );
-      }
-      if (data.eval_duration) {
-        console.log(
-          `[Ollama3] Plan eval duration: ${data.eval_duration / 1e9}s`
-        );
-      }
-      if (data.prompt_eval_duration) {
-        console.log(
-          `[Ollama3] Plan prompt eval duration: ${
-            data.prompt_eval_duration / 1e9
-          }s`
-        );
-      }
-
-      return jsonText;
+      throw createProviderError(this.name, lastError, undefined, true);
     } catch (error: any) {
       if (error.provider) {
         // Log removido por segurança

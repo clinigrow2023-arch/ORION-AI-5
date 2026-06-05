@@ -1,6 +1,10 @@
 import { Ollama3Provider } from "./ollama3.js";
 import { getSystemInstruction, useOllamaModelfile } from "./prompts.js";
 import { withOllamaInference } from "../../lib/ollama-queue.js";
+import {
+  resolveOllamaChatModel,
+  resolveOllamaPlanModel,
+} from "../../lib/ollama-model-env.js";
 
 async function resolveChatSystemInstruction(): Promise<string> {
   if (useOllamaModelfile()) {
@@ -14,7 +18,7 @@ let ollamaProvider: Ollama3Provider | null = null;
 function getOllamaProvider(): Ollama3Provider {
   if (!ollamaProvider) {
     const baseUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
-    const model = process.env.OLLAMA_MODEL || "llama3-8b-fast";
+    const model = resolveOllamaChatModel();
     const apiKey = process.env.OLLAMA_API_KEY;
     ollamaProvider = new Ollama3Provider(baseUrl, model, apiKey);
   }
@@ -54,8 +58,7 @@ export async function sendMessageStreamWithOllama(
 
 function getPlanOllamaProvider(): Ollama3Provider {
   const baseUrl = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
-  const planModel =
-    process.env.OLLAMA_PLAN_MODEL || process.env.OLLAMA_BASE_MODEL || "llama3.2:3b";
+  const planModel = resolveOllamaPlanModel();
   const apiKey = process.env.OLLAMA_API_KEY;
   return new Ollama3Provider(baseUrl, planModel, apiKey);
 }

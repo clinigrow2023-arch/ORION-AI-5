@@ -1,6 +1,8 @@
 import { ActionPlan } from "../types";
 import { authService } from "../lib/auth";
 import { friendlyPlanErrorMessage } from "../lib/plan-utils";
+import { formatConversationPreviewTitle } from "../lib/conversation-label";
+import { ORION_MANIFEST_ICON } from "../lib/brand";
 
 export type PlanJobStatus = "pending" | "ready" | "error";
 
@@ -10,10 +12,14 @@ export interface PlanJob {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  previewTitle?: string;
 }
 
 const JOBS_KEY = "orion_plan_jobs";
 const PLAN_READY_EVENT = "orion-plan-ready";
+/** Ignore duplicate clicks / Strict Mode while a request is in flight */
+const inFlightConversations = new Set<string>();
+const PENDING_JOB_MAX_AGE_MS = 15 * 60 * 1000;
 
 function readJobs(): Record<string, PlanJob> {
   if (typeof window === "undefined") return {};
@@ -39,6 +45,14 @@ export function getAnyPendingPlanJob(): PlanJob | null {
   );
 }
 
+export function getReadyPlanJob(): PlanJob | null {
+  const ready = Object.values(readJobs()).filter((j) => j.status === "ready");
+  if (!ready.length) return null;
+  return ready.sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0))[0];
+}
+
+const PLAN_OPEN_EVENT = "orion-plan-open";
+
 function setPlanJob(job: PlanJob): void {
   const jobs = readJobs();
   jobs[job.conversationId] = job;
@@ -56,10 +70,19 @@ function notifyPlanReady(conversationId: string): void {
     new CustomEvent(PLAN_READY_EVENT, { detail: { conversationId } })
   );
   if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-    new Notification("Orion AI", {
-      body: "Your action plan is ready.",
-      icon: "/favicon.ico",
+    const job = readJobs()[conversationId];
+    const title = formatConversationPreviewTitle(job?.previewTitle);
+    const notification = new Notification("Orion AI", {
+      body: `Plan ready: "${title}". Tap to open.`,
+      icon: ORION_MANIFEST_ICON,
     });
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      window.dispatchEvent(
+        new CustomEvent(PLAN_OPEN_EVENT, { detail: { conversationId } })
+      );
+    };
   }
 }
 
@@ -82,20 +105,55 @@ export function subscribePlanReady(
   return () => window.removeEventListener(PLAN_READY_EVENT, fn);
 }
 
+/** Fired when user clicks the browser notification (or in-app open plan). */
+export function subscribePlanOpen(
+  handler: (conversationId: string) => void
+): () => void {
+  const fn = (e: Event) => {
+    const id = (e as CustomEvent<{ conversationId: string }>).detail
+      ?.conversationId;
+    if (id) handler(id);
+  };
+  window.addEventListener(PLAN_OPEN_EVENT, fn);
+  return () => window.removeEventListener(PLAN_OPEN_EVENT, fn);
+}
+
 export function startPlanGeneration(options: {
   conversationId: string;
   contextHistory: string;
   regenerate?: boolean;
+  previewTitle?: string;
   onComplete?: (plan: ActionPlan) => void;
   onError?: (message: string) => void;
-}): void {
-  const { conversationId, contextHistory, regenerate, onComplete, onError } =
-    options;
+}): boolean {
+  const {
+    conversationId,
+    contextHistory,
+    regenerate,
+    previewTitle,
+    onComplete,
+    onError,
+  } = options;
+
+  if (inFlightConversations.has(conversationId)) {
+    return false;
+  }
+
+  const existing = getPlanJob(conversationId);
+  if (
+    existing?.status === "pending" &&
+    Date.now() - existing.startedAt < PENDING_JOB_MAX_AGE_MS
+  ) {
+    return false;
+  }
+
+  inFlightConversations.add(conversationId);
 
   setPlanJob({
     conversationId,
     status: "pending",
     startedAt: Date.now(),
+    previewTitle,
   });
 
   void (async () => {
@@ -138,6 +196,8 @@ export function startPlanGeneration(options: {
         status: "ready",
         startedAt: readJobs()[conversationId]?.startedAt ?? Date.now(),
         finishedAt: Date.now(),
+        previewTitle:
+          readJobs()[conversationId]?.previewTitle ?? previewTitle,
       });
 
       notifyPlanReady(conversationId);
@@ -154,6 +214,10 @@ export function startPlanGeneration(options: {
         error: message,
       });
       onError?.(message);
+    } finally {
+      inFlightConversations.delete(conversationId);
     }
   })();
+
+  return true;
 }

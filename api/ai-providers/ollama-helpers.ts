@@ -62,13 +62,20 @@ export function enhanceSystemInstruction(systemInstruction: string): string {
 
 export function buildPlanUserPrompt(
   truncatedHistory: string,
-  options?: { regenerate?: boolean }
+  options?: { regenerate?: boolean; compact?: boolean }
 ): string {
   const regenBlock = options?.regenerate
     ? `
 REGENERATION (required): Create a completely NEW plan — different diagnosis angle, step titles, message wording, dos/donts, and timing. Do NOT repeat phrasing from a typical template. Variation seed: ${Date.now()}.
 `
     : "";
+
+  if (options?.compact) {
+    return `Chat:
+${truncatedHistory}
+${regenBlock}
+Return ONLY one JSON object. Max ~60 chars per string field. Keys: diagnosis, steps[3]{title,description,duration}, messageTemplates[3]{situation,text,timing}, dos[3], donts[3], distancingStrategy, neurologicalTriggers. No markdown.`;
+  }
 
   return `Chat history:
 ${truncatedHistory}

@@ -46,6 +46,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [react(), tailwindcss()],
+    publicDir: path.resolve(__dirname, "src/public"),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "."),

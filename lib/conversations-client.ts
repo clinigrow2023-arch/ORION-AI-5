@@ -6,6 +6,8 @@ export type ConversationSummary = {
   updatedAt: string;
   messageCount?: number;
   hasActionPlan?: boolean;
+  /** First user message (or first message) trimmed for list labels */
+  preview?: string;
 };
 
 export type ConversationDetail = ConversationSummary & {

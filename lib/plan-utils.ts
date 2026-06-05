@@ -68,6 +68,9 @@ export function closeIncompleteJson(raw: string): string {
   }
 
   let out = raw;
+  if (inStr) {
+    out += '"';
+  }
   while (depthB > 0) {
     out += "]";
     depthB--;
@@ -182,6 +185,15 @@ export function friendlyPlanErrorMessage(message: string): string {
   ) {
     return "The AI response had a formatting glitch. Tap Generate again — we’ll build your plan from the chat.";
   }
+  if (/system memory|requires more.*memory|out of memory/i.test(message)) {
+    return "This model needs more RAM than your PC has free. In .env set OLLAMA_MODEL and OLLAMA_PLAN_MODEL to a smaller model (e.g. gemma4 or qwen3.6), restart npm run dev, and try again.";
+  }
+  if (/Unterminated string|truncated|token limit/i.test(message)) {
+    return "The AI cut off mid-response. Tap Generate again — or use llama3.2:3b in .env for more reliable plans.";
+  }
+  if (/model.*not found/i.test(message)) {
+    return "That Ollama model is not installed. Run ollama pull <name> or change OLLAMA_PLAN_MODEL in .env to a model from ollama list.";
+  }
   return message;
 }
 
@@ -196,7 +208,7 @@ function normalizeSteps(steps: unknown): PlanStep[] {
     .map((s, i) => {
       const row = s as Record<string, unknown>;
       return {
-        stepNumber: Number(row.stepNumber) || i + 1,
+        stepNumber: i + 1,
         title: asString(row.title, `Step ${i + 1}`),
         description: asString(row.description, ""),
         duration: asString(row.duration, "3-5 days"),

@@ -11,6 +11,12 @@ import {
   invalidateConversationsCache,
 } from "../lib/conversations-client";
 import {
+  deriveConversationPreview,
+  formatConversationLabel,
+  formatConversationSubtitle,
+  formatConversationTitle,
+} from "../lib/conversation-label";
+import {
   startPlanGeneration,
   getPlanJob,
   getAnyPendingPlanJob,
@@ -38,9 +44,15 @@ import {
 interface PlanDisplayProps {
   plan: ActionPlan | null;
   setPlan: (plan: ActionPlan | null) => void;
+  openPlanRequest?: { conversationId: string; display: boolean } | null;
+  onOpenPlanRequestHandled?: () => void;
 }
 
-const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
+const PlanDisplay: React.FC<PlanDisplayProps> = ({
+  setPlan,
+  openPlanRequest,
+  onOpenPlanRequestHandled,
+}) => {
   const { user } = useAuth();
   const [viewPlan, setViewPlan] = useState<ActionPlan | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -57,12 +69,14 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
   const [confirmAction, setConfirmAction] = useState<
     "delete-plan" | "regenerate-plan" | null
   >(null);
+  const [planReadyToOpen, setPlanReadyToOpen] = useState(false);
 
   const hasAccess = !!user;
   const setPlanRef = useRef(setPlan);
   setPlanRef.current = setPlan;
   const planInitDone = useRef(false);
   const readyJobHandled = useRef<string | null>(null);
+  const generateLock = useRef(false);
 
   const refreshConversationList = async (force = false) => {
     const list = await fetchConversationsSummary(force);
@@ -70,19 +84,40 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     return list;
   };
 
-  const loadConversationPlan = useCallback(async (conversationId: string) => {
-    const conv = await fetchConversationDetail(conversationId);
-    setLoadedConversation(conv);
-    const plan = (conv?.actionPlan as ActionPlan | undefined) ?? null;
-    if (plan?.steps?.length) {
-      setViewPlan(plan);
-      setPlanRef.current(plan);
-    } else {
-      setViewPlan(null);
-      setPlanRef.current(null);
-    }
-    return conv;
-  }, []);
+  const loadConversationPlan = useCallback(
+    async (conversationId: string, options?: { displayPlan?: boolean }) => {
+      const conv = await fetchConversationDetail(conversationId);
+      setLoadedConversation(conv);
+      const plan = (conv?.actionPlan as ActionPlan | undefined) ?? null;
+      const valid = !!(plan?.steps?.length && plan.messageTemplates?.length >= 3);
+
+      if (options?.displayPlan && valid && plan) {
+        setViewPlan(plan);
+        setPlanRef.current(plan);
+        setPlanReadyToOpen(false);
+      } else if (!options?.displayPlan) {
+        setViewPlan(null);
+        setPlanRef.current(null);
+        setPlanReadyToOpen(valid);
+      } else if (!valid) {
+        setViewPlan(null);
+        setPlanRef.current(null);
+        setPlanReadyToOpen(false);
+      }
+      return conv;
+    },
+    []
+  );
+
+  const openSavedPlan = useCallback(
+    async (conversationId?: string) => {
+      const id = conversationId ?? selectedConversationId;
+      if (!id) return;
+      setSelectedConversationId(id);
+      await loadConversationPlan(id, { displayPlan: true });
+    },
+    [selectedConversationId, loadConversationPlan]
+  );
 
   useEffect(() => {
     if (planInitDone.current) return;
@@ -105,9 +140,32 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     })();
   }, [loadConversationPlan]);
 
+  useEffect(() => {
+    if (!openPlanRequest?.conversationId) return;
+    const { conversationId, display } = openPlanRequest;
+    setSelectedConversationId(conversationId);
+    void loadConversationPlan(conversationId, { displayPlan: display }).then(
+      () => {
+        if (display) {
+          clearPlanJob(conversationId);
+          setPlanReadyToOpen(false);
+        }
+        invalidateConversationsCache(conversationId);
+        onOpenPlanRequestHandled?.();
+      }
+    );
+  }, [
+    openPlanRequest,
+    loadConversationPlan,
+    onOpenPlanRequestHandled,
+  ]);
+
   const selectConversation = (conversationId: string) => {
     if (conversationId === selectedConversationId) return;
     setSelectedConversationId(conversationId);
+    setPlanReadyToOpen(false);
+    setViewPlan(null);
+    setPlan(null);
     void loadConversationPlan(conversationId);
   };
 
@@ -131,6 +189,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
         void loadConversationPlan(selectedConversationId).then(() => {
           clearPlanJob(selectedConversationId);
           readyJobHandled.current = null;
+          setPlanReadyToOpen(true);
           invalidateConversationsCache(selectedConversationId);
         });
         return;
@@ -154,6 +213,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       if (conversationId !== selectedConversationId) return;
       void loadConversationPlan(conversationId).then(() => {
         clearPlanJob(conversationId);
+        setPlanReadyToOpen(true);
         invalidateConversationsCache(conversationId);
       });
       setIsGenerating(false);
@@ -185,6 +245,19 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
 
   const generatePlan = async () => {
     if (!hasAccess || !selectedConversationId) return;
+    if (generateLock.current) return;
+
+    const existingJob = getPlanJob(selectedConversationId);
+    if (
+      existingJob?.status === "pending" &&
+      Date.now() - existingJob.startedAt < 15 * 60 * 1000
+    ) {
+      setIsGenerating(true);
+      setBackgroundNote(
+        "A plan is already generating for this chat. Wait for it to finish or dismiss the error."
+      );
+      return;
+    }
 
     let conv = loadedConversation;
     conv =
@@ -200,7 +273,11 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     }
 
     setError(null);
+    setPlanReadyToOpen(false);
+    setViewPlan(null);
+    setPlan(null);
     setIsGenerating(true);
+    generateLock.current = true;
     setBackgroundNote(
       "Generating in the background. You can leave this page — we'll notify you when it's ready."
     );
@@ -208,24 +285,40 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     await requestPlanNotificationPermission();
     await refreshConversationList(true);
 
-    startPlanGeneration({
+    const previewTitle =
+      conv?.preview ??
+      (conv?.messages?.length
+        ? deriveConversationPreview(conv.messages)
+        : undefined);
+
+    const started = startPlanGeneration({
       conversationId: selectedConversationId,
       contextHistory: history,
-      onComplete: (newPlan) => {
-        setViewPlan(newPlan);
-        setPlan(newPlan);
+      previewTitle,
+      onComplete: () => {
+        generateLock.current = false;
         setIsGenerating(false);
         setBackgroundNote(null);
+        setPlanReadyToOpen(true);
         invalidateConversationsCache(selectedConversationId);
         void refreshConversationList(true);
         void loadConversationPlan(selectedConversationId);
       },
       onError: (message) => {
+        generateLock.current = false;
         setError(friendlyPlanErrorMessage(message));
         setIsGenerating(false);
         setBackgroundNote(null);
       },
     });
+
+    if (!started) {
+      generateLock.current = false;
+      setIsGenerating(true);
+      setBackgroundNote(
+        "This chat already has a plan generation in progress. Please wait."
+      );
+    }
   };
 
   const deleteSavedPlan = async () => {
@@ -257,6 +350,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       clearPlanJob(selectedConversationId);
       setViewPlan(null);
       setPlan(null);
+      setPlanReadyToOpen(false);
       invalidateConversationsCache(selectedConversationId);
       await loadConversationPlan(selectedConversationId);
       await refreshConversationList(true);
@@ -294,33 +388,42 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
       "Regenerating a brand-new plan in the background. You can leave this page."
     );
 
-    startPlanGeneration({
+    generateLock.current = true;
+    const previewTitle =
+      conv?.preview ??
+      (conv?.messages?.length
+        ? deriveConversationPreview(conv.messages)
+        : undefined);
+    const started = startPlanGeneration({
       conversationId: selectedConversationId,
       contextHistory: history,
       regenerate: true,
-      onComplete: (newPlan) => {
-        setViewPlan(newPlan);
-        setPlan(newPlan);
+      previewTitle,
+      onComplete: () => {
+        generateLock.current = false;
         setIsGenerating(false);
         setBackgroundNote(null);
+        setPlanReadyToOpen(true);
         invalidateConversationsCache(selectedConversationId);
         void refreshConversationList(true);
         void loadConversationPlan(selectedConversationId);
       },
       onError: (message) => {
+        generateLock.current = false;
         setError(friendlyPlanErrorMessage(message));
         setIsGenerating(false);
         setBackgroundNote(null);
       },
     });
+    if (!started) {
+      generateLock.current = false;
+      setError("A plan is already generating for this chat. Please wait.");
+      setIsGenerating(false);
+      setBackgroundNote(null);
+    }
   };
 
-  const conversationLabel = (conv: ConversationSummary) => {
-    const date = new Date(conv.updatedAt).toLocaleDateString();
-    const time = new Date(conv.updatedAt).toLocaleTimeString();
-    const planTag = conv.hasActionPlan ? " • plan saved" : "";
-    return `Chat ${date} • ${conv.messageCount ?? 0} msgs • ${time}${planTag}`;
-  };
+  const conversationLabel = formatConversationLabel;
 
   const isValidPlan =
     viewPlan &&
@@ -371,13 +474,32 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
             </div>
           )}
 
-          {savedPlanConversation && (
+          {planReadyToOpen && !isGenerating && (
             <button
               type="button"
-              onClick={() => {
-                setSelectedConversationId(savedPlanConversation.id);
-                void loadConversationPlan(savedPlanConversation.id);
-              }}
+              onClick={() => void openSavedPlan()}
+              className="w-full mb-6 py-4 px-4 rounded-xl border-2 border-emerald-500/70 bg-emerald-950/50 hover:bg-emerald-900/40 transition-colors text-left shadow-lg shadow-emerald-900/20"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/30 border border-emerald-500/50">
+                  <FileText className="text-emerald-300" size={22} />
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-emerald-200">
+                    Your plan is ready — open it
+                  </span>
+                  <span className="block text-xs text-emerald-400/90 mt-0.5">
+                    Tap to view (not opened automatically)
+                  </span>
+                </span>
+              </span>
+            </button>
+          )}
+
+          {savedPlanConversation && !planReadyToOpen && (
+            <button
+              type="button"
+              onClick={() => void openSavedPlan(savedPlanConversation.id)}
               className="w-full mb-6 py-4 px-4 rounded-xl border-2 border-emerald-500/70 bg-emerald-950/50 hover:bg-emerald-900/40 transition-colors text-left shadow-lg shadow-emerald-900/20"
             >
               <span className="flex items-center gap-3">
@@ -447,7 +569,12 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
                             : "text-slate-300"
                         }`}
                       >
-                        {conversationLabel(conv)}
+                        <span className="block font-medium text-slate-200 line-clamp-2 leading-snug">
+                          {formatConversationTitle(conv)}
+                        </span>
+                        <span className="block text-xs text-slate-500 truncate">
+                          {formatConversationSubtitle(conv)}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -542,9 +669,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
           <Clock size={24} className="text-indigo-500" /> 3-Step Action Plan
         </h3>
         <div className="grid gap-6 md:grid-cols-3">
-          {viewPlan.steps.map((step) => (
+          {viewPlan.steps.map((step, idx) => (
             <div
-              key={step.stepNumber}
+              key={`step-${idx}`}
               className="bg-slate-900 border border-slate-800 rounded-xl p-5 relative overflow-hidden group hover:border-indigo-500/50 transition-colors"
             >
               <div className="absolute -right-4 -top-4 text-slate-800 text-9xl font-bold opacity-20 group-hover:text-indigo-900 transition-colors select-none">

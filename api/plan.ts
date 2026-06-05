@@ -13,6 +13,7 @@ import {
 import { truncatePlanContext } from "./ai-providers/ollama-helpers.js";
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
 import { recordAiUsage } from "../lib/ai-usage.js";
+import { resolveOllamaPlanModel } from "../lib/ollama-model-env.js";
 
 export default async function planHandler(
   req: VercelRequest,
@@ -95,7 +96,7 @@ export default async function planHandler(
     recordAiUsage(userId, "plan");
 
     console.log(
-      `[plan] user=${userId} regenerate=${!!regenerate} ctxChars=${historyText.length} model=${process.env.OLLAMA_PLAN_MODEL || "llama3.2:3b"}`
+      `[plan] user=${userId} regenerate=${!!regenerate} ctxChars=${historyText.length} model=${resolveOllamaPlanModel()}`
     );
     const raw = await generatePlanWithOllama(historyText, {
       regenerate: !!regenerate,

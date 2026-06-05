@@ -3,7 +3,6 @@ import {
   MessageSquare,
   FileText,
   BookOpen,
-  Star,
   LogOut,
   User,
   Shield,
@@ -15,19 +14,21 @@ import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import ChangePassword from "./ChangePassword";
 import LogoutModal from "./LogoutModal";
+import OrionLogo from "./OrionLogo";
 
 interface SidebarProps {
   currentView: ViewState | "admin";
   setView: (view: ViewState | "admin") => void;
   planNotice?: "pending" | "ready" | null;
   hasSavedPlan?: boolean;
+  onOpenReadyPlan?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   setView,
   planNotice,
-  hasSavedPlan,
+  onOpenReadyPlan,
 }) => {
   const { user, logout, isAdmin } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -36,8 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
       <div className="p-4 md:p-6 flex items-center gap-2 border-b border-slate-800">
-        <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0 md:mt-0 mt-16">
-          <Star className="w-5 h-5 text-white fill-white " />
+        <div className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0 md:mt-0 mt-16 overflow-hidden bg-slate-950 ring-1 ring-indigo-500/40">
+          <OrionLogo size={32} className="w-8 h-8" />
         </div>
         <h1 className="text-xl font-bold text-white tracking-tight md:mt-0 mt-16">
           Orion AI
@@ -75,15 +76,21 @@ const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setView("plan")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+          onClick={() => {
+            if (planNotice === "ready" && onOpenReadyPlan) {
+              onOpenReadyPlan();
+              return;
+            }
+            setView("plan");
+          }}
+          className={`w-full flex items-center  gap-3 px-2 py-3 rounded-lg transition-all duration-200 ${
             currentView === "plan"
               ? "bg-indigo-600 text-white shadow-md"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
         >
           <FileText size={20} />
-          <span className="font-medium flex-1 text-left">My Action Plan</span>
+          <span className="font-medium flex-1  text-left">My Action Plan</span>
           {planNotice === "pending" && (
             <Loader2 size={16} className="animate-spin text-amber-300" />
           )}
@@ -92,11 +99,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               Ready
             </span>
           )}
-          {hasSavedPlan && planNotice !== "pending" && planNotice !== "ready" && (
-            <span className="text-[10px] uppercase tracking-wide bg-emerald-700/80 text-emerald-100 px-1.5 py-0.5 rounded border border-emerald-500/40">
+          {/* {hasSavedPlan && planNotice !== "pending" && planNotice !== "ready" && (
+            <span className="text-[8px] uppercase tracking-wide bg-emerald-700/80 text-emerald-100 px-1.5 py-0.5 rounded border border-emerald-500/40">
               Saved
             </span>
-          )}
+          )} */}
         </button>
 
         <button

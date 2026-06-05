@@ -7,11 +7,5 @@ export const MAX_SYSTEM_PROMPT_CHARS = 2400;
 /** Chat generation cap — lower = faster replies (~30s target on CPU 3B) */
 export const CHAT_NUM_PREDICT = 300;
 
-/** Action plan — smaller JSON, faster on CPU */
+/** Action plan — smaller JSON, faster on CPU (override: OLLAMA_PLAN_NUM_PREDICT on server) */
 export const PLAN_NUM_PREDICT = 400;
-
-/** Plan uses base model (not orion-ai Modelfile) — set OLLAMA_PLAN_MODEL */
-export const PLAN_TIMEOUT_MS = 120_000;
-
-/** Chat stream / non-stream HTTP timeout to Ollama */
-export const CHAT_TIMEOUT_MS = 120_000;

@@ -15,6 +15,7 @@ import {
   getAnyPendingPlanJob,
   subscribePlanReady,
 } from "./services/planJobService";
+import { fetchConversationsSummary } from "./lib/conversations-client";
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
@@ -23,11 +24,11 @@ const App: React.FC = () => {
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [planNotice, setPlanNotice] = useState<"pending" | "ready" | null>(null);
+  const [hasSavedPlan, setHasSavedPlan] = useState(false);
 
   useEffect(() => {
     const refresh = () => {
       if (getAnyPendingPlanJob()) setPlanNotice("pending");
-      else setPlanNotice(null);
     };
     refresh();
     const id = setInterval(refresh, 2000);
@@ -37,6 +38,23 @@ const App: React.FC = () => {
       unsub();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void fetchConversationsSummary(true).then((list) => {
+      setHasSavedPlan(list.some((c) => c.hasActionPlan));
+    });
+  }, [isAuthenticated, currentView, plan, planNotice]);
+
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!getAnyPendingPlanJob()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [planNotice]);
 
   useEffect(() => {
     if (currentView === "admin" && !isAdmin) {
@@ -162,6 +180,7 @@ const App: React.FC = () => {
         <Sidebar
           currentView={currentView}
           planNotice={planNotice}
+          hasSavedPlan={hasSavedPlan}
           setView={(view) => {
             setCurrentView(view);
             setIsMobileMenuOpen(false);

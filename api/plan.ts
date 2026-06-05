@@ -12,6 +12,7 @@ import {
 } from "../lib/plan-utils.js";
 import { truncatePlanContext } from "./ai-providers/ollama-helpers.js";
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
+import { recordAiUsage } from "../lib/ai-usage.js";
 
 export default async function planHandler(
   req: VercelRequest,
@@ -53,9 +54,10 @@ export default async function planHandler(
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const { conversationId, contextHistory } = req.body as {
+    const { conversationId, contextHistory, regenerate } = req.body as {
       conversationId?: string;
       contextHistory?: string;
+      regenerate?: boolean;
     };
 
     let historyText = (contextHistory || "").trim();
@@ -83,10 +85,21 @@ export default async function planHandler(
       });
     }
 
+    if (regenerate && conversationId) {
+      await prisma.conversation.updateMany({
+        where: { id: conversationId, userId },
+        data: { actionPlan: null },
+      });
+    }
+
+    recordAiUsage(userId, "plan");
+
     console.log(
-      `[plan] user=${userId} ctxChars=${historyText.length} model=${process.env.OLLAMA_PLAN_MODEL || "llama3.2:3b"}`
+      `[plan] user=${userId} regenerate=${!!regenerate} ctxChars=${historyText.length} model=${process.env.OLLAMA_PLAN_MODEL || "llama3.2:3b"}`
     );
-    const raw = await generatePlanWithOllama(historyText);
+    const raw = await generatePlanWithOllama(historyText, {
+      regenerate: !!regenerate,
+    });
     const parsed = parsePlanJsonFromText(raw);
     const plan = normalizeActionPlan(parsed);
 

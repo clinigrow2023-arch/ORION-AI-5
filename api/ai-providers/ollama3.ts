@@ -197,11 +197,15 @@ export class Ollama3Provider implements AIProvider {
     }
   }
 
-  async generatePlan(contextHistory: string): Promise<string> {
+  async generatePlan(
+    contextHistory: string,
+    options?: { regenerate?: boolean }
+  ): Promise<string> {
     try {
       const truncatedHistory = truncatePlanContext(contextHistory);
-      const prompt = buildPlanUserPrompt(truncatedHistory);
+      const prompt = buildPlanUserPrompt(truncatedHistory, options);
       const headers = getOllamaAuthHeaders(this.apiKey);
+      const regenerating = !!options?.regenerate;
 
       const requestBody: Record<string, unknown> = {
         model: this.model,
@@ -210,10 +214,11 @@ export class Ollama3Provider implements AIProvider {
         format: "json",
         num_ctx: 2048,
         options: {
-          temperature: 0.3,
+          temperature: regenerating ? 0.82 : 0.3,
           num_predict: PLAN_NUM_PREDICT,
-          top_p: 0.85,
-          repeat_penalty: 1.1,
+          top_p: regenerating ? 0.92 : 0.85,
+          repeat_penalty: regenerating ? 1.25 : 1.1,
+          seed: regenerating ? Math.floor(Math.random() * 2_147_483_647) : 42,
         },
       };
       attachSystemIfPresent(requestBody, PLAN_SYSTEM_PROMPT);

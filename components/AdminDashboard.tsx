@@ -1,4 +1,5 @@
 import {
+  Activity,
   AlertCircle,
   Ban,
   CheckCircle,
@@ -19,6 +20,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { authService } from "../lib/auth";
+import AdminUsagePanel from "./AdminUsagePanel";
 
 type UserStatusFilter = "all" | "active" | "inactive" | "blocked";
 
@@ -148,7 +150,9 @@ const AdminDashboard: React.FC = () => {
   const [listCurrentPage, setListCurrentPage] = useState(1);
   const [listTotalPages, setListTotalPages] = useState(1);
   const [searchBarKey, setSearchBarKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<"users" | "create">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "create" | "usage">(
+    "users"
+  );
   const [userStatusFilter, setUserStatusFilter] =
     useState<UserStatusFilter>("all");
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -643,7 +647,26 @@ const AdminDashboard: React.FC = () => {
               Create User
             </span>
           </button>
+          <button
+            onClick={() => setActiveTab("usage")}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === "usage"
+                ? "text-indigo-400 border-b-2 border-indigo-400"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Activity size={18} />
+              AI Usage
+            </span>
+          </button>
         </div>
+
+        {activeTab === "usage" && (
+          <div className="flex flex-col flex-1 min-h-0">
+            <AdminUsagePanel />
+          </div>
+        )}
 
         {/* Create User Tab */}
         {activeTab === "create" && (

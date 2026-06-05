@@ -20,12 +20,14 @@ interface SidebarProps {
   currentView: ViewState | "admin";
   setView: (view: ViewState | "admin") => void;
   planNotice?: "pending" | "ready" | null;
+  hasSavedPlan?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   setView,
   planNotice,
+  hasSavedPlan,
 }) => {
   const { user, logout, isAdmin } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -86,8 +88,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Loader2 size={16} className="animate-spin text-amber-300" />
           )}
           {planNotice === "ready" && (
-            <span className="text-[10px] uppercase tracking-wide bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+            <span className="text-[10px] uppercase tracking-wide bg-emerald-600 text-white px-1.5 py-0.5 rounded animate-pulse">
               Ready
+            </span>
+          )}
+          {hasSavedPlan && planNotice !== "pending" && planNotice !== "ready" && (
+            <span className="text-[10px] uppercase tracking-wide bg-emerald-700/80 text-emerald-100 px-1.5 py-0.5 rounded border border-emerald-500/40">
+              Saved
             </span>
           )}
         </button>

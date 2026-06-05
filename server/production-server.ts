@@ -21,6 +21,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 import adminUsersHandler from "../api/admin-users.js";
+import adminAiUsageHandler from "../api/admin-ai-usage.js";
 import authHandler from "../api/auth.js";
 import chatHandler from "../api/chat.js";
 import planHandler from "../api/plan.js";
@@ -63,7 +64,10 @@ const api =
 
 app.options("/api/:functionName", (_req, res) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  );
   res.header(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-Stream"
@@ -87,6 +91,8 @@ app.get("/api/admin-users", api(adminUsersHandler));
 app.post("/api/admin-users", api(adminUsersHandler));
 app.put("/api/admin-users", api(adminUsersHandler));
 app.delete("/api/admin-users", api(adminUsersHandler));
+
+app.get("/api/admin-ai-usage", api(adminAiUsageHandler));
 
 app.post("/api/digistore-ipn", api(digistoreIpnHandler));
 

@@ -60,10 +60,19 @@ export function enhanceSystemInstruction(systemInstruction: string): string {
   );
 }
 
-export function buildPlanUserPrompt(truncatedHistory: string): string {
+export function buildPlanUserPrompt(
+  truncatedHistory: string,
+  options?: { regenerate?: boolean }
+): string {
+  const regenBlock = options?.regenerate
+    ? `
+REGENERATION (required): Create a completely NEW plan — different diagnosis angle, step titles, message wording, dos/donts, and timing. Do NOT repeat phrasing from a typical template. Variation seed: ${Date.now()}.
+`
+    : "";
+
   return `Chat history:
 ${truncatedHistory}
-
+${regenBlock}
 Return one JSON object with keys: diagnosis, steps (array of 3), messageTemplates (array of 3), dos, donts, distancingStrategy, neurologicalTriggers.`;
 }
 

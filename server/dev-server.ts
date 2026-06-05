@@ -36,6 +36,7 @@ if (!dbUrl.startsWith("mongodb://") && !dbUrl.startsWith("mongodb+srv://")) {
 import adminUsersHandler from "../api/admin-users.js";
 import authHandler from "../api/auth.js";
 import conversationsHandler from "../api/conversations.js";
+import adminAiUsageHandler from "../api/admin-ai-usage.js";
 import digistoreIpnHandler from "../api/digistore-ipn.js";
 import chatHandler from "../api/chat.js";
 import planHandler from "../api/plan.js";
@@ -107,6 +108,7 @@ app.get("/api/admin-users", adminUsersHandler);
 app.post("/api/admin-users", adminUsersHandler);
 app.put("/api/admin-users", adminUsersHandler);
 app.delete("/api/admin-users", adminUsersHandler);
+app.get("/api/admin-ai-usage", adminAiUsageHandler);
 
 app.put("/api/change-password", authHandler);
 app.post("/api/set-new-password", authHandler);

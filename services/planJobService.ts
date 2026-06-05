@@ -85,10 +85,12 @@ export function subscribePlanReady(
 export function startPlanGeneration(options: {
   conversationId: string;
   contextHistory: string;
+  regenerate?: boolean;
   onComplete?: (plan: ActionPlan) => void;
   onError?: (message: string) => void;
 }): void {
-  const { conversationId, contextHistory, onComplete, onError } = options;
+  const { conversationId, contextHistory, regenerate, onComplete, onError } =
+    options;
 
   setPlanJob({
     conversationId,
@@ -108,7 +110,11 @@ export function startPlanGeneration(options: {
       const response = await fetch(getApiEndpoint("plan"), {
         method: "POST",
         headers,
-        body: JSON.stringify({ conversationId, contextHistory }),
+        body: JSON.stringify({
+          conversationId,
+          contextHistory,
+          regenerate: !!regenerate,
+        }),
       });
 
       if (!response.ok) {

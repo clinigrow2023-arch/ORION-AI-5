@@ -7,6 +7,7 @@ import {
   sendMessageWithOllama,
 } from "./ai-providers/orion-ai.js";
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
+import { recordAiUsage } from "../lib/ai-usage.js";
 
 export default async function chatHandler(
   req: VercelRequest,
@@ -53,6 +54,8 @@ export default async function chatHandler(
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
+
+    recordAiUsage(userId, "chat");
 
     const isStreaming =
       req.query.stream === "true" || req.headers["x-stream"] === "true";

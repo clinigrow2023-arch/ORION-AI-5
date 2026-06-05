@@ -29,8 +29,6 @@ import ReactMarkdown from "react-markdown";
 import ResetChatModal from "./ResetChatModal";
 import DeleteConversationModal from "./DeleteConversationModal";
 
-let chatBootstrapInFlight: Promise<void> | null = null;
-
 interface ChatInterfaceProps {
   messages: Message[];
   addMessage: (msg: Message) => void;
@@ -95,7 +93,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const loadConversationsList = async (force = false) => {
     try {
       const list = await fetchConversationsSummary(force);
-      if (list.length) setConversations(list);
+      setConversations(list);
       return list;
     } catch (error) {
       console.error("Failed to load conversations:", error);
@@ -135,34 +133,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   useEffect(() => {
-    if (bootstrapStarted.current) return;
-    bootstrapStarted.current = true;
+    let cancelled = false;
 
-    if (!chatBootstrapInFlight) {
-      chatBootstrapInFlight = (async () => {
-        const token = authService.getToken();
-        if (!token) return;
+    const init = async () => {
+      const token = authService.getToken();
+      if (!token || cancelled) return;
 
-        const list = await loadConversationsList();
-        const storedId = getActiveConversationId();
-        const preferred =
-          storedId && list.some((c: { id: string }) => c.id === storedId)
-            ? storedId
-            : list[0]?.id;
+      const storedId = getActiveConversationId();
+      if (storedId) {
+        conversationIdRef.current = storedId;
+        setCurrentConversationId(storedId);
+      }
 
-        if (preferred && messages.length === 0) {
-          await loadConversationById(preferred);
-        } else if (list.length === 0) {
-          conversationIdRef.current = null;
-          setActiveConversationId(null);
-          chatService.clearHistory();
-        }
+      const list = await loadConversationsList(true);
+      if (cancelled) return;
 
-        hasLoadedHistory.current = true;
-      })();
-    }
+      if (bootstrapStarted.current) return;
+      bootstrapStarted.current = true;
 
-    void chatBootstrapInFlight;
+      const preferred =
+        storedId && list.some((c) => c.id === storedId)
+          ? storedId
+          : list[0]?.id;
+
+      if (preferred && messages.length === 0) {
+        await loadConversationById(preferred);
+      } else if (list.length === 0 && messages.length === 0) {
+        conversationIdRef.current = null;
+        setActiveConversationId(null);
+        chatService.clearHistory();
+      }
+
+      hasLoadedHistory.current = true;
+    };
+
+    void init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleDeleteClick = (conversationId: string, updatedAt: string) => {
@@ -542,9 +550,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {/* Conversas Dropdown */}
                 <div className="relative">
                   <button
-                    onClick={() =>
-                      setShowConversationsList(!showConversationsList)
-                    }
+                    onClick={() => {
+                      const open = !showConversationsList;
+                      setShowConversationsList(open);
+                      if (open) void loadConversationsList(true);
+                    }}
                     className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1"
                     title="Manage conversations"
                   >
@@ -574,6 +584,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         </button>
                       </div>
                       <div className="p-2 space-y-1">
+                        {conversations.length === 0 ? (
+                          <p className="text-xs text-slate-500 px-2 py-3 text-center">
+                            No saved conversations yet.
+                          </p>
+                        ) : null}
                         {conversations.map((conv) => (
                           <div
                             key={conv.id}

@@ -53,6 +53,17 @@ model Conversation {
   @@index([userId, updatedAt])
 }
 
+model AiUsageEvent {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  kind      String   // "chat" | "plan"
+  startedAt DateTime @default(now())
+
+  @@map("ai_usage_events")
+  @@index([startedAt])
+  @@index([kind, startedAt])
+}
+
 model SystemPrompt {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   prompt    String   // System instruction para todas as IAs

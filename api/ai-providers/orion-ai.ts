@@ -62,11 +62,12 @@ function getPlanOllamaProvider(): Ollama3Provider {
 
 /** Plan uses lightweight base model — avoids orion-ai Modelfile system (~3k tokens). */
 export async function generatePlanWithOllama(
-  contextHistory: string
+  contextHistory: string,
+  options?: { regenerate?: boolean }
 ): Promise<string> {
   const provider = getPlanOllamaProvider();
   const response = await withOllamaInference(() =>
-    provider.generatePlan(contextHistory)
+    provider.generatePlan(contextHistory, options)
   );
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty plan response");

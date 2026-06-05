@@ -13,6 +13,7 @@ import {
 import {
   startPlanGeneration,
   getPlanJob,
+  getAnyPendingPlanJob,
   clearPlanJob,
   requestPlanNotificationPermission,
   subscribePlanReady,
@@ -31,6 +32,7 @@ import {
   ChevronDown,
   Trash2,
   Bell,
+  FileText,
 } from "lucide-react";
 
 interface PlanDisplayProps {
@@ -171,6 +173,16 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     return "";
   };
 
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isGenerating && !getAnyPendingPlanJob()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isGenerating]);
+
   const generatePlan = async () => {
     if (!hasAccess || !selectedConversationId) return;
 
@@ -259,8 +271,48 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
   };
 
   const runRegeneratePlan = async () => {
-    await deleteSavedPlan();
-    await generatePlan();
+    if (!selectedConversationId) return;
+    setViewPlan(null);
+    setPlan(null);
+    setError(null);
+    clearPlanJob(selectedConversationId);
+    invalidateConversationsCache(selectedConversationId);
+
+    const conv =
+      (await fetchConversationDetail(selectedConversationId, true)) ??
+      loadedConversation;
+    const history = buildHistoryText(conv);
+    if (!history.trim()) {
+      setError(
+        "Please chat with Orion first so we have context for your plan."
+      );
+      return;
+    }
+
+    setIsGenerating(true);
+    setBackgroundNote(
+      "Regenerating a brand-new plan in the background. You can leave this page."
+    );
+
+    startPlanGeneration({
+      conversationId: selectedConversationId,
+      contextHistory: history,
+      regenerate: true,
+      onComplete: (newPlan) => {
+        setViewPlan(newPlan);
+        setPlan(newPlan);
+        setIsGenerating(false);
+        setBackgroundNote(null);
+        invalidateConversationsCache(selectedConversationId);
+        void refreshConversationList(true);
+        void loadConversationPlan(selectedConversationId);
+      },
+      onError: (message) => {
+        setError(friendlyPlanErrorMessage(message));
+        setIsGenerating(false);
+        setBackgroundNote(null);
+      },
+    });
   };
 
   const conversationLabel = (conv: ConversationSummary) => {
@@ -274,6 +326,11 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
     viewPlan &&
     viewPlan.steps?.length > 0 &&
     viewPlan.messageTemplates?.length >= 3;
+
+  const savedPlanConversation =
+    conversations.find(
+      (c) => c.hasActionPlan && c.id === selectedConversationId
+    ) ?? conversations.find((c) => c.hasActionPlan);
 
   if (!isValidPlan) {
     return (
@@ -312,6 +369,31 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ setPlan }) => {
                 Dismiss
               </button>
             </div>
+          )}
+
+          {savedPlanConversation && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedConversationId(savedPlanConversation.id);
+                void loadConversationPlan(savedPlanConversation.id);
+              }}
+              className="w-full mb-6 py-4 px-4 rounded-xl border-2 border-emerald-500/70 bg-emerald-950/50 hover:bg-emerald-900/40 transition-colors text-left shadow-lg shadow-emerald-900/20"
+            >
+              <span className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/30 border border-emerald-500/50">
+                  <FileText className="text-emerald-300" size={22} />
+                </span>
+                <span>
+                  <span className="block text-base font-semibold text-emerald-200">
+                    Open your saved action plan
+                  </span>
+                  <span className="block text-xs text-emerald-400/90 mt-0.5">
+                    {conversationLabel(savedPlanConversation)}
+                  </span>
+                </span>
+              </span>
+            </button>
           )}
 
           {conversations.length > 0 && (

@@ -98,6 +98,18 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## Git pull na VPS (conflito em scripts)
 
+Se `git pull` falhar com *local changes would be overwritten*, rode:
+
+```bash
+cd /opt/orion-ai-docker
+git checkout -- scripts/
+git pull origin feature/vps-ollama-only
+# Se ainda usa .env.docker: mv .env.docker .env
+./scripts/redeploy-app.sh
+```
+
+Ou use o helper (descarta edits locais em `scripts/` automaticamente):
+
 ```bash
 ./scripts/vps-git-pull.sh
 ./scripts/redeploy-app.sh

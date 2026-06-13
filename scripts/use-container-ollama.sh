@@ -3,7 +3,7 @@
 set -euo pipefail
 
 INSTALL_DIR="${ORION_INSTALL_DIR:-/opt/orion-ai-docker}"
-ENV_FILE="${ENV_FILE:-.env.docker}"
+ENV_FILE="${ENV_FILE:-.env}"
 
 cd "$INSTALL_DIR"
 

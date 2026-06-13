@@ -3,7 +3,7 @@
 set -euo pipefail
 
 INSTALL_DIR="${ORION_INSTALL_DIR:-/opt/orion-ai-docker}"
-ENV_FILE="${ENV_FILE:-.env.docker}"
+ENV_FILE="${ENV_FILE:-.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 BASE_MODEL="${OLLAMA_BASE_MODEL:-llama3.2:3b}"
 CUSTOM_MODEL="${OLLAMA_MODEL:-orion-ai}"

@@ -1,8 +1,9 @@
 import nodemailer from "nodemailer";
 
 // Configuração do Gmail
-const GMAIL_USER = process.env.GMAIL_USER || "";
-const GMAIL_PASS = process.env.GMAIL_PASS || ""; // App Password do Gmail
+const GMAIL_USER = (process.env.GMAIL_USER || "").trim();
+// App passwords are 16 chars; strip spaces from display format "xxxx xxxx xxxx xxxx"
+const GMAIL_PASS = (process.env.GMAIL_PASS || "").replace(/\s+/g, "");
 const SITE_URL = process.env.SITE_URL || "https://your-site.vercel.app";
 
 // Criar transporter do Gmail
@@ -18,6 +19,9 @@ const createTransporter = () => {
       user: GMAIL_USER,
       pass: GMAIL_PASS,
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 };
 

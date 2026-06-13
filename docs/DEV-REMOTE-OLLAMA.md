@@ -27,7 +27,7 @@ Use o template `env.dev-remote-ollama.example` — copie para o seu `.env`:
 
 ```env
 OLLAMA_URL=http://127.0.0.1:11435
-OLLAMA_API_KEY=<igual ao OLLAMA_API_KEY do .env.docker na VPS>
+OLLAMA_API_KEY=<igual ao OLLAMA_API_KEY do .env na VPS>
 OLLAMA_MODEL=orion-ai
 OLLAMA_PLAN_MODEL=llama3.2:3b
 OLLAMA_USE_MODELFILE=1

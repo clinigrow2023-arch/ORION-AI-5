@@ -7,7 +7,7 @@ REPO_URL="${ORION_REPO_URL:-https://github.com/clinigrow2023-arch/ORION-AI-5.git
 BRANCH="${ORION_GIT_BRANCH:-feature/vps-ollama-only}"
 INSTALL_DIR="${ORION_INSTALL_DIR:-/opt/orion-ai-docker}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
-ENV_FILE="${ENV_FILE:-.env.docker}"
+ENV_FILE="${ENV_FILE:-.env}"
 BASE_MODEL="${OLLAMA_BASE_MODEL:-llama3.2:3b}"
 CUSTOM_MODEL="${OLLAMA_MODEL:-orion-ai}"
 USE_MODELFILE="${OLLAMA_USE_MODELFILE:-1}"
@@ -39,12 +39,12 @@ git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
 if [ ! -f "$ENV_FILE" ]; then
-  if [ -f env.docker.example ]; then
-    cp env.docker.example "$ENV_FILE"
-    log "Criado $ENV_FILE a partir de env.docker.example — edite os segredos e rode de novo."
+  if [ -f env.example ]; then
+    cp env.example "$ENV_FILE"
+    log "Criado $ENV_FILE a partir de env.example — edite os segredos e rode de novo."
     exit 1
   fi
-  echo "Arquivo $ENV_FILE ausente. Copie env.docker.example e preencha."
+  echo "Arquivo $ENV_FILE ausente. Copie env.example e preencha."
   exit 1
 fi
 

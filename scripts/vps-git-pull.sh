@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Atualiza /opt/orion-ai-docker sem perder .env.docker (descarta diff só em scripts rastreados com conflito comum)
+# Atualiza /opt/orion-ai-docker sem perder .env (descarta diff só em scripts rastreados com conflito comum)
 set -euo pipefail
 cd "${ORION_INSTALL_DIR:-/opt/orion-ai-docker}"
 

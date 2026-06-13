@@ -1,4 +1,4 @@
-# Read a single KEY=value from .env.docker without sourcing (safe for spaces and #!&).
+# Read a single KEY=value from .env without sourcing (safe for spaces and #!&).
 read_env_var() {
   local key="$1" file="$2" default="${3:-}"
   if [ ! -f "$file" ]; then

@@ -27,17 +27,17 @@ chmod +x scripts/rebuild-ollama-model.sh
 Se aparecer `no Modelfile or safetensors files found`, rode antes:
 
 ```bash
-docker compose --env-file .env.docker up -d --force-recreate ollama-orion
+docker compose --env-file .env up -d --force-recreate ollama-orion
 ./scripts/rebuild-ollama-model.sh
 ```
 
 4. Reinicie só o app (opcional):
 
 ```bash
-docker compose --env-file .env.docker up -d --force-recreate orion-app
+docker compose --env-file .env up -d --force-recreate orion-app
 ```
 
-## Variáveis (`.env.docker`)
+## Variáveis (`.env`)
 
 ```env
 OLLAMA_USE_MODELFILE=1

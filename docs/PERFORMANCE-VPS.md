@@ -49,7 +49,7 @@ Menos bits → mais tokens/s em CPU.
 
 ### 3. Ajustar concorrência na KVM8
 
-`.env.docker`:
+`.env`:
 
 ```env
 OLLAMA_NUM_PARALLEL=8
@@ -84,7 +84,7 @@ export LOAD_TEST_PLAN=0
 ./scripts/run-load-test-vps.sh
 ```
 
-`CONCURRENT` deve ser **≤** `OLLAMA_APP_MAX_CONCURRENT` no `.env.docker`.
+`CONCURRENT` deve ser **≤** `OLLAMA_APP_MAX_CONCURRENT` no `.env`.
 
 Chat real **~90–120s** em CPU com `orion-ai` é normal hoje; meta &lt;30s exige GPU ou Ollama no host mais rápido.
 
@@ -114,5 +114,5 @@ Ao reabrir a aba **Action Plan** e escolher a conversa, o plano salvo é carrega
 Após `git pull` + redeploy, rode na VPS (uma vez):
 
 ```bash
-docker compose --env-file .env.docker exec orion-app npx prisma db push
+docker compose --env-file .env exec orion-app npx prisma db push
 ```

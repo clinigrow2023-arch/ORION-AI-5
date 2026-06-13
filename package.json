@@ -12,8 +12,8 @@
     "build": "vite build",
     "start": "tsx server/production-server.ts",
     "start:prod": "npm run build && npm run start",
-    "docker:up": "docker compose --env-file .env.docker up -d --build",
-    "docker:down": "docker compose --env-file .env.docker down",
+    "docker:up": "docker compose --env-file .env up -d --build",
+    "docker:down": "docker compose --env-file .env down",
     "preview": "vite preview",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -21,6 +21,7 @@
     "create-admin": "tsx scripts/create-admin.ts",
     "activate-users": "tsx scripts/activate-all-users.ts",
     "test:digistore-connection": "curl -X POST http://localhost:8888/api/digistore-ipn -H \"Content-Type: application/x-www-form-urlencoded\" -d \"event=connection_test\"",
+    "test:email": "tsx scripts/test-email.ts",
     "postinstall": "prisma generate || (echo '⚠️ Prisma generate failed, setting dummy DATABASE_URL and retrying...' && DATABASE_URL='mongodb://localhost:27017/dummy' prisma generate) || echo '⚠️ Prisma generate skipped (this is OK if DATABASE_URL is not set during build)'"
   },
   "dependencies": {

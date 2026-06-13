@@ -9,7 +9,7 @@
  *   node scripts/load-test-50.mjs
  *
  * Or inside app container:
- *   docker compose --env-file .env.docker exec orion-app node scripts/load-test-50.mjs
+ *   docker compose --env-file .env exec orion-app node scripts/load-test-50.mjs
  */
 const BASE = (process.env.LOAD_TEST_URL || "http://127.0.0.1:3001").replace(
   /\/$/,
@@ -184,7 +184,7 @@ async function main() {
   console.log(`Target: ${BASE}  concurrent: ${CONCURRENT}`);
   if (CONCURRENT > appMax) {
     console.warn(
-      `Warning: CONCURRENT (${CONCURRENT}) > OLLAMA_APP_MAX_CONCURRENT (~${appMax}) → expect BUSY unless you raise the limit in .env.docker`
+      `Warning: CONCURRENT (${CONCURRENT}) > OLLAMA_APP_MAX_CONCURRENT (~${appMax}) → expect BUSY unless you raise the limit in .env`
     );
   }
   console.log("Do not run load test while using the site in the browser (same queue).");

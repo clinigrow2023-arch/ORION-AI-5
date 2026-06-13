@@ -4,7 +4,7 @@
 set -euo pipefail
 
 INSTALL_DIR="${ORION_INSTALL_DIR:-/opt/orion-ai-docker}"
-ENV_FILE="${ENV_FILE:-.env.docker}"
+ENV_FILE="${ENV_FILE:-.env}"
 COMPOSE="-f docker-compose.yml -f docker-compose.host-ollama.yml"
 
 cd "$INSTALL_DIR"

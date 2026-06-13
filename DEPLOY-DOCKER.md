@@ -12,7 +12,7 @@ Stack em containers na branch **`feature/vps-ollama-only`**. A **`main`** e a Ve
 
 O app fala com `http://ollama-orion:11434` **dentro da rede Docker**, nunca com `127.0.0.1:11434`.
 
-Modelo padrão do stack novo: **`llama3.2:3b`** (leve). Ajuste em `.env.docker`:
+Modelo padrão do stack novo: **`llama3.2:3b`** (leve). Ajuste em `.env`:
 
 ```env
 OLLAMA_MODEL=llama3.2:3b
@@ -22,7 +22,7 @@ OLLAMA_MODEL=llama3.2:3b
 
 - Docker Engine + plugin Compose v2
 - Git
-- `.env.docker` com segredos (MongoDB, JWT, Gmail, Digistore)
+- `.env` com segredos (MongoDB, JWT, Gmail, Digistore)
 
 ## Primeira instalação
 
@@ -35,8 +35,8 @@ sudo chmod +x /usr/local/bin/orion-docker-deploy.sh
 # Ou clone manual e rode o script do repo
 git clone -b feature/vps-ollama-only https://github.com/clinigrow2023-arch/ORION-AI-5.git /opt/orion-ai-docker
 cd /opt/orion-ai-docker
-cp env.docker.example .env.docker
-nano .env.docker   # preencher DATABASE_URL, JWT_SECRET, SITE_URL, etc.
+cp env.example .env
+nano .env   # preencher DATABASE_URL, JWT_SECRET, SITE_URL, etc.
 
 ./scripts/deploy-vps-docker.sh
 ```
@@ -107,16 +107,16 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 cd /opt/orion-ai-docker
-docker compose --env-file .env.docker ps
-docker compose --env-file .env.docker logs -f orion-app
-docker compose --env-file .env.docker logs -f ollama-orion
-docker compose --env-file .env.docker exec ollama-orion ollama list
+docker compose --env-file .env ps
+docker compose --env-file .env logs -f orion-app
+docker compose --env-file .env logs -f ollama-orion
+docker compose --env-file .env exec ollama-orion ollama list
 ```
 
 Parar só o stack Docker (Ollama do host continua):
 
 ```bash
-docker compose --env-file .env.docker down
+docker compose --env-file .env down
 ```
 
 ## Domínio (ex.: orion.orionaii.com)
@@ -136,7 +136,7 @@ ufw allow 80/tcp && ufw allow 443/tcp
 certbot --nginx -d orion.orionaii.com
 ```
 
-Atualize `.env.docker`:
+Atualize `.env`:
 
 ```env
 SITE_URL=https://orion.orionaii.com
@@ -144,7 +144,7 @@ SITE_URL=https://orion.orionaii.com
 
 ```bash
 cd /opt/orion-ai-docker
-docker compose --env-file .env.docker up -d --force-recreate orion-app
+docker compose --env-file .env up -d --force-recreate orion-app
 ```
 
 Teste: `https://orion.orionaii.com` (sem `:3001`).
@@ -186,7 +186,7 @@ Voltar ao Ollama do container:
 Após deploy com campo novo no schema:
 
 ```bash
-docker compose --env-file .env.docker exec orion-app npx prisma db push
+docker compose --env-file .env exec orion-app npx prisma db push
 ```
 
 Detalhes e metas de latência: **`docs/PERFORMANCE-VPS.md`**.
@@ -199,7 +199,7 @@ Respostas **quase instantâneas** com LLM local em CPU não são realistas; o al
 
 **Já no código:** histórico curto (2 msgs), `num_predict` menor, endpoint `/api/plan` dedicado (JSON compacto).
 
-**Na VPS (`.env.docker`):**
+**Na VPS (`.env`):**
 
 ```env
 OLLAMA_NUM_PARALLEL=8
@@ -230,7 +230,7 @@ Requer `git pull` + `./scripts/redeploy-app.sh` (código do plano) e `docker com
 Sem rebuild, só o teste (após `git pull`):
 
 ```bash
-docker compose --env-file .env.docker up -d --force-recreate orion-app
+docker compose --env-file .env up -d --force-recreate orion-app
 export LOAD_TEST_EMAIL=... LOAD_TEST_PASSWORD=...
 ./scripts/run-load-test-vps.sh
 ```

@@ -3,7 +3,7 @@ dist
 .git
 .env
 .env.*
-!.env.docker.example
+!.env.example
 *.md
 !DEPLOY-DOCKER.md
 !DEPLOY-VPS.md

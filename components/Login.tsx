@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, Info } from 'lucide-react';
 import OrionLogo from './OrionLogo';
 
 const Login: React.FC = () => {
@@ -57,6 +57,15 @@ const Login: React.FC = () => {
               <OrionLogo size={250} className="drop-shadow-lg shadow-indigo-500/30" />
             </div>
             <p className="text-slate-400">Sign in to continue</p>
+          </div>
+
+          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2 text-amber-200/90 text-sm">
+            <Info className="shrink-0 mt-0.5" size={16} />
+            <p>
+              Just purchased? Your access email may take a few minutes. If you don&apos;t see it in your inbox, check your{' '}
+              <strong className="font-medium text-amber-100">Spam</strong> or{' '}
+              <strong className="font-medium text-amber-100">Promotions</strong> folder.
+            </p>
           </div>
 
           {errors.general && (

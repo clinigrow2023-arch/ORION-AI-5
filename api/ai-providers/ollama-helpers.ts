@@ -2,16 +2,30 @@ import {
   MAX_HISTORY_MESSAGES,
   MAX_SYSTEM_PROMPT_CHARS,
 } from "../../lib/chat-constants.js";
+import {
+  buildChatLanguageDirective,
+  buildPlanLanguageDirective,
+  DEFAULT_LOCALE,
+  type Locale,
+} from "../../lib/locale.js";
 
 export { MAX_HISTORY_MESSAGES };
 export const MAX_MESSAGE_LENGTH = 280;
 export const MAX_PLAN_CONTEXT_CHARS = 3500;
 
 /** Compact system for action plan only — avoids loading the huge chat prompt */
-export const PLAN_SYSTEM_PROMPT = `You are Orion AI. Output ONLY valid JSON (English). No markdown.
+export const PLAN_SYSTEM_PROMPT = `You are Orion AI. Output ONLY valid JSON. No markdown.
 Create a personalized reconciliation action plan from the chat history.
 Include: diagnosis, exactly 3 steps (title, description, duration), 3 messageTemplates (situation, text, timing), dos[], donts[], distancingStrategy, neurologicalTriggers.
 Be specific to the user's situation. Keep each field concise.`;
+
+/**
+ * Plan runs on a plain base model (no Modelfile), so the language rule can ride
+ * in the system field.
+ */
+export function buildPlanSystemPrompt(locale: Locale = DEFAULT_LOCALE): string {
+  return `${PLAN_SYSTEM_PROMPT}\n${buildPlanLanguageDirective(locale)}`;
+}
 
 const CRITICAL_BLOCK = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
 
@@ -59,11 +73,13 @@ export function enhanceSystemInstruction(systemInstruction: string): string {
     `${CRITICAL_BLOCK}\n\n---\n\n${systemInstruction}`
   );
 }
-
 export function buildPlanUserPrompt(
   truncatedHistory: string,
-  options?: { regenerate?: boolean; compact?: boolean }
+  options?: { regenerate?: boolean; compact?: boolean; locale?: Locale }
 ): string {
+  const languageBlock = `${buildPlanLanguageDirective(
+    options?.locale ?? DEFAULT_LOCALE
+  )}\n`;
   const regenBlock = options?.regenerate
     ? `
 REGENERATION (required): Create a completely NEW plan — different diagnosis angle, step titles, message wording, dos/donts, and timing. Do NOT repeat phrasing from a typical template. Variation seed: ${Date.now()}.
@@ -74,13 +90,13 @@ REGENERATION (required): Create a completely NEW plan — different diagnosis an
     return `Chat:
 ${truncatedHistory}
 ${regenBlock}
-Return ONLY one JSON object. Max ~60 chars per string field. Keys: diagnosis, steps[3]{title,description,duration}, messageTemplates[3]{situation,text,timing}, dos[3], donts[3], distancingStrategy, neurologicalTriggers. No markdown.`;
+${languageBlock}Return ONLY one JSON object. Max ~60 chars per string field. Keys: diagnosis, steps[3]{title,description,duration}, messageTemplates[3]{situation,text,timing}, dos[3], donts[3], distancingStrategy, neurologicalTriggers. No markdown.`;
   }
 
   return `Chat history:
 ${truncatedHistory}
 ${regenBlock}
-Return one JSON object with keys: diagnosis, steps (array of 3), messageTemplates (array of 3), dos, donts, distancingStrategy, neurologicalTriggers.`;
+${languageBlock}Return one JSON object with keys: diagnosis, steps (array of 3), messageTemplates (array of 3), dos, donts, distancingStrategy, neurologicalTriggers.`;
 }
 
 export function limitHistory<T extends { parts: Array<{ text: string }> }>(
@@ -92,7 +108,8 @@ export function limitHistory<T extends { parts: Array<{ text: string }> }>(
 
 export function buildConversationPrompt(
   message: string,
-  history: Array<{ role: string; parts: Array<{ text: string }> }>
+  history: Array<{ role: string; parts: Array<{ text: string }> }>,
+  locale: Locale = DEFAULT_LOCALE
 ): string {
   const limitedHistory = limitHistory(history);
   let fullPrompt = "";
@@ -108,6 +125,13 @@ export function buildConversationPrompt(
       content = content.substring(0, MAX_MESSAGE_LENGTH) + "...";
     }
     fullPrompt += `${role}: ${content}\n`;
+  }
+
+  // A diretiva fica na última linha antes da resposta: modelos pequenos seguem
+  // muito melhor a instrução mais recente do prompt.
+  const directive = buildChatLanguageDirective(locale);
+  if (directive) {
+    fullPrompt += `${directive}\n`;
   }
 
   fullPrompt += `User: ${message}\nAssistant:`;

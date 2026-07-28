@@ -1,13 +1,43 @@
 import { ActionPlan } from "../types";
 import { MAX_HISTORY_MESSAGES } from "../lib/chat-constants";
-
-const API_ENDPOINT = "/api/chat";
-const PLAN_ENDPOINT = "/api/plan";
+import { apiFetch } from "../lib/api-endpoints";
+import { translateActive } from "../lib/i18n";
 
 export type ChatHistoryItem = {
   role: "user" | "model";
   parts: { text: string }[];
 };
+
+/**
+ * Stable failure codes.
+ *
+ * The UI maps codes to localized notices instead of matching the message text,
+ * which is already localized by the API and would break such checks.
+ */
+export type ChatErrorCode =
+  | "busy"
+  | "access_denied"
+  | "empty_response"
+  | "provider_failed";
+
+export class ChatServiceError extends Error {
+  constructor(
+    readonly code: ChatErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "ChatServiceError";
+  }
+}
+
+function errorFromResponse(status: number, serverMessage?: string): ChatServiceError {
+  const message = serverMessage?.trim() || translateActive("chat.notices.genericError");
+  if (status === 503) return new ChatServiceError("busy", message);
+  if (status === 401 || status === 403) {
+    return new ChatServiceError("access_denied", message);
+  }
+  return new ChatServiceError("provider_failed", message);
+}
 
 export class ChatService {
   private chatHistory: ChatHistoryItem[] = [];
@@ -20,20 +50,12 @@ export class ChatService {
     message: string,
     onChunk: (text: string) => void
   ): Promise<string> {
-    const token =
-      typeof window !== "undefined" && localStorage.getItem("auth_token");
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "X-Stream": "true",
-    };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_ENDPOINT}?stream=true`, {
+    const response = await apiFetch("chat?stream=true", {
       method: "POST",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Stream": "true",
+      },
       body: JSON.stringify({
         message,
         history: this.getHistoryForApi(),
@@ -41,11 +63,10 @@ export class ChatService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        (errorData as { error?: string }).error ||
-          `HTTP error! status: ${response.status}`
-      );
+      const errorData = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      throw errorFromResponse(response.status, errorData.error);
     }
 
     const contentType = response.headers.get("content-type");
@@ -53,7 +74,10 @@ export class ChatService {
       const data = await response.json();
       const fullText = data.response || "";
       if (!fullText.trim()) {
-        throw new Error("AI returned an empty response. Please try again.");
+        throw new ChatServiceError(
+          "empty_response",
+          translateActive("chat.notices.emptyResponse")
+        );
       }
       onChunk(fullText);
       this.pushTurn(message, fullText);
@@ -62,7 +86,10 @@ export class ChatService {
 
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error("Response body is not readable");
+      throw new ChatServiceError(
+        "provider_failed",
+        translateActive("chat.notices.genericError")
+      );
     }
 
     const decoder = new TextDecoder();
@@ -79,24 +106,36 @@ export class ChatService {
 
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
+
+        // O parse fica isolado: um `throw` dentro deste try seria engolido pelo
+        // catch que existe para ignorar linhas SSE incompletas.
+        let data: {
+          error?: string;
+          code?: string;
+          chunk?: string;
+          done?: boolean;
+          response?: string;
+        };
         try {
-          const data = JSON.parse(line.substring(6));
-          if (data.error) {
-            const err = new Error(data.error) as Error & { code?: string };
-            if (data.code) err.code = data.code;
-            throw err;
-          }
-          if (data.chunk) {
-            fullResponse += data.chunk;
-            onChunk(data.chunk);
-          }
-          if (data.done && data.response) {
-            fullResponse = data.response;
-            this.pushTurn(message, fullResponse);
-            return fullResponse;
-          }
+          data = JSON.parse(line.substring(6));
         } catch {
-          // ignore malformed SSE lines
+          continue;
+        }
+
+        if (data.error) {
+          throw new ChatServiceError(
+            data.code === "BUSY" ? "busy" : "provider_failed",
+            data.error
+          );
+        }
+        if (data.chunk) {
+          fullResponse += data.chunk;
+          onChunk(data.chunk);
+        }
+        if (data.done && data.response) {
+          fullResponse = data.response;
+          this.pushTurn(message, fullResponse);
+          return fullResponse;
         }
       }
     }
@@ -106,26 +145,19 @@ export class ChatService {
       return fullResponse;
     }
 
-    throw new Error("Streaming ended without a complete response");
+    throw new ChatServiceError(
+      "empty_response",
+      translateActive("chat.notices.emptyResponse")
+    );
   }
 
   async generateFormalPlan(options: {
     contextHistory?: string;
     conversationId?: string | null;
   }): Promise<ActionPlan> {
-    const token =
-      typeof window !== "undefined" && localStorage.getItem("auth_token");
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(PLAN_ENDPOINT, {
+    const response = await apiFetch("plan", {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contextHistory: options.contextHistory || "",
         conversationId: options.conversationId || undefined,
@@ -133,18 +165,20 @@ export class ChatService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        (errorData as { error?: string }).error ||
-          `HTTP error! status: ${response.status}`
-      );
+      const errorData = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      throw errorFromResponse(response.status, errorData.error);
     }
 
     const data = await response.json();
     const parsedPlan = (data.plan || data.response) as ActionPlan;
 
     if (!parsedPlan || !this.validatePlan(parsedPlan)) {
-      throw new Error("Generated plan is missing required properties");
+      throw new ChatServiceError(
+        "provider_failed",
+        translateActive("plan.errors.incomplete")
+      );
     }
 
     return parsedPlan;

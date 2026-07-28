@@ -9,12 +9,13 @@ import { parsePlanJsonFromText } from "../../lib/plan-utils.js";
 import {
   buildConversationPrompt,
   attachSystemIfPresent,
+  buildPlanSystemPrompt,
   buildPlanUserPrompt,
   enhanceSystemInstruction,
   getOllamaAuthHeaders,
-  PLAN_SYSTEM_PROMPT,
   truncatePlanContext,
 } from "./ollama-helpers.js";
+import { DEFAULT_LOCALE, type Locale } from "../../lib/locale.js";
 
 const OLLAMA_DEBUG = process.env.OLLAMA_DEBUG === "1";
 function ollamaLog(...args: unknown[]) {
@@ -45,12 +46,13 @@ export class Ollama3Provider implements AIProvider {
   async sendMessage(
     message: string,
     history: Array<{ role: string; parts: Array<{ text: string }> }>,
-    systemInstruction: string
+    systemInstruction: string,
+    locale: Locale = DEFAULT_LOCALE
   ): Promise<string> {
     try {
       // Log removido por segurança (não expor URL da VPS)
 
-      const fullPrompt = buildConversationPrompt(message, history);
+      const fullPrompt = buildConversationPrompt(message, history, locale);
       const headers = getOllamaAuthHeaders(this.apiKey);
       const systemForRequest = systemInstruction.trim()
         ? enhanceSystemInstruction(systemInstruction)
@@ -200,10 +202,11 @@ export class Ollama3Provider implements AIProvider {
 
   async generatePlan(
     contextHistory: string,
-    options?: { regenerate?: boolean }
+    options?: { regenerate?: boolean; locale?: Locale }
   ): Promise<string> {
     try {
       const truncatedHistory = truncatePlanContext(contextHistory);
+      const planLocale = options?.locale ?? DEFAULT_LOCALE;
       const compact = /:1b|1b:|\.1b/i.test(this.model);
       const regenerating = !!options?.regenerate;
       const headers = getOllamaAuthHeaders(this.apiKey);
@@ -215,6 +218,7 @@ export class Ollama3Provider implements AIProvider {
         const prompt = buildPlanUserPrompt(truncatedHistory, {
           regenerate: regenerating,
           compact,
+          locale: planLocale,
         });
 
         const requestBody: Record<string, unknown> = {
@@ -233,7 +237,7 @@ export class Ollama3Provider implements AIProvider {
               : 42,
           },
         };
-        attachSystemIfPresent(requestBody, PLAN_SYSTEM_PROMPT);
+        attachSystemIfPresent(requestBody, buildPlanSystemPrompt(planLocale));
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), PLAN_TIMEOUT_MS);
@@ -374,10 +378,11 @@ export class Ollama3Provider implements AIProvider {
     message: string,
     history: Array<{ role: string; parts: Array<{ text: string }> }>,
     systemInstruction: string,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    locale: Locale = DEFAULT_LOCALE
   ): Promise<string> {
     try {
-      const fullPrompt = buildConversationPrompt(message, history);
+      const fullPrompt = buildConversationPrompt(message, history, locale);
       const headers = getOllamaAuthHeaders(this.apiKey);
       const systemForRequest = systemInstruction.trim()
         ? enhanceSystemInstruction(systemInstruction)

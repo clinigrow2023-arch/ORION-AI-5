@@ -5,10 +5,7 @@ import jwt from "jsonwebtoken";
 import { apiMessage, type ApiMessageKey } from "../lib/api-messages.js";
 import { sendNewUserEmail } from "../lib/email.js";
 import { normalizeLocale, type Locale } from "../lib/locale.js";
-import {
-  resolveRequestLocale,
-  resolveUserLocale,
-} from "../lib/server-locale.js";
+import { resolveRequestLocale } from "../lib/server-locale.js";
 import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
 import {
@@ -69,9 +66,9 @@ export default async function adminUsersHandler(
 
   setCorsHeaders(res);
 
-  // Idioma do admin autenticado: define o idioma das mensagens desta resposta.
-  // E-mails usam o idioma do usuário-alvo, resolvido separadamente.
-  let locale: Locale = resolveRequestLocale(req);
+  // Mensagens seguem o idioma do painel do admin. E-mails usam o idioma do
+  // usuário-alvo, resolvido separadamente em cada operação.
+  const locale: Locale = resolveRequestLocale(req);
 
   const fail = (
     status: number,
@@ -99,14 +96,12 @@ export default async function adminUsersHandler(
     // Verificar se o usuário é administrador consultando o banco de dados
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { role: true, locale: true },
+      select: { role: true },
     });
 
     if (!user || user.role !== "admin") {
       return fail(403, "adminRequired");
     }
-
-    locale = resolveUserLocale(user.locale, req);
 
     if (req.method === "GET") {
       // Listar usuários

@@ -54,6 +54,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Idioma já enviado ao servidor nesta sessão: evita repetir o PUT enquanto a
   // resposta não chega (o seletor pode ser clicado várias vezes seguidas).
   const syncingLocaleRef = useRef<Locale | null>(null);
+  // Lido dentro de callbacks assíncronos: um valor capturado no render poderia
+  // estar desatualizado se o usuário trocar de idioma durante a verificação.
+  const hasExplicitLocaleRef = useRef(hasExplicitLocale);
+  hasExplicitLocaleRef.current = hasExplicitLocale;
 
   /**
    * Aplica no cliente o idioma salvo na conta. Uma escolha explícita feita
@@ -64,7 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!serverUser?.locale) {
       return;
     }
-    if (!hasExplicitLocale) {
+    if (!hasExplicitLocaleRef.current) {
       adoptServerLocale(normalizeLocale(serverUser.locale));
     }
   };

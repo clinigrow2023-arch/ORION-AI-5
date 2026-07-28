@@ -13,8 +13,10 @@ import {
   Bot,
 } from "lucide-react";
 import { Message, Sender } from "../types";
-import { chatService } from "../services/chatService";
+import { chatService, ChatServiceError } from "../services/chatService";
 import { useAuth } from "../contexts/AuthContext";
+import { useI18n } from "../contexts/I18nContext";
+import { apiFetch } from "../lib/api-endpoints";
 import { authService } from "../lib/auth";
 import {
   getActiveConversationId,
@@ -46,6 +48,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onResetChat,
 }) => {
   const { user } = useAuth();
+  const { t, formatShortTime } = useI18n();
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -80,6 +83,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       .toString(36)
       .substr(2, 9)}`;
   };
+
+  const botNotice = (text: string): Message => ({
+    id: generateUniqueId(),
+    text,
+    sender: Sender.Bot,
+    timestamp: new Date(),
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -189,13 +199,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const token = authService.getToken();
       if (!token) return;
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("conversations"), {
+      const response = await apiFetch("conversations", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId }),
       });
 
@@ -229,17 +235,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!token) return null;
 
     if (conversations.length >= 3) {
-      const errorMsg: Message = {
-        id: generateUniqueId(),
-        text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-        sender: Sender.Bot,
-        timestamp: new Date(),
-      };
-      addMessage(errorMsg);
+      addMessage(botNotice(t("chat.notices.maxConversations")));
       return null;
     }
 
-    const { getApiEndpoint } = await import("../lib/api-endpoints");
     const messagesToSave = allMessages.map((msg) => ({
       id: msg.id,
       text: msg.text,
@@ -248,12 +247,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }));
 
     pendingCreateRef.current = (async () => {
-      const response = await fetch(getApiEndpoint("conversations"), {
+      const response = await apiFetch("conversations", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: messagesToSave }),
       });
 
@@ -261,13 +257,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         if (response.status === 403) {
           const errorData = await response.json().catch(() => ({}));
           if (errorData.maxConversations) {
-            const errorMsg: Message = {
-              id: generateUniqueId(),
-              text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-              sender: Sender.Bot,
-              timestamp: new Date(),
-            };
-            addMessage(errorMsg);
+            addMessage(botNotice(t("chat.notices.maxConversations")));
           }
         }
         return null;
@@ -304,17 +294,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timestamp: msg.timestamp.toISOString(),
       }));
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-
       const conversationId = await ensureConversationId(allMessages);
       if (!conversationId) return;
 
-      const response = await fetch(getApiEndpoint("conversations"), {
+      const response = await apiFetch("conversations", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId,
           messages: messagesToSave,
@@ -354,35 +339,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         if (errorData.maxConversations) {
           // Limite de 3 conversas atingido
-          const errorMsg: Message = {
-            id: generateUniqueId(),
-            text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-            sender: Sender.Bot,
-            timestamp: new Date(),
-          };
-          addMessage(errorMsg);
+          addMessage(botNotice(t("chat.notices.maxConversations")));
           return;
         }
 
-        let errorText =
-          "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
-
-        if (errorData.error?.includes("blocked")) {
-          errorText =
-            "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.";
+        // `blocked` chega como flag do servidor: a mensagem em si vem traduzida
+        // e não serve para decidir o fluxo.
+        if (errorData.blocked) {
+          addMessage(botNotice(t("chat.notices.accountBlocked")));
           setTimeout(() => {
             authService.logout();
             window.location.reload();
           }, 2000);
+          return;
         }
 
-        const errorMsg: Message = {
-          id: generateUniqueId(),
-          text: errorText,
-          sender: Sender.Bot,
-          timestamp: new Date(),
-        };
-        addMessage(errorMsg);
+        addMessage(botNotice(t("chat.notices.accessNotGranted")));
       }
     } catch (error) {
       console.error("Failed to save conversation:", error);
@@ -395,7 +367,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // CRÍTICO: Verificar acesso ANTES de qualquer processamento (para não gastar tokens)
     // IMPORTANTE: Usuários bloqueados já foram deslogados, então não chegam aqui
     if (!user) {
-      alert("Please log in to use the chat.");
+      alert(t("chat.alerts.loginRequired"));
       return;
     }
 
@@ -404,9 +376,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (user.role !== "admin") {
       // Verificar se usuário está bloqueado (não deveria chegar aqui, mas verificar por segurança)
       if (user.isBlocked) {
-        alert(
-          "Your account has been blocked. Please contact an administrator."
-        );
+        alert(t("chat.alerts.accountBlocked"));
         authService.logout();
         window.location.reload();
         return;
@@ -454,7 +424,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           type: typeof fullResponse,
           length: fullResponse?.length,
         });
-        throw new Error("AI returned an empty response. Please try again.");
+        throw new Error(t("chat.notices.emptyResponse"));
       }
 
       // Limpar streamedResponse ANTES de adicionar a mensagem final
@@ -472,7 +442,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           fullResponse,
           type: typeof fullResponse,
         });
-        throw new Error("AI returned an empty response. Please try again.");
+        throw new Error(t("chat.notices.emptyResponse"));
       }
 
       const botMsg: Message = {
@@ -493,7 +463,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Validar novamente antes de adicionar
       if (!botMsg.text || botMsg.text.trim() === "") {
         console.error("❌ Bot message text is empty after creation:", botMsg);
-        throw new Error("Failed to create bot message - text is empty.");
+        throw new Error(t("chat.notices.emptyResponse"));
       }
 
       const updatedMessages = [...currentMessages, botMsg];
@@ -501,28 +471,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       // Salvar conversa após resposta completa
       await saveConversation(updatedMessages);
-    } catch (error: any) {
-      let errorText =
-        "I encountered an error processing your strategy. Please try again.";
+    } catch (error: unknown) {
+      // O chatService expõe um `code` estável por falha conhecida, para a
+      // detecção não depender do idioma da mensagem.
+      const code = error instanceof ChatServiceError ? error.code : undefined;
+      let errorText: string;
 
-      if (error?.message?.includes("Ollama")) {
-        errorText =
-          "⚠️ **AI service unavailable**\n\nCould not reach Ollama on the server. Check OLLAMA_URL and that the model is running.";
-      } else if (
-        error?.message?.includes("access not granted") ||
-        error?.message?.includes("access has expired")
-      ) {
-        errorText =
-          "⚠️ **Access Not Granted**\n\nYour account access has not been granted or has expired. Please contact an administrator to grant access.";
+      switch (code) {
+        case "busy":
+          errorText = t("chat.notices.aiBusy");
+          break;
+        case "access_denied":
+          errorText = t("chat.notices.accessNotGranted");
+          break;
+        case "empty_response":
+          errorText = t("chat.notices.emptyResponse");
+          break;
+        case "provider_failed":
+          errorText = t("chat.notices.aiUnavailable");
+          break;
+        default:
+          errorText = t("chat.notices.genericError");
+          break;
       }
 
-      const errorMsg: Message = {
-        id: generateUniqueId(),
-        text: errorText,
-        sender: Sender.Bot,
-        timestamp: new Date(),
-      };
-      addMessage(errorMsg);
+      addMessage(botNotice(errorText));
     } finally {
       setIsLoading(false);
       setStreamedResponse("");
@@ -545,10 +518,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="flex items-center gap-3 justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-200">
-                  Consultation Session
+                  {t("chat.header.title")}
                 </h2>
                 <p className="text-sm text-slate-400">
-                  Provide details about your situation for analysis.
+                  {t("chat.header.subtitle")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -561,7 +534,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       if (open) void loadConversationsList(true);
                     }}
                     className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1"
-                    title="Manage conversations"
+                    title={t("chat.conversations.manage")}
                   >
                     <MessageSquare size={18} />
                     <ChevronDown
@@ -579,7 +552,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                       <div className="p-2 border-b border-slate-700 flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-300">
-                          Conversations
+                          {t("chat.conversations.title")}
                         </span>
                         <button
                           onClick={() => setShowConversationsList(false)}
@@ -591,7 +564,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <div className="p-2 space-y-1">
                         {conversations.length === 0 ? (
                           <p className="text-xs text-slate-500 px-2 py-3 text-center">
-                            No saved conversations yet.
+                            {t("chat.conversations.empty")}
                           </p>
                         ) : null}
                         {conversations.map((conv) => (
@@ -624,7 +597,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 handleDeleteClick(conv.id, conv.updatedAt)
                               }
                               className="p-1 text-slate-400 hover:text-red-400 transition-opacity "
-                              title="Delete conversation"
+                              title={t("chat.conversations.delete")}
                             >
                               <Trash2 className="w-5" />
                             </button>
@@ -635,13 +608,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             onClick={() => {
                               // Validar novamente antes de criar (dupla verificação)
                               if (conversations.length >= 3) {
-                                const errorMsg: Message = {
-                                  id: generateUniqueId(),
-                                  text: "⚠️ **Maximum Conversations Reached**\n\nYou have reached the maximum of 3 conversations. Please delete a conversation to create a new one.",
-                                  sender: Sender.Bot,
-                                  timestamp: new Date(),
-                                };
-                                addMessage(errorMsg);
+                                addMessage(
+                                  botNotice(t("chat.notices.maxConversations"))
+                                );
                                 setShowConversationsList(false);
                                 return;
                               }
@@ -653,7 +622,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             }}
                             className="w-full p-2 text-sm text-indigo-400 hover:bg-slate-700 rounded-lg text-center"
                           >
-                            + New Conversation
+                            {t("chat.conversations.create")}
                           </button>
                         )}
                       </div>
@@ -667,7 +636,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <button
                       onClick={() => setShowResetModal(true)}
                       className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
-                      title="Reset current chat"
+                      title={t("chat.conversations.reset")}
                     >
                       <RotateCcw size={18} />
                     </button>
@@ -685,11 +654,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
             <OrionLogo size={150} className="mb-4 opacity-90" />
             <h3 className="text-xl font-medium text-slate-200">
-              Welcome to Orion AI
+              {t("chat.welcome.title")}
             </h3>
             <p className="max-w-md mt-2 text-slate-400">
-              Tell me about your relationship status. Why did it end? What is
-              your goal? I will analyze and guide you.
+              {t("chat.welcome.subtitle")}
             </p>
           </div>
         )}
@@ -725,18 +693,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
                 ) : (
                   <div className="text-slate-400 italic">
-                    <p>Empty message (ID: {msg.id})</p>
+                    <p>{t("chat.emptyMessage.title", { id: msg.id })}</p>
                     <p className="text-xs mt-1">
-                      This may indicate an issue with the AI response.
+                      {t("chat.emptyMessage.hint")}
                     </p>
                   </div>
                 )}
               </div>
               <span className="text-[10px] opacity-50 mt-2 block">
-                {msg.timestamp.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatShortTime(msg.timestamp)}
               </span>
             </div>
           </div>
@@ -764,7 +729,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {isLoading && !streamedResponse && (
           <div className="flex items-center gap-2 text-slate-500 text-sm ml-14">
             <Loader2 className="animate-spin w-4 h-4" />
-            <span>Analyzing situation...</span>
+            <span>{t("chat.analyzing")}</span>
           </div>
         )}
 
@@ -780,8 +745,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={
               !user
-                ? "Please log in to use the chat"
-                : "Describe the situation (e.g., 'She broke up with me yesterday because I was too needy...')"
+                ? t("chat.input.placeholderSignedOut")
+                : t("chat.input.placeholder")
             }
             disabled={!user}
             className="w-full bg-slate-800 text-slate-200 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 resize-none h-[60px] scrollbar-hide disabled:opacity-50 disabled:cursor-not-allowed"

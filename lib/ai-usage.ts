@@ -14,7 +14,6 @@ export function recordAiUsage(userId: string, kind: AiUsageKind): void {
 }
 
 export type UsageBucket = {
-  label: string;
   start: string;
   end: string;
   chatUsers: number;
@@ -81,12 +80,6 @@ export async function getUsageAnalytics(
     }
 
     buckets.push({
-      label: new Date(bStart).toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
       start: new Date(bStart).toISOString(),
       end: new Date(bEnd).toISOString(),
       chatUsers: chatUserIds.size,

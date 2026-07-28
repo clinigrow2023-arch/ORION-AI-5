@@ -17,6 +17,7 @@ export const messagesFr: MessageCatalog = {
     confirmAction: "Confirmer l'action",
     characters: "{{count}} caractères",
     active: "Actif",
+    inactive: "Inactif",
     blocked: "Bloqué",
   },
 
@@ -35,6 +36,7 @@ export const messagesFr: MessageCatalog = {
   sidebar: {
     chat: "Chat avec le mentor",
     plan: "Mon plan d'action",
+    planReady: "Prêt",
     guide: "Guide stratégique",
     support: "Assistance",
     admin: "Tableau de bord admin",
@@ -157,9 +159,15 @@ export const messagesFr: MessageCatalog = {
       manage: "Gérer les conversations",
       title: "Conversations",
       item: "Chat du {{date}}",
+      empty: "Aucune conversation pour le moment",
       create: "+ Nouvelle conversation",
       delete: "Supprimer la conversation",
       reset: "Réinitialiser le chat actuel",
+      untitled: "Conversation sans titre",
+      thisConversation: "cette conversation",
+      messageOne: "1 message",
+      messageMany: "{{count}} messages",
+      planSaved: "plan enregistré",
     },
     welcome: {
       title: "Bienvenue sur Orion AI",
@@ -191,10 +199,12 @@ export const messagesFr: MessageCatalog = {
         "🚫 **Compte bloqué**\n\nVotre compte a été bloqué. Veuillez contacter un administrateur.",
       genericError:
         "Une erreur est survenue lors du traitement de votre stratégie. Veuillez réessayer.",
-      apiKeyLeaked:
-        "🔒 **Erreur de sécurité détectée**\n\nVotre clé API a été signalée comme divulguée par Google.\n\n**Pour résoudre le problème :**\n1. Ouvrez [Google AI Studio](https://aistudio.google.com/apikey)\n2. Générez une nouvelle clé API\n3. Mettez à jour le fichier `.env` avec la nouvelle clé :\n   `GEMINI_API_KEY=votre_nouvelle_cle`\n4. Redémarrez le serveur (`npm run dev`)",
-      apiKeyMissing:
-        "⚠️ **Clé API introuvable**\n\nAjoutez votre clé API Gemini au fichier `.env` :\n`GEMINI_API_KEY=votre_cle`\n\nPuis redémarrez le serveur.",
+      emptyResponse:
+        "⚠️ **Réponse vide**\n\nOrion n'a pas réussi à produire de réponse cette fois. Reformulez votre message et réessayez.",
+      aiBusy:
+        "⏳ **Orion est occupé**\n\nTrop de personnes discutent avec Orion en ce moment. Attendez quelques secondes puis renvoyez votre message.",
+      aiUnavailable:
+        "⚠️ **Orion est indisponible**\n\nLe service d'IA n'a pas répondu. Veuillez réessayer dans un instant.",
     },
     resetModal: {
       title: "Réinitialiser le chat",
@@ -224,7 +234,35 @@ export const messagesFr: MessageCatalog = {
       conversationMeta: "{{count}} messages • {{time}}",
       generate: "Générer le plan d'action",
       generating: "Synthèse de la stratégie...",
+      generatingBackground: "Génération en arrière-plan...",
     },
+    header: {
+      planFor: "Plan pour :",
+    },
+    actions: {
+      otherChat: "Utiliser un autre chat",
+      delete: "Supprimer le plan",
+      regenerate: "Régénérer",
+    },
+    background: {
+      generating:
+        "Votre plan est en cours de génération en arrière-plan. Vous pouvez continuer à utiliser le chat — nous vous préviendrons dès qu'il sera prêt.",
+      regenerating:
+        "Votre plan est en cours de régénération en arrière-plan. Nous vous préviendrons dès que la nouvelle version sera prête.",
+      alreadyRunning:
+        "Un plan est déjà en cours de génération pour cette conversation. Veuillez attendre la fin du traitement.",
+    },
+    ready: {
+      title: "Votre plan est prêt",
+      hint: "Touchez pour ouvrir votre plan d'action.",
+    },
+    saved: {
+      open: "Ouvrir le plan enregistré",
+    },
+    notification: {
+      ready: "Votre plan d'action pour « {{title}} » est prêt.",
+    },
+    dismiss: "Ignorer",
     errors: {
       noAccess:
         "L'accès à votre compte n'a pas été accordé ou a expiré. Veuillez contacter un administrateur.",
@@ -234,6 +272,16 @@ export const messagesFr: MessageCatalog = {
         "Le plan généré est incomplet. Réessayez ou donnez plus de détails dans le chat.",
       failed:
         "Impossible de générer le plan. Vérifiez que vous avez donné assez de détails dans le chat.",
+      unknown: "Impossible de générer le plan. Veuillez réessayer.",
+      deleteFailed: "Impossible de supprimer le plan. Veuillez réessayer.",
+      malformedJson:
+        "Orion a renvoyé une réponse invalide pendant la création de votre plan. Veuillez le générer à nouveau.",
+      outOfMemory:
+        "Le serveur d'IA a manqué de mémoire pendant la création de votre plan. Réessayez dans quelques minutes.",
+      truncated:
+        "La réponse a été coupée avant la fin du plan. Veuillez le générer à nouveau.",
+      modelMissing:
+        "Le modèle d'IA n'est pas disponible sur le serveur. Veuillez contacter un administrateur.",
     },
     sections: {
       diagnosis: "Analyse diagnostique",
@@ -245,6 +293,20 @@ export const messagesFr: MessageCatalog = {
       triggers: "Signaux secrets",
     },
     discard: "Abandonner et régénérer le plan",
+    deleteModal: {
+      title: "Supprimer le plan",
+      subtitle: "Ce plan d'action",
+      message:
+        "Voulez-vous vraiment supprimer ce plan d'action ? Vous pourrez en générer un nouveau ensuite, mais cette version sera définitivement supprimée.",
+      confirm: "Supprimer le plan",
+    },
+    regenerateModal: {
+      title: "Régénérer le plan",
+      subtitle: "Remplacer le plan actuel",
+      message:
+        "Orion créera un nouveau plan à partir de cette conversation et remplacera l'actuel. Cela peut prendre quelques minutes.",
+      confirm: "Régénérer le plan",
+    },
   },
 
   guide: {
@@ -314,13 +376,18 @@ export const messagesFr: MessageCatalog = {
   admin: {
     title: "Tableau de bord admin",
     subtitle: "Gérer les utilisateurs, les blocages et les mots de passe",
-    matches: "Résultats :",
-    totalUsers: "Total d'utilisateurs :",
+    matches: "Résultats",
     pageInfo: "· page {{current}} sur {{total}} ({{size}} par page)",
     tabs: {
       users: "Utilisateurs",
       create: "Créer un utilisateur",
-      prompt: "Prompt IA",
+      usage: "Usage de l'IA",
+    },
+    stats: {
+      all: "Total d'utilisateurs",
+      active: "Actifs (accès à l'app)",
+      inactive: "Inactifs",
+      blocked: "Bloqués",
     },
     users: {
       loading: "Chargement des utilisateurs...",
@@ -337,7 +404,7 @@ export const messagesFr: MessageCatalog = {
       columnUser: "Utilisateur",
       columnEmail: "E-mail",
       columnRole: "Rôle",
-      columnBlocked: "Bloqué",
+      columnAccess: "Accès",
       columnActions: "Actions",
       block: "Bloquer",
       unblock: "Débloquer",
@@ -379,29 +446,26 @@ export const messagesFr: MessageCatalog = {
       errorInvalidEmail: "Format d'e-mail invalide",
       errorFailed: "Impossible de créer l'utilisateur",
     },
-    prompt: {
-      title: "Gestion du prompt système",
+    usage: {
+      title: "Usage de l'IA",
       description:
-        "Modifiez l'instruction système utilisée par tous les fournisseurs d'IA. Les changements s'appliquent à toutes les réponses dans la langue sélectionnée.",
-      languageLabel: "Langue du prompt",
-      languageHint:
-        "Chaque langue possède son propre prompt. Les utilisateurs reçoivent toujours des réponses dans leur langue, même si ce prompt reste vide.",
-      currentTitle: "Prompt actif actuel",
-      version: "Version {{version}}",
-      lastUpdated: "• Dernière mise à jour : {{date}}",
-      noPrompt: "Aucun prompt enregistré pour le moment",
-      activeBadge: "✅ Actif sur tous les fournisseurs d'IA",
-      inherited:
-        "Aucun prompt n'est encore enregistré pour cette langue. Le prompt anglais est affiché comme point de départ et Orion répond quand même en {{language}}. Enregistrez-le pour créer une version dédiée.",
-      loading: "Chargement du prompt...",
-      instructionLabel: "Instruction système",
-      placeholder:
-        "Saisissez l'instruction système pour tous les fournisseurs d'IA...",
-      save: "Enregistrer le prompt",
-      saving: "Enregistrement...",
-      saved:
-        "✅ Prompt enregistré avec succès ! La version {{version}} est active en {{language}} sur tous les fournisseurs d'IA.",
-      empty: "Le prompt ne peut pas être vide",
+        "Utilisateurs uniques par fenêtre de {{minutes}} minutes — requêtes de chat et de plan.",
+      rangeOption: "Dernières {{hours}} h",
+      loading: "Chargement de l'usage...",
+      peak: "Pic d'utilisateurs simultanés",
+      peakAt: "à {{time}}",
+      uniqueUsers: "Utilisateurs uniques ({{hours}} h)",
+      chatRequests: "Requêtes de chat",
+      planRequests: "Générations de plan",
+      columnWindow: "Fenêtre horaire",
+      columnUsers: "Utilisateurs (total)",
+      columnChat: "Chat",
+      columnPlan: "Plan",
+      columnLoad: "Charge",
+      requests: "({{count}} req.)",
+      empty:
+        "Aucun usage de l'IA enregistré sur cette période. Les événements sont enregistrés à chaque message de chat et génération de plan.",
+      loadFailed: "Impossible de charger l'usage de l'IA",
     },
     blockModal: {
       blockTitle: "Bloquer l'utilisateur",
@@ -436,6 +500,7 @@ export const messagesFr: MessageCatalog = {
       resetting: "Réinitialisation...",
     },
     errors: {
+      sessionMissing: "Votre session a expiré. Reconnectez-vous.",
       accessDenied: "Accès refusé. Privilèges administrateur requis.",
       fetchUsers: "Impossible de récupérer les utilisateurs",
       loadUsers: "Impossible de charger les utilisateurs",
@@ -444,8 +509,6 @@ export const messagesFr: MessageCatalog = {
       resetPassword: "Impossible de réinitialiser le mot de passe",
       resetPasswordEmail:
         "Le mot de passe a été réinitialisé, mais l'e-mail n'a pas pu être envoyé. Configurez GMAIL_USER et GMAIL_PASS sur le serveur, ou transmettez les accès manuellement à l'utilisateur.",
-      loadPrompt: "Impossible de charger le prompt système",
-      savePrompt: "Impossible d'enregistrer le prompt système",
     },
   },
 };

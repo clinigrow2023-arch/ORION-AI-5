@@ -5,12 +5,13 @@ import {
   resolveOllamaChatModel,
   resolveOllamaPlanModel,
 } from "../../lib/ollama-model-env.js";
+import { DEFAULT_LOCALE, type Locale } from "../../lib/locale.js";
 
-async function resolveChatSystemInstruction(): Promise<string> {
+async function resolveChatSystemInstruction(locale: Locale): Promise<string> {
   if (useOllamaModelfile()) {
     return "";
   }
-  return getSystemInstruction();
+  return getSystemInstruction(locale);
 }
 
 let ollamaProvider: Ollama3Provider | null = null;
@@ -27,12 +28,13 @@ function getOllamaProvider(): Ollama3Provider {
 
 export async function sendMessageWithOllama(
   message: string,
-  history: Array<{ role: string; parts: Array<{ text: string }> }>
+  history: Array<{ role: string; parts: Array<{ text: string }> }>,
+  locale: Locale = DEFAULT_LOCALE
 ): Promise<string> {
   const provider = getOllamaProvider();
-  const systemInstruction = await resolveChatSystemInstruction();
+  const systemInstruction = await resolveChatSystemInstruction(locale);
   const response = await withOllamaInference(() =>
-    provider.sendMessage(message, history, systemInstruction)
+    provider.sendMessage(message, history, systemInstruction, locale)
   );
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty response");
@@ -43,12 +45,19 @@ export async function sendMessageWithOllama(
 export async function sendMessageStreamWithOllama(
   message: string,
   history: Array<{ role: string; parts: Array<{ text: string }> }>,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  locale: Locale = DEFAULT_LOCALE
 ): Promise<string> {
   const provider = getOllamaProvider();
-  const systemInstruction = await resolveChatSystemInstruction();
+  const systemInstruction = await resolveChatSystemInstruction(locale);
   const response = await withOllamaInference(() =>
-    provider.sendMessageStream(message, history, systemInstruction, onChunk)
+    provider.sendMessageStream(
+      message,
+      history,
+      systemInstruction,
+      onChunk,
+      locale
+    )
   );
   if (!response?.trim()) {
     throw new Error("Ollama returned an empty response");
@@ -66,7 +75,7 @@ function getPlanOllamaProvider(): Ollama3Provider {
 /** Plan uses lightweight base model — avoids orion-ai Modelfile system (~3k tokens). */
 export async function generatePlanWithOllama(
   contextHistory: string,
-  options?: { regenerate?: boolean }
+  options?: { regenerate?: boolean; locale?: Locale }
 ): Promise<string> {
   const provider = getPlanOllamaProvider();
   const response = await withOllamaInference(() =>

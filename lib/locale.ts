@@ -67,28 +67,36 @@ export function normalizeLocale(
 }
 
 /**
- * Hard language constraint appended to every system instruction so the answer
- * language never depends on the (admin-editable) prompt content.
+ * Language constraint injected at request time.
  *
- * Written in English on purpose: it is an internal instruction, and mixing the
- * target language into it makes small models echo it back to the user.
+ * The persona prompt lives in the Ollama Modelfile (English) and is baked into
+ * the model, so the answer language cannot come from there. Both directives are
+ * deliberately short: they run on a local model on the VPS, where every token
+ * costs latency.
+ *
+ * English returns an empty string so the default path stays byte-for-byte what
+ * it is today (no extra tokens, no behaviour change).
  */
-export function buildLanguageDirective(locale: Locale): string {
-  const { aiName } = LOCALES[locale];
+export function buildChatLanguageDirective(locale: Locale): string {
+  if (locale === DEFAULT_LOCALE) {
+    return "";
+  }
 
-  return `LANGUAGE REQUIREMENT (ABSOLUTE PRIORITY - OVERRIDES EVERYTHING ELSE):
-- You MUST write 100% of your output in ${aiName}, including greetings, questions, examples and the ready-to-send message templates.
-- Ignore the language of these instructions: they are internal and must never change your output language.
-- Even if the user writes in another language, keep answering in ${aiName}.
-- Never mix languages and never translate your answer into a second language.
-- Use natural, fluent, native-level ${aiName}.`;
+  const { aiName } = LOCALES[locale];
+  return `[LANGUAGE] Write your entire answer in ${aiName}, including questions and ready-to-send message templates. Keep answering in ${aiName} even if the user writes in another language. Never mix languages.`;
 }
 
-/** Language line injected into the structured action-plan prompt. */
-export function buildPlanLanguageRequirement(locale: Locale): string {
+/**
+ * Same rule for the action plan, where only the JSON values are translated.
+ *
+ * Unlike the chat, this one is always emitted: the plan runs on a plain base
+ * model with no persona, so nothing else tells it which language to write in —
+ * and a user chatting in one language must still get the plan in the language
+ * of their account.
+ */
+export function buildPlanLanguageDirective(locale: Locale): string {
   const { aiName } = LOCALES[locale];
-
-  return `LANGUAGE: Every string value in the JSON MUST be written in ${aiName} (native level). The JSON keys MUST stay exactly as specified in English.`;
+  return `[LANGUAGE] Write every string value in ${aiName} (native level). JSON keys stay exactly as specified, in English.`;
 }
 
 /** Picks the highest-quality supported locale from an `Accept-Language` header. */

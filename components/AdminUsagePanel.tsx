@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Activity, Loader2, RefreshCw, Users } from "lucide-react";
+import { useI18n } from "../contexts/I18nContext";
+import { apiFetch } from "../lib/api-endpoints";
 import { authService } from "../lib/auth";
 
 type UsageBucket = {
-  label: string;
+  start: string;
+  end: string;
   totalUsers: number;
   chatUsers: number;
   planUsers: number;
@@ -25,6 +28,7 @@ type UsageAnalytics = {
 const HOUR_OPTIONS = [6, 12, 24, 48, 72] as const;
 
 const AdminUsagePanel: React.FC = () => {
+  const { t, formatDateTime } = useI18n();
   const [hours, setHours] = useState<number>(24);
   const [data, setData] = useState<UsageAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,34 +38,34 @@ const AdminUsagePanel: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const token = authService.getToken();
-      if (!token) throw new Error("Not authenticated");
+      if (!authService.getToken()) {
+        throw new Error(t("admin.errors.sessionMissing"));
+      }
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const res = await fetch(
-        `${getApiEndpoint("admin-ai-usage")}?hours=${hours}&bucketMinutes=15`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await apiFetch(
+        `admin-ai-usage?hours=${hours}&bucketMinutes=15`
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(
-          (err as { error?: string }).error || `Failed (${res.status})`
+          (err as { error?: string }).error || t("admin.usage.loadFailed")
         );
       }
       setData((await res.json()) as UsageAnalytics);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load usage");
+      setError(e instanceof Error ? e.message : t("admin.usage.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [hours]);
+    // `t` changes with the language; reloading also refreshes localized errors.
+  }, [hours, t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const maxUsers =
-    data?.buckets.reduce((m, b) => Math.max(m, b.totalUsers), 0) ?? 1;
+    data?.buckets.reduce((m, b) => Math.max(m, b.totalUsers), 0) || 1;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -69,22 +73,24 @@ const AdminUsagePanel: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Activity className="text-indigo-400" size={22} />
-            AI usage (debug)
+            {t("admin.usage.title")}
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Unique users per {data?.bucketMinutes ?? 15}-minute window — chat
-            and plan requests.
+            {t("admin.usage.description", {
+              minutes: data?.bucketMinutes ?? 15,
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={hours}
             onChange={(e) => setHours(Number(e.target.value))}
+            aria-label={t("admin.usage.columnWindow")}
             className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm"
           >
             {HOUR_OPTIONS.map((h) => (
               <option key={h} value={h}>
-                Last {h}h
+                {t("admin.usage.rangeOption", { hours: h })}
               </option>
             ))}
           </select>
@@ -95,7 +101,7 @@ const AdminUsagePanel: React.FC = () => {
             className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            Refresh
+            {t("common.refresh")}
           </button>
         </div>
       </div>
@@ -109,37 +115,45 @@ const AdminUsagePanel: React.FC = () => {
       {loading && !data ? (
         <div className="flex flex-1 items-center justify-center text-slate-400">
           <Loader2 className="animate-spin mr-2" size={24} />
-          Loading usage…
+          {t("admin.usage.loading")}
         </div>
       ) : data ? (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">Peak simultaneous users</p>
+              <p className="text-xs text-slate-400">{t("admin.usage.peak")}</p>
               <p className="text-2xl font-bold text-indigo-300">
                 {data.peakConcurrent}
               </p>
               {data.peakBucket ? (
                 <p className="text-xs text-slate-500 mt-1">
-                  at {new Date(data.peakBucket).toLocaleString()}
+                  {t("admin.usage.peakAt", {
+                    time: formatDateTime(data.peakBucket),
+                  })}
                 </p>
               ) : null}
             </div>
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">Unique users ({hours}h)</p>
+              <p className="text-xs text-slate-400">
+                {t("admin.usage.uniqueUsers", { hours })}
+              </p>
               <p className="text-2xl font-bold text-white flex items-center gap-2">
                 <Users size={20} className="text-slate-400" />
                 {data.uniqueUsers}
               </p>
             </div>
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">Chat requests</p>
+              <p className="text-xs text-slate-400">
+                {t("admin.usage.chatRequests")}
+              </p>
               <p className="text-2xl font-bold text-emerald-300">
                 {data.totalChatEvents}
               </p>
             </div>
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">Plan generations</p>
+              <p className="text-xs text-slate-400">
+                {t("admin.usage.planRequests")}
+              </p>
               <p className="text-2xl font-bold text-amber-300">
                 {data.totalPlanEvents}
               </p>
@@ -150,11 +164,13 @@ const AdminUsagePanel: React.FC = () => {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-slate-900 border-b border-slate-800">
                 <tr className="text-left text-slate-400">
-                  <th className="px-4 py-3">Time window</th>
-                  <th className="px-4 py-3">Users (total)</th>
-                  <th className="px-4 py-3">Chat</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3 w-40">Load</th>
+                  <th className="px-4 py-3">{t("admin.usage.columnWindow")}</th>
+                  <th className="px-4 py-3">{t("admin.usage.columnUsers")}</th>
+                  <th className="px-4 py-3">{t("admin.usage.columnChat")}</th>
+                  <th className="px-4 py-3">{t("admin.usage.columnPlan")}</th>
+                  <th className="px-4 py-3 w-40">
+                    {t("admin.usage.columnLoad")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -164,11 +180,11 @@ const AdminUsagePanel: React.FC = () => {
                   .reverse()
                   .map((b) => (
                     <tr
-                      key={b.label}
+                      key={b.start}
                       className="border-b border-slate-800/80 hover:bg-slate-800/40"
                     >
                       <td className="px-4 py-2 text-slate-300 whitespace-nowrap">
-                        {b.label}
+                        {formatDateTime(b.start)}
                       </td>
                       <td className="px-4 py-2 font-medium text-white">
                         {b.totalUsers}
@@ -176,13 +192,13 @@ const AdminUsagePanel: React.FC = () => {
                       <td className="px-4 py-2 text-emerald-400">
                         {b.chatUsers}{" "}
                         <span className="text-slate-500 text-xs">
-                          ({b.chatEvents} req)
+                          {t("admin.usage.requests", { count: b.chatEvents })}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-amber-400">
                         {b.planUsers}{" "}
                         <span className="text-slate-500 text-xs">
-                          ({b.planEvents} req)
+                          {t("admin.usage.requests", { count: b.planEvents })}
                         </span>
                       </td>
                       <td className="px-4 py-2">
@@ -203,8 +219,7 @@ const AdminUsagePanel: React.FC = () => {
               (b) => b.totalUsers === 0 && b.chatEvents === 0 && b.planEvents === 0
             ) ? (
               <p className="p-6 text-center text-slate-500 text-sm">
-                No AI usage recorded in this period yet. Events are logged on
-                each chat message and plan generation after deploy.
+                {t("admin.usage.empty")}
               </p>
             ) : null}
           </div>

@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, X } from "lucide-react";
+import { useI18n } from "../contexts/I18nContext";
 
 interface ConfirmModalProps {
   title: string;
@@ -36,12 +37,14 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   subtitle,
   message,
   confirmLabel,
-  cancelLabel = "Cancel",
+  cancelLabel,
   variant = "primary",
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useI18n();
   const styles = variantStyles[variant];
+  const cancelText = cancelLabel ?? t("common.cancel");
 
   const modalContent = (
     <div
@@ -55,6 +58,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <button
           type="button"
           onClick={onCancel}
+          aria-label={t("common.close")}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
         >
           <X size={20} />
@@ -82,7 +86,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             onClick={onCancel}
             className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors"
           >
-            {cancelLabel}
+            {cancelText}
           </button>
           <button
             type="button"

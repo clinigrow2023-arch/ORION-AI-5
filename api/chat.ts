@@ -8,6 +8,12 @@ import {
 } from "./ai-providers/orion-ai.js";
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
 import { recordAiUsage } from "../lib/ai-usage.js";
+import { apiMessage } from "../lib/api-messages.js";
+import type { Locale } from "../lib/locale.js";
+import {
+  resolveRequestLocale,
+  resolveUserLocale,
+} from "../lib/server-locale.js";
 
 export default async function chatHandler(
   req: VercelRequest,
@@ -20,10 +26,17 @@ export default async function chatHandler(
 
   setCorsHeaders(res);
 
+  // Mensagens seguem o idioma da UI que fez a chamada.
+  const locale: Locale = resolveRequestLocale(req);
+  // A resposta da IA segue o idioma da conta, definido após identificar o usuário.
+  let contentLocale: Locale = locale;
+
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      return res.status(401).json({ error: "Authentication required" });
+      return res
+        .status(401)
+        .json({ error: apiMessage(locale, "authRequired") });
     }
 
     let userId: string;
@@ -33,26 +46,36 @@ export default async function chatHandler(
       };
       userId = decoded.userId;
     } catch {
-      return res.status(401).json({ error: "Invalid token" });
+      return res
+        .status(401)
+        .json({ error: apiMessage(locale, "invalidToken") });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { isBlocked: true },
+      select: { isBlocked: true, locale: true },
     });
 
     if (!user || user.isBlocked) {
-      return res.status(403).json({ error: "Access denied" });
+      return res
+        .status(403)
+        .json({ error: apiMessage(locale, "accessDenied") });
     }
 
+    contentLocale = resolveUserLocale(user.locale, req);
+
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+      return res
+        .status(405)
+        .json({ error: apiMessage(locale, "methodNotAllowed") });
     }
 
     const { message, history = [] } = req.body;
 
     if (!message) {
-      return res.status(400).json({ error: "Message is required" });
+      return res
+        .status(400)
+        .json({ error: apiMessage(locale, "messageRequired") });
     }
 
     recordAiUsage(userId, "chat");
@@ -78,7 +101,8 @@ export default async function chatHandler(
           history,
           (chunk) => {
             res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-          }
+          },
+          contentLocale
         );
 
         res.write(
@@ -86,9 +110,11 @@ export default async function chatHandler(
         );
         res.end();
       } catch (error: any) {
+        // Erros do provider são técnicos e em inglês: o cliente traduz pelo
+        // `code`, então o texto serve apenas para log/diagnóstico.
         const payload = isOllamaBusyError(error)
-          ? { error: error.message, code: "BUSY", retryable: true }
-          : { error: error.message };
+          ? { error: apiMessage(locale, "aiBusy"), code: "BUSY", retryable: true }
+          : { error: apiMessage(locale, "aiUnavailable"), code: "AI_FAILED" };
         res.write(`data: ${JSON.stringify(payload)}\n\n`);
         res.end();
       } finally {
@@ -97,7 +123,11 @@ export default async function chatHandler(
       return;
     }
 
-    const response = await sendMessageWithOllama(message, history);
+    const response = await sendMessageWithOllama(
+      message,
+      history,
+      contentLocale
+    );
 
     return res.status(200).json({
       response,
@@ -112,13 +142,14 @@ export default async function chatHandler(
     console.error("Chat API Error:", error);
     if (isOllamaBusyError(error)) {
       return res.status(503).json({
-        error: error.message,
+        error: apiMessage(locale, "aiBusy"),
         code: "BUSY",
         retryable: true,
       });
     }
-    return res
-      .status(500)
-      .send(`ERROR: ${error.message || "Internal server error"}`);
+    return res.status(500).json({
+      error: apiMessage(locale, "aiUnavailable"),
+      code: "AI_FAILED",
+    });
   }
 }

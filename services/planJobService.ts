@@ -1,8 +1,13 @@
 import { ActionPlan } from "../types";
-import { authService } from "../lib/auth";
-import { friendlyPlanErrorMessage } from "../lib/plan-utils";
+import { apiFetch } from "../lib/api-endpoints";
+import {
+  classifyPlanError,
+  planErrorMessageKey,
+  type PlanErrorCode,
+} from "../lib/plan-utils";
 import { formatConversationPreviewTitle } from "../lib/conversation-label";
 import { ORION_MANIFEST_ICON } from "../lib/brand";
+import { translateActive } from "../lib/i18n";
 
 export type PlanJobStatus = "pending" | "ready" | "error";
 
@@ -11,7 +16,10 @@ export interface PlanJob {
   status: PlanJobStatus;
   startedAt: number;
   finishedAt?: number;
+  /** Fallback text (already localized by the API) used when `errorCode` is "unknown". */
   error?: string;
+  /** Persisted instead of a sentence so the job survives a language change. */
+  errorCode?: PlanErrorCode;
   previewTitle?: string;
 }
 
@@ -72,8 +80,8 @@ function notifyPlanReady(conversationId: string): void {
   if (typeof Notification !== "undefined" && Notification.permission === "granted") {
     const job = readJobs()[conversationId];
     const title = formatConversationPreviewTitle(job?.previewTitle);
-    const notification = new Notification("Orion AI", {
-      body: `Plan ready: "${title}". Tap to open.`,
+    const notification = new Notification(translateActive("app.name"), {
+      body: translateActive("plan.notification.ready", { title }),
       icon: ORION_MANIFEST_ICON,
     });
     notification.onclick = () => {
@@ -158,16 +166,9 @@ export function startPlanGeneration(options: {
 
   void (async () => {
     try {
-      const token = authService.getToken();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("plan"), {
+      const response = await apiFetch("plan", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId,
           contextHistory,
@@ -176,19 +177,18 @@ export function startPlanGeneration(options: {
       });
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
+        const err = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
         throw new Error(
-          friendlyPlanErrorMessage(
-            (err as { error?: string }).error ||
-              `Plan failed (${response.status})`
-          )
+          err.error || translateActive("plan.errors.unknown")
         );
       }
 
       const data = await response.json();
       const plan = (data.plan || data.response) as ActionPlan;
       if (!plan?.steps?.length) {
-        throw new Error("Generated plan was incomplete");
+        throw new Error(translateActive("plan.errors.incomplete"));
       }
 
       setPlanJob({
@@ -203,15 +203,21 @@ export function startPlanGeneration(options: {
       notifyPlanReady(conversationId);
       onComplete?.(plan);
     } catch (e: unknown) {
-      const message = friendlyPlanErrorMessage(
-        e instanceof Error ? e.message : "Failed to generate action plan"
-      );
+      const raw =
+        e instanceof Error ? e.message : translateActive("plan.errors.unknown");
+      const errorCode = classifyPlanError(raw);
+      const message =
+        errorCode === "unknown"
+          ? raw
+          : translateActive(planErrorMessageKey(errorCode));
+
       setPlanJob({
         conversationId,
         status: "error",
         startedAt: readJobs()[conversationId]?.startedAt ?? Date.now(),
         finishedAt: Date.now(),
-        error: message,
+        error: raw,
+        errorCode,
       });
       onError?.(message);
     } finally {

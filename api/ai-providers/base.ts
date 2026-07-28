@@ -1,12 +1,20 @@
+import type { Locale } from "../../lib/locale.js";
+
 // Base interface for AI providers
 export interface AIProvider {
   name: string;
+  /** `locale` decides the answer language, whatever language the prompt is in. */
   sendMessage(
     message: string,
     history: Array<{ role: string; parts: Array<{ text: string }> }>,
-    systemInstruction: string
+    systemInstruction: string,
+    locale?: Locale
   ): Promise<string>;
-  generatePlan(contextHistory: string): Promise<string>;
+  /** `locale` applies to the JSON string values only; keys stay in English. */
+  generatePlan(
+    contextHistory: string,
+    options?: { regenerate?: boolean; locale?: Locale }
+  ): Promise<string>;
 }
 
 export interface AIProviderError extends Error {

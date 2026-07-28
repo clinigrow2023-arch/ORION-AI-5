@@ -16,6 +16,7 @@ export const messagesEn = {
     confirmAction: "Confirm action",
     characters: "{{count}} characters",
     active: "Active",
+    inactive: "Inactive",
     blocked: "Blocked",
   },
 
@@ -34,6 +35,7 @@ export const messagesEn = {
   sidebar: {
     chat: "Mentor Chat",
     plan: "My Action Plan",
+    planReady: "Ready",
     guide: "Strategy Guide",
     support: "Support",
     admin: "Admin Dashboard",
@@ -152,9 +154,15 @@ export const messagesEn = {
       manage: "Manage conversations",
       title: "Conversations",
       item: "Chat {{date}}",
+      empty: "No conversations yet",
       create: "+ New Conversation",
       delete: "Delete conversation",
       reset: "Reset current chat",
+      untitled: "Untitled conversation",
+      thisConversation: "this conversation",
+      messageOne: "1 message",
+      messageMany: "{{count}} messages",
+      planSaved: "plan saved",
     },
     welcome: {
       title: "Welcome to Orion AI",
@@ -186,10 +194,12 @@ export const messagesEn = {
         "🚫 **Account Blocked**\n\nYour account has been blocked. Please contact an administrator.",
       genericError:
         "I encountered an error processing your strategy. Please try again.",
-      apiKeyLeaked:
-        "🔒 **Security Error Detected**\n\nYour API key has been reported as leaked by Google.\n\n**To resolve:**\n1. Visit [Google AI Studio](https://aistudio.google.com/apikey)\n2. Generate a new API key\n3. Update the `.env` file with the new key:\n   `GEMINI_API_KEY=your_new_key_here`\n4. Restart the server (`npm run dev`)",
-      apiKeyMissing:
-        "⚠️ **API Key Not Found**\n\nPlease add your Gemini API key to the `.env` file:\n`GEMINI_API_KEY=your_key_here`\n\nThen, restart the server.",
+      emptyResponse:
+        "⚠️ **Empty Answer**\n\nOrion could not produce an answer this time. Please rephrase your message and try again.",
+      aiBusy:
+        "⏳ **Orion Is Busy**\n\nToo many people are talking to Orion right now. Please wait a few seconds and send your message again.",
+      aiUnavailable:
+        "⚠️ **Orion Is Unavailable**\n\nThe AI service did not respond. Please try again in a moment.",
     },
     resetModal: {
       title: "Reset Chat",
@@ -219,7 +229,35 @@ export const messagesEn = {
       conversationMeta: "{{count}} messages • {{time}}",
       generate: "Generate Action Plan",
       generating: "Synthesizing Strategy...",
+      generatingBackground: "Generating in the background...",
     },
+    header: {
+      planFor: "Plan for:",
+    },
+    actions: {
+      otherChat: "Use another chat",
+      delete: "Delete plan",
+      regenerate: "Regenerate",
+    },
+    background: {
+      generating:
+        "Your plan is being generated in the background. You can keep using the chat — we will notify you when it is ready.",
+      regenerating:
+        "Your plan is being regenerated in the background. We will notify you when the new version is ready.",
+      alreadyRunning:
+        "A plan is already being generated for this conversation. Please wait for it to finish.",
+    },
+    ready: {
+      title: "Your plan is ready",
+      hint: "Tap to open your action plan.",
+    },
+    saved: {
+      open: "Open saved plan",
+    },
+    notification: {
+      ready: "Your action plan for “{{title}}” is ready.",
+    },
+    dismiss: "Dismiss",
     errors: {
       noAccess:
         "Your account access has not been granted or has expired. Please contact an administrator.",
@@ -229,6 +267,16 @@ export const messagesEn = {
         "The generated plan is incomplete. Please try again or provide more details in the chat.",
       failed:
         "Failed to generate plan. Make sure you have provided enough details in the chat.",
+      unknown: "Failed to generate plan. Please try again.",
+      deleteFailed: "Failed to delete the plan. Please try again.",
+      malformedJson:
+        "Orion returned an invalid answer while building your plan. Please generate it again.",
+      outOfMemory:
+        "The AI server ran out of memory while building your plan. Please try again in a few minutes.",
+      truncated:
+        "The answer was cut off before the plan was complete. Please generate it again.",
+      modelMissing:
+        "The AI model is not available on the server. Please contact an administrator.",
     },
     sections: {
       diagnosis: "Diagnostic Analysis",
@@ -240,6 +288,20 @@ export const messagesEn = {
       triggers: "Secret Signals",
     },
     discard: "Discard and regenerate plan",
+    deleteModal: {
+      title: "Delete Plan",
+      subtitle: "This action plan",
+      message:
+        "Are you sure you want to delete this action plan? You can generate a new one afterwards, but this version will be permanently removed.",
+      confirm: "Delete Plan",
+    },
+    regenerateModal: {
+      title: "Regenerate Plan",
+      subtitle: "Replace the current plan",
+      message:
+        "Orion will build a new plan from this conversation and replace the current one. This may take a few minutes.",
+      confirm: "Regenerate Plan",
+    },
   },
 
   guide: {
@@ -309,13 +371,18 @@ export const messagesEn = {
   admin: {
     title: "Admin Dashboard",
     subtitle: "Manage users, blocks, and passwords",
-    matches: "Matches:",
-    totalUsers: "Total users:",
+    matches: "Matches",
     pageInfo: "· page {{current}} of {{total}} ({{size}} per page)",
     tabs: {
       users: "Users",
       create: "Create User",
-      prompt: "AI Prompt",
+      usage: "AI Usage",
+    },
+    stats: {
+      all: "Total users",
+      active: "Active (can use app)",
+      inactive: "Inactive",
+      blocked: "Blocked",
     },
     users: {
       loading: "Loading users...",
@@ -331,7 +398,7 @@ export const messagesEn = {
       columnUser: "User",
       columnEmail: "Email",
       columnRole: "Role",
-      columnBlocked: "Blocked",
+      columnAccess: "Access",
       columnActions: "Actions",
       block: "Block",
       unblock: "Unblock",
@@ -373,28 +440,26 @@ export const messagesEn = {
       errorInvalidEmail: "Invalid email format",
       errorFailed: "Failed to create user",
     },
-    prompt: {
-      title: "System Prompt Management",
+    usage: {
+      title: "AI usage",
       description:
-        "Edit the system instruction all AI providers use. Changes apply globally to every AI answer in the selected language.",
-      languageLabel: "Prompt language",
-      languageHint:
-        "Each language has its own prompt. Users always receive answers in their own language, even if this prompt is left empty.",
-      currentTitle: "Current Active Prompt",
-      version: "Version {{version}}",
-      lastUpdated: "• Last updated: {{date}}",
-      noPrompt: "No prompt saved yet",
-      activeBadge: "✅ Active on all AI providers",
-      inherited:
-        "No prompt saved for this language yet. The English prompt is shown as a starting point and Orion still answers in {{language}}. Save it to create a dedicated version.",
-      loading: "Loading prompt...",
-      instructionLabel: "System Instruction",
-      placeholder: "Enter the system instruction for all AI providers...",
-      save: "Save Prompt",
-      saving: "Saving...",
-      saved:
-        "✅ Prompt saved successfully! Version {{version}} is now active for {{language}} on all AI providers.",
-      empty: "Prompt cannot be empty",
+        "Unique users per {{minutes}}-minute window — chat and plan requests.",
+      rangeOption: "Last {{hours}}h",
+      loading: "Loading usage...",
+      peak: "Peak simultaneous users",
+      peakAt: "at {{time}}",
+      uniqueUsers: "Unique users ({{hours}}h)",
+      chatRequests: "Chat requests",
+      planRequests: "Plan generations",
+      columnWindow: "Time window",
+      columnUsers: "Users (total)",
+      columnChat: "Chat",
+      columnPlan: "Plan",
+      columnLoad: "Load",
+      requests: "({{count}} req)",
+      empty:
+        "No AI usage recorded in this period yet. Events are logged on each chat message and plan generation.",
+      loadFailed: "Failed to load AI usage",
     },
     blockModal: {
       blockTitle: "Block User",
@@ -428,6 +493,7 @@ export const messagesEn = {
       resetting: "Resetting...",
     },
     errors: {
+      sessionMissing: "Your session expired. Sign in again.",
       accessDenied: "Access denied. Admin privileges required.",
       fetchUsers: "Failed to fetch users",
       loadUsers: "Failed to load users",
@@ -436,8 +502,6 @@ export const messagesEn = {
       resetPassword: "Failed to reset password",
       resetPasswordEmail:
         "Password was reset, but the email could not be sent. Configure GMAIL_USER and GMAIL_PASS on the server, or share access with the user manually.",
-      loadPrompt: "Failed to load system prompt",
-      savePrompt: "Failed to save system prompt",
     },
   },
 };

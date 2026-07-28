@@ -30,7 +30,7 @@ function readQuery(
 }
 
 /**
- * Language the answer must be written in, in decreasing priority:
+ * Language the *response* must be written in, in decreasing priority:
  * `X-Locale` header (sent by `apiFetch` on every call), `?locale=` for plain
  * links, then `Accept-Language`.
  *
@@ -38,8 +38,8 @@ function readQuery(
  * data being saved (the new user's language, the language chosen by the caller)
  * and not the language of the current response.
  *
- * Authenticated handlers should prefer the persisted `user.locale` and only use
- * this as a fallback, since request data is client-controlled.
+ * Use this for anything rendered right away by the caller — errors, labels,
+ * confirmations — so the text matches the language the UI is displaying.
  */
 export function resolveRequestLocale(
   req: LocaleRequest,
@@ -60,8 +60,13 @@ export function resolveRequestLocale(
 }
 
 /**
- * Locale for an authenticated request: the stored user preference wins, and a
- * user without preference (legacy document) falls back to the request headers.
+ * Language of *content produced for the account*: AI answers, generated plans
+ * and e-mails. The stored preference wins because that content outlives the
+ * request that created it — a legacy document without preference falls back to
+ * the request headers.
+ *
+ * Not for response labels and errors: those follow `resolveRequestLocale`, so
+ * they always match the language the caller's UI is showing.
  */
 export function resolveUserLocale(
   storedLocale: string | null | undefined,

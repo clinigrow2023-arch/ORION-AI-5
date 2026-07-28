@@ -117,7 +117,8 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
 
     // Verificar se usuário está bloqueado
     if (user.isBlocked) {
-      return fail(res, 403, normalizeLocale(user.locale, requestLocale), "accountBlocked", {
+      // `blocked` é a flag que o cliente usa; o texto acompanha a tela de login.
+      return fail(res, 403, requestLocale, "accountBlocked", {
         blocked: true,
       });
     }
@@ -247,7 +248,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
 
 // Função para verificação de autenticação
 async function handleVerify(req: VercelRequest, res: VercelResponse) {
-  let locale = resolveRequestLocale(req);
+  const locale = resolveRequestLocale(req);
 
   if (req.method !== "GET") {
     return fail(res, 405, locale, "methodNotAllowed");
@@ -288,7 +289,8 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
       return fail(res, 401, locale, "userNotFound");
     }
 
-    locale = resolveUserLocale(user.locale, req);
+    // Idioma da conta: usado no e-mail e devolvido para o cliente adotar.
+    const accountLocale = resolveUserLocale(user.locale, req);
 
     // IMPORTANTE: Admin sempre tem acesso ilimitado
     if (user.role !== "admin") {
@@ -321,7 +323,7 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
             await sendSubscriptionExpiredEmail(
               user.email,
               user.name || "User",
-              locale
+              accountLocale
             );
           } catch (emailError) {
             console.error(
@@ -351,7 +353,7 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
       valid: true,
       user: {
         ...user,
-        locale,
+        locale: accountLocale,
         passwordResetRequired: user.passwordResetRequired || false,
       },
     });
@@ -411,7 +413,7 @@ async function handleUpdateLocale(req: VercelRequest, res: VercelResponse) {
 
 // Função para alterar senha
 async function handleChangePassword(req: VercelRequest, res: VercelResponse) {
-  let locale = resolveRequestLocale(req);
+  const locale = resolveRequestLocale(req);
 
   if (req.method !== "PUT") {
     return fail(res, 405, locale, "methodNotAllowed");
@@ -449,8 +451,6 @@ async function handleChangePassword(req: VercelRequest, res: VercelResponse) {
     if (!user) {
       return fail(res, 404, locale, "userNotFound");
     }
-
-    locale = resolveUserLocale(user.locale, req);
 
     // Verificar senha atual
     const isPasswordValid = await bcrypt.compare(
@@ -490,7 +490,7 @@ async function handleChangePassword(req: VercelRequest, res: VercelResponse) {
 
 // Função para definir nova senha
 async function handleSetNewPassword(req: VercelRequest, res: VercelResponse) {
-  let locale = resolveRequestLocale(req);
+  const locale = resolveRequestLocale(req);
 
   if (req.method !== "POST") {
     return fail(res, 405, locale, "methodNotAllowed");
@@ -530,15 +530,12 @@ async function handleSetNewPassword(req: VercelRequest, res: VercelResponse) {
       select: {
         id: true,
         passwordResetRequired: true,
-        locale: true,
       },
     });
 
     if (!user) {
       return fail(res, 404, locale, "userNotFound");
     }
-
-    locale = resolveUserLocale(user.locale, req);
 
     // Verificar se realmente precisa resetar senha
     if (!user.passwordResetRequired) {

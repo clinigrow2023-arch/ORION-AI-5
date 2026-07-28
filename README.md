@@ -102,7 +102,8 @@ credentials) use the same language.
 | Runtime + date/time formats | `lib/i18n.ts`, `contexts/I18nContext.tsx`       |
 | API messages                | `lib/api-messages.ts`                           |
 | E-mail copy                 | `lib/email-copy.ts`                             |
-| AI prompt building blocks   | `lib/prompt-defaults.ts`                        |
+| AI language directives      | `lib/locale.ts`, `api/ai-providers/ollama-helpers.ts` |
+| Plan fallbacks / error codes | `lib/plan-utils.ts`                            |
 
 `MessageCatalog` is derived from the English catalog, so **any missing or extra key in
 the French catalog breaks the build** — translations can never silently drift.
@@ -116,19 +117,29 @@ return <h1>{t("guide.title")}</h1>;
 
 ### AI answers
 
-`SystemPrompt` rows are stored per language (`SystemPrompt.locale`) and the admin panel
-has a language switch for editing them. `getSystemInstruction` looks for the prompt in
-the requested language, falls back to English, and always appends a language directive
-so the model answers in the user's language even when the prompt body is in English.
+The persona prompt lives in the Ollama model on the VPS (`deploy/modelfile/Modelfile`),
+so it is not edited per language. The answer language is set **per request**: a compact
+directive built by `buildChatLanguageDirective` / `buildPlanLanguageDirective`
+(`lib/locale.ts`) is appended to the prompt in `api/ai-providers/ollama-helpers.ts`.
+For plans the directive also states that JSON **keys** stay in English while every value
+is translated. Legacy deployments that still keep the prompt in the database read it per
+language through `api/ai-providers/prompts-legacy.ts`, falling back to English.
+
+When the model returns an incomplete plan, the missing fields are filled with the
+localized fallbacks in `lib/plan-utils.ts`. Plan and chat failures are classified into
+stable codes (`malformed_json`, `out_of_memory`, `truncated`, `model_missing`, …) so the
+UI can translate them instead of matching English strings.
 
 ### Adding a new language
 
 1. Add the code to `SUPPORTED_LOCALES` and `LOCALES` in `lib/locale.ts`.
 2. Create `lib/messages-<code>.ts` implementing `MessageCatalog` and register it in
    `lib/i18n.ts`.
-3. Add the entries in `lib/api-messages.ts` and `lib/email-copy.ts` (TypeScript points
-   out anything missing).
-4. Optionally create the system prompt for the language in the admin panel.
+3. Add the entries in `lib/api-messages.ts`, `lib/email-copy.ts` and `PLAN_FALLBACKS`
+   in `lib/plan-utils.ts` (TypeScript points out anything missing).
+4. Fill the `LOCALES` descriptor in `lib/locale.ts` (`shortCode`, `nativeName`, `intlTag`
+   and `aiName`) — the AI directives are generated from `aiName`, so no prompt editing
+   and no model rebuild are required.
 
 ## Deployment (Vercel)
 

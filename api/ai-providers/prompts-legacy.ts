@@ -1,8 +1,10 @@
 import { prisma } from "../_prisma.js";
 import { enhanceSystemInstruction } from "./ollama-helpers.js";
+import { DEFAULT_LOCALE, type Locale } from "../../lib/locale.js";
 
-let cachedPrompt: string | null = null;
-let cacheTimestamp = 0;
+type CacheEntry = { prompt: string; timestamp: number };
+
+const cache = new Map<Locale, CacheEntry>();
 const CACHE_TTL_MS = 30_000;
 
 const EMERGENCY_PROMPT = `You are Orion AI, an expert relationship and attraction mentor.
@@ -13,33 +15,64 @@ CRITICAL INSTRUCTIONS:
 - Use short paragraphs. Write like a modern chat assistant.
 - Ask diagnostic questions before giving strategy when context is missing.`;
 
-export async function getLegacySystemInstruction(): Promise<string> {
+/**
+ * Records saved before i18n have no `locale`, so an English lookup must also
+ * accept `null` — otherwise an existing prompt would silently stop being used.
+ */
+function localeFilter(locale: Locale) {
+  return locale === DEFAULT_LOCALE
+    ? { OR: [{ locale: DEFAULT_LOCALE }, { locale: null }] }
+    : { locale };
+}
+
+async function findStoredPrompt(locale: Locale): Promise<string | null> {
+  const forLocale = await prisma.systemPrompt.findFirst({
+    where: localeFilter(locale),
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (forLocale?.prompt?.trim()) {
+    return forLocale.prompt.trim();
+  }
+
+  if (locale === DEFAULT_LOCALE) {
+    return null;
+  }
+
+  // Sem versão no idioma pedido, o prompt inglês vale: a diretiva de idioma
+  // injetada no prompt do usuário garante a resposta no idioma certo.
+  const fallback = await prisma.systemPrompt.findFirst({
+    where: localeFilter(DEFAULT_LOCALE),
+    orderBy: { updatedAt: "desc" },
+  });
+
+  return fallback?.prompt?.trim() || null;
+}
+
+export async function getLegacySystemInstruction(
+  locale: Locale = DEFAULT_LOCALE
+): Promise<string> {
   const now = Date.now();
-  if (cachedPrompt && now - cacheTimestamp < CACHE_TTL_MS) {
-    return cachedPrompt;
+  const cached = cache.get(locale);
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.prompt;
   }
 
+  let prompt: string;
   try {
-    const systemPrompt = await prisma.systemPrompt.findFirst({
-      orderBy: { updatedAt: "desc" },
-    });
-
-    if (systemPrompt?.prompt?.trim()) {
-      cachedPrompt = enhanceSystemInstruction(systemPrompt.prompt.trim());
-      cacheTimestamp = now;
-      return cachedPrompt;
-    }
+    const stored = await findStoredPrompt(locale);
+    prompt = enhanceSystemInstruction(stored || EMERGENCY_PROMPT);
   } catch {
-    cachedPrompt = null;
-    cacheTimestamp = 0;
+    // Banco indisponível: responder com o prompt mínimo e não cachear, para a
+    // próxima requisição tentar de novo.
+    cache.delete(locale);
+    return enhanceSystemInstruction(EMERGENCY_PROMPT);
   }
 
-  cachedPrompt = enhanceSystemInstruction(EMERGENCY_PROMPT);
-  cacheTimestamp = now;
-  return cachedPrompt;
+  cache.set(locale, { prompt, timestamp: now });
+  return prompt;
 }
 
 export function clearLegacyPromptCache(): void {
-  cachedPrompt = null;
-  cacheTimestamp = 0;
+  cache.clear();
 }

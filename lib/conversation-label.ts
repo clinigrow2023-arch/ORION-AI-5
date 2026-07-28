@@ -1,7 +1,17 @@
 import type { ConversationSummary } from "./conversations-client";
+import {
+  formatDate,
+  formatShortTime,
+  getActiveLocale,
+  translateActive,
+} from "./i18n";
 
 const PREVIEW_MAX = 72;
 
+/**
+ * Runs on the server too, where there is no single active language, so it never
+ * returns a label: an empty preview is data, and the client names it.
+ */
 export function deriveConversationPreview(
   messages: Array<{ text?: string; sender?: string }>
 ): string {
@@ -14,7 +24,7 @@ export function deriveConversationPreview(
 
   const firstUser = withText.find((m) => m.sender === "user");
   const source = firstUser?.text ?? withText[0]?.text;
-  if (!source) return "New conversation";
+  if (!source) return "";
 
   const cleaned = source
     .replace(/\*\*/g, "")
@@ -29,18 +39,23 @@ export function deriveConversationPreview(
 export function formatConversationTitle(conv: ConversationSummary): string {
   const preview = conv.preview?.trim();
   if (preview) return preview;
-  return "New conversation";
+  return translateActive("chat.conversations.untitled");
 }
 
 export function formatConversationSubtitle(conv: ConversationSummary): string {
-  const date = new Date(conv.updatedAt).toLocaleDateString();
-  const time = new Date(conv.updatedAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const msgs = conv.messageCount ?? 0;
-  const planTag = conv.hasActionPlan ? " · plan saved" : "";
-  return `${date} · ${time} · ${msgs} message${msgs === 1 ? "" : "s"}${planTag}`;
+  const locale = getActiveLocale();
+  const date = formatDate(conv.updatedAt, locale);
+  const time = formatShortTime(conv.updatedAt, locale);
+  const count = conv.messageCount ?? 0;
+  const messages =
+    count === 1
+      ? translateActive("chat.conversations.messageOne")
+      : translateActive("chat.conversations.messageMany", { count });
+  const planTag = conv.hasActionPlan
+    ? ` · ${translateActive("chat.conversations.planSaved")}`
+    : "";
+
+  return `${date} · ${time} · ${messages}${planTag}`;
 }
 
 export function formatConversationLabel(conv: ConversationSummary): string {
@@ -49,5 +64,7 @@ export function formatConversationLabel(conv: ConversationSummary): string {
 
 export function formatConversationPreviewTitle(preview?: string | null): string {
   const p = preview?.trim();
-  return p && p.length > 0 ? p : "your conversation";
+  return p && p.length > 0
+    ? p
+    : translateActive("chat.conversations.thisConversation");
 }

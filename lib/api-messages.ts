@@ -65,9 +65,19 @@ const apiMessagesEn = {
   maxConversations:
     "Maximum of 3 conversations allowed. Please delete a conversation to create a new one.",
 
-  promptRequired: "Prompt is required",
-  promptUpdated: "System prompt updated successfully",
-  promptSaveFailed: "Failed to save prompt",
+  aiBusy:
+    "Orion is handling other requests right now. Please try again in a few seconds.",
+  aiUnavailable:
+    "Orion is unavailable right now. Please try again in a few moments.",
+  planNoContext:
+    "No conversation context. Chat with Orion first or select a saved conversation.",
+  planIncomplete: "Generated plan was incomplete. Please try again.",
+  planFailed: "Failed to generate action plan. Please try again.",
+
+  promptEditingDisabled:
+    "System prompt editing is disabled. The prompt is baked into the Ollama model: edit deploy/modelfile/Modelfile on the VPS and run scripts/rebuild-ollama-model.sh",
+  promptModelfileInfo:
+    "The prompt lives in the Ollama model on the VPS. Edit the Modelfile, rebuild the model, and the change applies to every language — the answer language is set per request.",
 };
 
 export type ApiMessageKey = keyof typeof apiMessagesEn;
@@ -135,9 +145,19 @@ const apiMessagesFr: Record<ApiMessageKey, string> = {
   maxConversations:
     "Maximum de 3 conversations autorisées. Supprimez une conversation pour en créer une nouvelle.",
 
-  promptRequired: "Le prompt est obligatoire",
-  promptUpdated: "Prompt système mis à jour avec succès",
-  promptSaveFailed: "Impossible d'enregistrer le prompt",
+  aiBusy:
+    "Orion traite d'autres demandes en ce moment. Veuillez réessayer dans quelques secondes.",
+  aiUnavailable:
+    "Orion est indisponible pour le moment. Veuillez réessayer dans quelques instants.",
+  planNoContext:
+    "Aucun contexte de conversation. Discutez d'abord avec Orion ou sélectionnez une conversation enregistrée.",
+  planIncomplete: "Le plan généré était incomplet. Veuillez réessayer.",
+  planFailed: "Impossible de générer le plan d'action. Veuillez réessayer.",
+
+  promptEditingDisabled:
+    "La modification du prompt système est désactivée. Le prompt est intégré au modèle Ollama : modifiez deploy/modelfile/Modelfile sur le VPS puis exécutez scripts/rebuild-ollama-model.sh",
+  promptModelfileInfo:
+    "Le prompt réside dans le modèle Ollama sur le VPS. Modifiez le Modelfile, reconstruisez le modèle : le changement s'applique à toutes les langues — la langue de réponse est définie à chaque requête.",
 };
 
 const API_MESSAGES: Record<Locale, Record<ApiMessageKey, string>> = {

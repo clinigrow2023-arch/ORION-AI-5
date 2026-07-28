@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ActionPlan } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useI18n } from "../contexts/I18nContext";
+import { apiFetch } from "../lib/api-endpoints";
 import { authService } from "../lib/auth";
 import { getActiveConversationId } from "../lib/active-conversation";
 import {
@@ -24,7 +26,7 @@ import {
   requestPlanNotificationPermission,
   subscribePlanReady,
 } from "../services/planJobService";
-import { friendlyPlanErrorMessage } from "../lib/plan-utils";
+import { planErrorMessageKey, type PlanErrorCode } from "../lib/plan-utils";
 import ConfirmModal from "./ConfirmModal";
 import {
   Target,
@@ -54,6 +56,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
   onOpenPlanRequestHandled,
 }) => {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [viewPlan, setViewPlan] = useState<ActionPlan | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [backgroundNote, setBackgroundNote] = useState<string | null>(null);
@@ -77,6 +80,17 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
   const planInitDone = useRef(false);
   const readyJobHandled = useRef<string | null>(null);
   const generateLock = useRef(false);
+
+  /** Job errors are persisted as codes, so the text follows the current language. */
+  const planErrorText = (
+    code: PlanErrorCode | undefined,
+    fallback: string | undefined
+  ): string => {
+    if (!code || code === "unknown") {
+      return fallback?.trim() || t("plan.errors.failed");
+    }
+    return t(planErrorMessageKey(code));
+  };
 
   const refreshConversationList = async (force = false) => {
     const list = await fetchConversationsSummary(force);
@@ -176,9 +190,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       const job = getPlanJob(selectedConversationId);
       if (job?.status === "pending") {
         setIsGenerating(true);
-        setBackgroundNote(
-          "Generating in the background. You can leave this page — we'll notify you when it's ready."
-        );
+        setBackgroundNote(t("plan.background.generating"));
         return;
       }
       if (job?.status === "ready") {
@@ -197,9 +209,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       if (job?.status === "error") {
         setIsGenerating(false);
         setBackgroundNote(null);
-        setError(
-          friendlyPlanErrorMessage(job.error || "Plan generation failed")
-        );
+        setError(planErrorText(job.errorCode, job.error));
       }
     };
 
@@ -253,9 +263,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       Date.now() - existingJob.startedAt < 15 * 60 * 1000
     ) {
       setIsGenerating(true);
-      setBackgroundNote(
-        "A plan is already generating for this chat. Wait for it to finish or dismiss the error."
-      );
+      setBackgroundNote(t("plan.background.alreadyRunning"));
       return;
     }
 
@@ -266,9 +274,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
     const history = buildHistoryText(conv);
     if (!history.trim()) {
-      setError(
-        "Please chat with Orion first so we have context for your plan."
-      );
+      setError(t("plan.errors.noContext"));
       return;
     }
 
@@ -278,9 +284,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
     setPlan(null);
     setIsGenerating(true);
     generateLock.current = true;
-    setBackgroundNote(
-      "Generating in the background. You can leave this page — we'll notify you when it's ready."
-    );
+    setBackgroundNote(t("plan.background.generating"));
 
     await requestPlanNotificationPermission();
     await refreshConversationList(true);
@@ -306,7 +310,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       },
       onError: (message) => {
         generateLock.current = false;
-        setError(friendlyPlanErrorMessage(message));
+        setError(message);
         setIsGenerating(false);
         setBackgroundNote(null);
       },
@@ -315,9 +319,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
     if (!started) {
       generateLock.current = false;
       setIsGenerating(true);
-      setBackgroundNote(
-        "This chat already has a plan generation in progress. Please wait."
-      );
+      setBackgroundNote(t("plan.background.alreadyRunning"));
     }
   };
 
@@ -326,13 +328,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
     try {
       const token = authService.getToken();
       if (!token) return;
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("conversations"), {
+      const response = await apiFetch("conversations", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId: selectedConversationId,
           clearActionPlan: true,
@@ -340,11 +338,10 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       });
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(
-          (err as { error?: string }).error ||
-            `Could not delete plan (${response.status})`
-        );
+        const err = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(err.error || t("plan.errors.deleteFailed"));
       }
 
       clearPlanJob(selectedConversationId);
@@ -356,11 +353,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       await refreshConversationList(true);
     } catch (e) {
       console.error("Failed to delete plan:", e);
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Could not delete the saved plan."
-      );
+      setError(e instanceof Error ? e.message : t("plan.errors.deleteFailed"));
     }
   };
 
@@ -377,16 +370,12 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       loadedConversation;
     const history = buildHistoryText(conv);
     if (!history.trim()) {
-      setError(
-        "Please chat with Orion first so we have context for your plan."
-      );
+      setError(t("plan.errors.noContext"));
       return;
     }
 
     setIsGenerating(true);
-    setBackgroundNote(
-      "Regenerating a brand-new plan in the background. You can leave this page."
-    );
+    setBackgroundNote(t("plan.background.regenerating"));
 
     generateLock.current = true;
     const previewTitle =
@@ -410,14 +399,14 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       },
       onError: (message) => {
         generateLock.current = false;
-        setError(friendlyPlanErrorMessage(message));
+        setError(message);
         setIsGenerating(false);
         setBackgroundNote(null);
       },
     });
     if (!started) {
       generateLock.current = false;
-      setError("A plan is already generating for this chat. Please wait.");
+      setError(t("plan.background.alreadyRunning"));
       setIsGenerating(false);
       setBackgroundNote(null);
     }
@@ -441,12 +430,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
         <div className="bg-slate-800/50 p-8 rounded-2xl border border-slate-700 max-w-lg w-full">
           <Target className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-white mb-4">
-            Generate Your Strategy
+            {t("plan.empty.title")}
           </h2>
-          <p className="text-slate-400 mb-6">
-            Orion analyzes one chat at a time. Each conversation can have its
-            own saved plan.
-          </p>
+          <p className="text-slate-400 mb-6">{t("plan.empty.description")}</p>
 
           {backgroundNote && (
             <div className="mb-4 p-3 bg-indigo-900/30 border border-indigo-700 text-indigo-200 rounded-lg flex items-start gap-2 text-sm text-left">
@@ -469,7 +455,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
                 }}
                 className="shrink-0 text-red-200/80 hover:text-white underline text-xs"
               >
-                Dismiss
+                {t("plan.dismiss")}
               </button>
             </div>
           )}
@@ -486,10 +472,10 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
                 </span>
                 <span>
                   <span className="block text-base font-semibold text-emerald-200">
-                    Your plan is ready — open it
+                    {t("plan.ready.title")}
                   </span>
                   <span className="block text-xs text-emerald-400/90 mt-0.5">
-                    Tap to view (not opened automatically)
+                    {t("plan.ready.hint")}
                   </span>
                 </span>
               </span>
@@ -508,7 +494,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
                 </span>
                 <span>
                   <span className="block text-base font-semibold text-emerald-200">
-                    Open your saved action plan
+                    {t("plan.saved.open")}
                   </span>
                   <span className="block text-xs text-emerald-400/90 mt-0.5">
                     {conversationLabel(savedPlanConversation)}
@@ -521,7 +507,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
           {conversations.length > 0 && (
             <div className="mb-6 text-left">
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Conversation for this plan:
+                {t("plan.empty.selectorLabel")}
               </label>
               <div className="relative">
                 <button
@@ -542,7 +528,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
                             updatedAt: new Date().toISOString(),
                           }
                         )
-                      : "Select a conversation"}
+                      : t("plan.empty.selectorPlaceholder")}
                   </span>
                   <ChevronDown
                     size={16}
@@ -595,8 +581,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
               <BrainCircuit />
             )}
             {isGenerating
-              ? "Generating in background..."
-              : "Generate Action Plan"}
+              ? t("plan.empty.generatingBackground")
+              : t("plan.empty.generate")}
           </button>
         </div>
       </div>
@@ -607,7 +593,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
     <div className="h-full overflow-y-auto bg-slate-950 p-6 space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-400">
-          Plan for:{" "}
+          {t("plan.header.planFor")}{" "}
           {selectedConversationId
             ? conversationLabel(
                 conversations.find((c) => c.id === selectedConversationId) || {
@@ -628,14 +614,14 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
             }}
             className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800"
           >
-            Generate for another chat
+            {t("plan.actions.otherChat")}
           </button>
           <button
             type="button"
             onClick={() => setConfirmAction("delete-plan")}
             className="text-xs px-3 py-1.5 rounded-lg border border-red-800/50 text-red-300 hover:bg-red-900/20 flex items-center gap-1"
           >
-            <Trash2 size={14} /> Delete saved plan
+            <Trash2 size={14} /> {t("plan.actions.delete")}
           </button>
           <button
             type="button"
@@ -643,7 +629,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
             disabled={isGenerating}
             className="text-xs px-3 py-1.5 rounded-lg border border-indigo-600 text-indigo-300 hover:bg-indigo-900/30 disabled:opacity-50"
           >
-            Regenerate this chat&apos;s plan
+            {t("plan.actions.regenerate")}
           </button>
         </div>
       </div>
@@ -657,7 +643,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
         <h3 className="text-lg font-bold text-indigo-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Target size={20} /> Diagnostic Analysis
+          <Target size={20} /> {t("plan.sections.diagnosis")}
         </h3>
         <p className="text-slate-200 leading-relaxed text-lg">
           {viewPlan.diagnosis}
@@ -666,7 +652,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
       <section>
         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <Clock size={24} className="text-indigo-500" /> 3-Step Action Plan
+          <Clock size={24} className="text-indigo-500" />{" "}
+          {t("plan.sections.steps")}
         </h3>
         <div className="grid gap-6 md:grid-cols-3">
           {viewPlan.steps.map((step, idx) => (
@@ -695,8 +682,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <MessageCircle size={24} className="text-indigo-500" /> Strategic
-          Communication
+          <MessageCircle size={24} className="text-indigo-500" />{" "}
+          {t("plan.sections.messages")}
         </h3>
         <div className="space-y-4">
           {viewPlan.messageTemplates.map((msg, idx) => (
@@ -723,7 +710,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       <div className="grid md:grid-cols-2 gap-6">
         <section className="bg-slate-900/50 border border-green-900/30 rounded-2xl p-6">
           <h3 className="text-green-400 font-bold mb-4 flex items-center gap-2">
-            <ShieldCheck size={20} /> Essential Actions
+            <ShieldCheck size={20} /> {t("plan.sections.dos")}
           </h3>
           <ul className="space-y-3">
             {viewPlan.dos.map((item, idx) => (
@@ -740,7 +727,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
         <section className="bg-slate-900/50 border border-red-900/30 rounded-2xl p-6">
           <h3 className="text-red-400 font-bold mb-4 flex items-center gap-2">
-            <ShieldAlert size={20} /> Critical Mistakes to Avoid
+            <ShieldAlert size={20} /> {t("plan.sections.donts")}
           </h3>
           <ul className="space-y-3">
             {viewPlan.donts.map((item, idx) => (
@@ -759,14 +746,16 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       <section className="grid md:grid-cols-2 gap-6">
         <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-6">
           <h4 className="text-indigo-300 font-semibold mb-2">
-            Strategic Distancing
+            {t("plan.sections.distancing")}
           </h4>
           <p className="text-slate-400 text-sm leading-relaxed">
             {viewPlan.distancingStrategy}
           </p>
         </div>
         <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-6">
-          <h4 className="text-indigo-300 font-semibold mb-2">Secret Signals</h4>
+          <h4 className="text-indigo-300 font-semibold mb-2">
+            {t("plan.sections.triggers")}
+          </h4>
           <p className="text-slate-400 text-sm leading-relaxed">
             {viewPlan.neurologicalTriggers}
           </p>
@@ -775,10 +764,10 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
       {confirmAction === "delete-plan" && (
         <ConfirmModal
-          title="Delete saved plan"
-          subtitle="Chat messages are kept"
-          message="Remove only the action plan for this conversation? Your chat history stays saved. You can generate a new plan later."
-          confirmLabel="Delete plan"
+          title={t("plan.deleteModal.title")}
+          subtitle={t("plan.deleteModal.subtitle")}
+          message={t("plan.deleteModal.message")}
+          confirmLabel={t("plan.deleteModal.confirm")}
           variant="danger"
           onCancel={() => setConfirmAction(null)}
           onConfirm={() => {
@@ -790,10 +779,10 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
       {confirmAction === "regenerate-plan" && (
         <ConfirmModal
-          title="Regenerate action plan"
-          subtitle="Replaces the current plan"
-          message="Orion will create a new plan from this chat. The current saved plan will be removed first. This may take up to a few minutes."
-          confirmLabel="Regenerate plan"
+          title={t("plan.regenerateModal.title")}
+          subtitle={t("plan.regenerateModal.subtitle")}
+          message={t("plan.regenerateModal.message")}
+          confirmLabel={t("plan.regenerateModal.confirm")}
           variant="warning"
           onCancel={() => setConfirmAction(null)}
           onConfirm={() => {

@@ -45,8 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleOptions(req, res);
   }
 
-  // Idioma provisório: antes de conhecer o usuário só temos os headers.
-  let locale: Locale = resolveRequestLocale(req);
+  // Mensagens seguem o idioma da UI que fez a chamada.
+  const locale: Locale = resolveRequestLocale(req);
+  // Lacunas do plano salvo são conteúdo da conta: seguem o idioma do usuário.
+  let contentLocale: Locale = locale;
 
   // Verificar autenticação
   const auth = verifyAuth(req);
@@ -68,16 +70,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ error: apiMessage(locale, "userNotFound") });
   }
 
-  // A preferência salva na conta vence o header enviado pelo cliente.
-  locale = resolveUserLocale(user.locale, req);
+  contentLocale = resolveUserLocale(user.locale, req);
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
   // Verificar apenas se usuário está bloqueado
   if (user.role !== "admin") {
     if (user.isBlocked) {
+      // `blocked` é a flag que o cliente usa para decidir o logout: a mensagem
+      // vem traduzida e não serve para comparação.
       return res
         .status(403)
-        .json({ error: apiMessage(locale, "accountBlocked") });
+        .json({ error: apiMessage(locale, "accountBlocked"), blocked: true });
     }
   }
 
@@ -107,7 +110,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .json({ error: apiMessage(locale, "conversationNotFound") });
         }
 
-        const actionPlan = parseStoredActionPlan(conversation.actionPlan);
+        const actionPlan = parseStoredActionPlan(
+          conversation.actionPlan,
+          contentLocale
+        );
 
         return res.status(200).json({
           conversation: {

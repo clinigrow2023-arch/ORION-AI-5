@@ -14,6 +14,12 @@ import { truncatePlanContext } from "./ai-providers/ollama-helpers.js";
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
 import { recordAiUsage } from "../lib/ai-usage.js";
 import { resolveOllamaPlanModel } from "../lib/ollama-model-env.js";
+import { apiMessage } from "../lib/api-messages.js";
+import type { Locale } from "../lib/locale.js";
+import {
+  resolveRequestLocale,
+  resolveUserLocale,
+} from "../lib/server-locale.js";
 
 export default async function planHandler(
   req: VercelRequest,
@@ -26,10 +32,17 @@ export default async function planHandler(
 
   setCorsHeaders(res);
 
+  // Mensagens seguem o idioma da UI que fez a chamada.
+  const locale: Locale = resolveRequestLocale(req);
+  // O plano é conteúdo da conta: segue o idioma salvo no usuário.
+  let contentLocale: Locale = locale;
+
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      return res.status(401).json({ error: "Authentication required" });
+      return res
+        .status(401)
+        .json({ error: apiMessage(locale, "authRequired") });
     }
 
     let userId: string;
@@ -39,20 +52,28 @@ export default async function planHandler(
       };
       userId = decoded.userId;
     } catch {
-      return res.status(401).json({ error: "Invalid token" });
+      return res
+        .status(401)
+        .json({ error: apiMessage(locale, "invalidToken") });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { isBlocked: true },
+      select: { isBlocked: true, locale: true },
     });
 
     if (!user || user.isBlocked) {
-      return res.status(403).json({ error: "Access denied" });
+      return res
+        .status(403)
+        .json({ error: apiMessage(locale, "accessDenied") });
     }
 
+    contentLocale = resolveUserLocale(user.locale, req);
+
     if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
+      return res
+        .status(405)
+        .json({ error: apiMessage(locale, "methodNotAllowed") });
     }
 
     const { conversationId, contextHistory, regenerate } = req.body as {
@@ -70,7 +91,9 @@ export default async function planHandler(
       });
 
       if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return res
+          .status(404)
+          .json({ error: apiMessage(locale, "conversationNotFound") });
       }
 
       const messages = parseConversationMessages(conversation.messages);
@@ -81,8 +104,7 @@ export default async function planHandler(
 
     if (!historyText) {
       return res.status(400).json({
-        error:
-          "No conversation context. Chat with Orion first or select a saved conversation.",
+        error: apiMessage(locale, "planNoContext"),
       });
     }
 
@@ -100,13 +122,16 @@ export default async function planHandler(
     );
     const raw = await generatePlanWithOllama(historyText, {
       regenerate: !!regenerate,
+      locale: contentLocale,
     });
     const parsed = parsePlanJsonFromText(raw);
-    const plan = normalizeActionPlan(parsed);
+    const plan = normalizeActionPlan(parsed, contentLocale);
 
     if (!isValidActionPlan(plan)) {
       return res.status(502).json({
-        error: "Generated plan was incomplete. Please try again.",
+        error: apiMessage(locale, "planIncomplete"),
+        code: "PLAN_INCOMPLETE",
+        retryable: true,
       });
     }
 
@@ -140,13 +165,14 @@ export default async function planHandler(
     console.error("Plan API Error:", error);
     if (isOllamaBusyError(error)) {
       return res.status(503).json({
-        error: error.message,
+        error: apiMessage(locale, "aiBusy"),
         code: "BUSY",
         retryable: true,
       });
     }
     return res.status(500).json({
-      error: "Failed to generate action plan. Please try again.",
+      error: apiMessage(locale, "planFailed"),
+      code: "PLAN_FAILED",
       retryable: true,
     });
   }

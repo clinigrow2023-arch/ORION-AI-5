@@ -1,3 +1,4 @@
+import { apiFetch } from "./api-endpoints";
 import { authService } from "./auth";
 
 export type ConversationSummary = {
@@ -51,11 +52,7 @@ export async function fetchConversationsSummary(
       const token = authService.getToken();
       if (!token) return [];
 
-      const { getApiEndpoint } = await import("./api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?summary=1`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiFetch("conversations?summary=1");
 
       if (!response.ok) return [];
 
@@ -93,10 +90,8 @@ export async function fetchConversationDetail(
       const token = authService.getToken();
       if (!token) return null;
 
-      const { getApiEndpoint } = await import("./api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint("conversations")}?conversationId=${encodeURIComponent(conversationId)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await apiFetch(
+        `conversations?conversationId=${encodeURIComponent(conversationId)}`
       );
 
       if (!response.ok) return null;

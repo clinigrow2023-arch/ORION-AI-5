@@ -1,4 +1,6 @@
 import type { ActionPlan, MessageTemplate, PlanStep } from "../types";
+import type { MessageKey } from "./i18n";
+import { DEFAULT_LOCALE, type Locale } from "./locale";
 
 const MAX_PLAN_MESSAGES = 14;
 const MAX_PLAN_MSG_CHARS = 350;
@@ -176,25 +178,49 @@ export function parseConversationMessages(
   );
 }
 
-/** Don't show raw SyntaxError text in the UI. */
-export function friendlyPlanErrorMessage(message: string): string {
+/**
+ * Provider failures arrive as raw technical text (SyntaxError, Ollama errors).
+ * Classifying them into a stable code lets the UI translate the explanation,
+ * instead of matching English substrings that break in another language.
+ */
+export type PlanErrorCode =
+  | "malformed_json"
+  | "out_of_memory"
+  | "truncated"
+  | "model_missing"
+  | "unknown";
+
+export function classifyPlanError(message: string): PlanErrorCode {
   if (
     /JSON at position/i.test(message) ||
     /Unexpected token/i.test(message) ||
     /not valid JSON/i.test(message)
   ) {
-    return "The AI response had a formatting glitch. Tap Generate again — we’ll build your plan from the chat.";
+    return "malformed_json";
   }
   if (/system memory|requires more.*memory|out of memory/i.test(message)) {
-    return "This model needs more RAM than your PC has free. In .env set OLLAMA_MODEL and OLLAMA_PLAN_MODEL to a smaller model (e.g. gemma4 or qwen3.6), restart npm run dev, and try again.";
+    return "out_of_memory";
   }
   if (/Unterminated string|truncated|token limit/i.test(message)) {
-    return "The AI cut off mid-response. Tap Generate again — or use llama3.2:3b in .env for more reliable plans.";
+    return "truncated";
   }
   if (/model.*not found/i.test(message)) {
-    return "That Ollama model is not installed. Run ollama pull <name> or change OLLAMA_PLAN_MODEL in .env to a model from ollama list.";
+    return "model_missing";
   }
-  return message;
+  return "unknown";
+}
+
+const PLAN_ERROR_KEYS: Record<PlanErrorCode, MessageKey> = {
+  malformed_json: "plan.errors.malformedJson",
+  out_of_memory: "plan.errors.outOfMemory",
+  truncated: "plan.errors.truncated",
+  model_missing: "plan.errors.modelMissing",
+  unknown: "plan.errors.failed",
+};
+
+/** Single mapping used by both the UI and the background job service. */
+export function planErrorMessageKey(code: PlanErrorCode): MessageKey {
+  return PLAN_ERROR_KEYS[code];
 }
 
 function asString(v: unknown, fallback: string): string {
@@ -202,53 +228,34 @@ function asString(v: unknown, fallback: string): string {
   return fallback;
 }
 
-function normalizeSteps(steps: unknown): PlanStep[] {
-  if (!Array.isArray(steps)) return [];
-  return steps
-    .map((s, i) => {
-      const row = s as Record<string, unknown>;
-      return {
-        stepNumber: i + 1,
-        title: asString(row.title, `Step ${i + 1}`),
-        description: asString(row.description, ""),
-        duration: asString(row.duration, "3-5 days"),
-      };
-    })
-    .filter((s) => s.description.length > 0)
-    .slice(0, 3);
-}
+/**
+ * Gap fillers for incomplete model output.
+ *
+ * This is user-facing plan content, so it exists per language. It lives here and
+ * not in the UI catalog because `normalizeActionPlan` also runs on the server,
+ * where the language comes from the request and never from a global.
+ */
+type PlanFallback = {
+  step: (n: number) => string;
+  stepDuration: string;
+  templateSituation: string;
+  templateTiming: string;
+  steps: PlanStep[];
+  templates: MessageTemplate[];
+  diagnosis: string;
+  dos: string[];
+  donts: string[];
+  distancingStrategy: string;
+  neurologicalTriggers: string;
+};
 
-function normalizeTemplates(templates: unknown): MessageTemplate[] {
-  if (!Array.isArray(templates)) return [];
-  return templates
-    .map((t) => {
-      const row = t as Record<string, unknown>;
-      return {
-        situation: asString(row.situation, "General"),
-        text: asString(row.text, ""),
-        timing: asString(row.timing, "When appropriate"),
-      };
-    })
-    .filter((t) => t.text.length > 0)
-    .slice(0, 3);
-}
-
-function normalizeStringList(value: unknown, fallback: string[]): string[] {
-  if (!Array.isArray(value)) return fallback;
-  const items = value
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter(Boolean);
-  return items.length > 0 ? items.slice(0, 6) : fallback;
-}
-
-/** Coerce model output into a complete ActionPlan (fills gaps). */
-export function normalizeActionPlan(raw: unknown): ActionPlan {
-  const o =
-    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-
-  let steps = normalizeSteps(o.steps);
-  if (steps.length < 3) {
-    const fillers: PlanStep[] = [
+const PLAN_FALLBACKS: Record<Locale, PlanFallback> = {
+  en: {
+    step: (n) => `Step ${n}`,
+    stepDuration: "3-5 days",
+    templateSituation: "General",
+    templateTiming: "When appropriate",
+    steps: [
       {
         stepNumber: 1,
         title: "Stabilize communication",
@@ -270,14 +277,8 @@ export function normalizeActionPlan(raw: unknown): ActionPlan {
           "Suggest a brief, specific activity. Keep tone confident and warm.",
         duration: "Days 10-14",
       },
-    ];
-    steps = [...steps, ...fillers].slice(0, 3);
-  }
-
-  let messageTemplates = normalizeTemplates(o.messageTemplates);
-  if (messageTemplates.length < 3) {
-    messageTemplates = [
-      ...messageTemplates,
+    ],
+    templates: [
       {
         situation: "After no reply",
         text: "Hey — no pressure. I’ll give you space. If you want to talk later, I’m here.",
@@ -293,33 +294,163 @@ export function normalizeActionPlan(raw: unknown): ActionPlan {
         text: "I’d enjoy catching up for a quick coffee/walk this week if you’re open. Either way, respect your pace.",
         timing: "Day 10+",
       },
-    ].slice(0, 3);
-  }
-
-  return {
-    diagnosis: asString(
-      o.diagnosis,
-      "Based on your chat, the main pattern is emotional distance mixed with unresolved tension. A paced, low-pressure reconnection plan is recommended."
-    ),
-    steps,
-    messageTemplates,
-    dos: normalizeStringList(o.dos, [
+    ],
+    diagnosis:
+      "Based on your chat, the main pattern is emotional distance mixed with unresolved tension. A paced, low-pressure reconnection plan is recommended.",
+    dos: [
       "Stay consistent and calm",
       "Use short, clear messages",
       "Give space between outreach",
-    ]),
-    donts: normalizeStringList(o.donts, [
+    ],
+    donts: [
       "Do not double-text when anxious",
       "Avoid blame or long emotional dumps",
       "Do not pressure for immediate answers",
-    ]),
-    distancingStrategy: asString(
-      o.distancingStrategy,
-      "Use 48-72h strategic pauses after you reach out. Distancing reduces pressure and lets curiosity return."
-    ),
+    ],
+    distancingStrategy:
+      "Use 48-72h strategic pauses after you reach out. Distancing reduces pressure and lets curiosity return.",
+    neurologicalTriggers:
+      "Use curiosity hooks, positive memory recall, and scarcity of attention — always with respect and warmth.",
+  },
+  fr: {
+    step: (n) => `Étape ${n}`,
+    stepDuration: "3 à 5 jours",
+    templateSituation: "Général",
+    templateTiming: "Au moment opportun",
+    steps: [
+      {
+        stepNumber: 1,
+        title: "Stabiliser la communication",
+        description:
+          "Arrêtez les messages impulsifs. Adaptez-vous à son rythme. Un message calme toutes les 48 à 72 h.",
+        duration: "Jours 1 à 4",
+      },
+      {
+        stepNumber: 2,
+        title: "Reconstruire une association positive",
+        description:
+          "Partagez un souvenir léger ou une marque d’appréciation, sans pression. Pas encore de discussion sur le couple.",
+        duration: "Jours 5 à 9",
+      },
+      {
+        stepNumber: 3,
+        title: "Créer une occasion naturelle de renouer",
+        description:
+          "Proposez une activité brève et précise. Gardez un ton assuré et chaleureux.",
+        duration: "Jours 10 à 14",
+      },
+    ],
+    templates: [
+      {
+        situation: "Après une absence de réponse",
+        text: "Salut — aucune pression. Je te laisse de l’espace. Si tu veux parler plus tard, je suis là.",
+        timing: "48 h après le dernier message",
+      },
+      {
+        situation: "Reprise chaleureuse",
+        text: "Je pensais à [souvenir positif précis]. Ça m’a fait sourire — j’espère que ta semaine se passe bien.",
+        timing: "Jours 5 à 7",
+      },
+      {
+        situation: "Invitation à se revoir",
+        text: "Ça me ferait plaisir de prendre un café ou de marcher un peu cette semaine, si tu es partant(e). Dans tous les cas, je respecte ton rythme.",
+        timing: "À partir du jour 10",
+      },
+    ],
+    diagnosis:
+      "D’après votre conversation, le schéma principal est une distance émotionnelle mêlée à une tension non résolue. Un plan de reconnexion progressif et sans pression est recommandé.",
+    dos: [
+      "Restez constant et calme",
+      "Utilisez des messages courts et clairs",
+      "Laissez de l’espace entre vos prises de contact",
+    ],
+    donts: [
+      "N’envoyez pas plusieurs messages d’affilée sous l’effet de l’anxiété",
+      "Évitez les reproches et les longs épanchements",
+      "N’exigez pas de réponse immédiate",
+    ],
+    distancingStrategy:
+      "Faites des pauses stratégiques de 48 à 72 h après chaque prise de contact. La distance réduit la pression et laisse la curiosité revenir.",
+    neurologicalTriggers:
+      "Utilisez des accroches de curiosité, le rappel de souvenirs positifs et la rareté de l’attention — toujours avec respect et chaleur.",
+  },
+};
+
+function fallbackFor(locale: Locale): PlanFallback {
+  return PLAN_FALLBACKS[locale] ?? PLAN_FALLBACKS[DEFAULT_LOCALE];
+}
+
+function normalizeSteps(steps: unknown, fb: PlanFallback): PlanStep[] {
+  if (!Array.isArray(steps)) return [];
+  return steps
+    .map((s, i) => {
+      const row = s as Record<string, unknown>;
+      return {
+        stepNumber: i + 1,
+        title: asString(row.title, fb.step(i + 1)),
+        description: asString(row.description, ""),
+        duration: asString(row.duration, fb.stepDuration),
+      };
+    })
+    .filter((s) => s.description.length > 0)
+    .slice(0, 3);
+}
+
+function normalizeTemplates(
+  templates: unknown,
+  fb: PlanFallback
+): MessageTemplate[] {
+  if (!Array.isArray(templates)) return [];
+  return templates
+    .map((t) => {
+      const row = t as Record<string, unknown>;
+      return {
+        situation: asString(row.situation, fb.templateSituation),
+        text: asString(row.text, ""),
+        timing: asString(row.timing, fb.templateTiming),
+      };
+    })
+    .filter((t) => t.text.length > 0)
+    .slice(0, 3);
+}
+
+function normalizeStringList(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback;
+  const items = value
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean);
+  return items.length > 0 ? items.slice(0, 6) : fallback;
+}
+
+/** Coerce model output into a complete ActionPlan (fills gaps in `locale`). */
+export function normalizeActionPlan(
+  raw: unknown,
+  locale: Locale = DEFAULT_LOCALE
+): ActionPlan {
+  const fb = fallbackFor(locale);
+  const o =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+
+  let steps = normalizeSteps(o.steps, fb);
+  if (steps.length < 3) {
+    steps = [...steps, ...fb.steps].slice(0, 3);
+  }
+
+  let messageTemplates = normalizeTemplates(o.messageTemplates, fb);
+  if (messageTemplates.length < 3) {
+    messageTemplates = [...messageTemplates, ...fb.templates].slice(0, 3);
+  }
+
+  return {
+    diagnosis: asString(o.diagnosis, fb.diagnosis),
+    steps,
+    messageTemplates,
+    dos: normalizeStringList(o.dos, fb.dos),
+    donts: normalizeStringList(o.donts, fb.donts),
+    distancingStrategy: asString(o.distancingStrategy, fb.distancingStrategy),
     neurologicalTriggers: asString(
       o.neurologicalTriggers,
-      "Use curiosity hooks, positive memory recall, and scarcity of attention — always with respect and warmth."
+      fb.neurologicalTriggers
     ),
   };
 }
@@ -333,11 +464,14 @@ export function isValidActionPlan(plan: ActionPlan): boolean {
 }
 
 /** Parse actionPlan JSON stored on Conversation (Mongo). */
-export function parseStoredActionPlan(raw: string | null | undefined): ActionPlan | null {
+export function parseStoredActionPlan(
+  raw: string | null | undefined,
+  locale: Locale = DEFAULT_LOCALE
+): ActionPlan | null {
   if (!raw?.trim()) return null;
   try {
     const parsed = parsePlanJsonFromText(raw);
-    const plan = normalizeActionPlan(parsed);
+    const plan = normalizeActionPlan(parsed, locale);
     return isValidActionPlan(plan) ? plan : null;
   } catch {
     return null;

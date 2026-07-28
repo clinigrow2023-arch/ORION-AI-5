@@ -396,6 +396,31 @@ function normalizeSteps(steps: unknown, fb: PlanFallback): PlanStep[] {
     .slice(0, 3);
 }
 
+/**
+ * Small plan models often paste Orion's chat lines into messageTemplates.
+ * Those are mentor→user questions, not copy-paste scripts for the other person.
+ */
+function looksLikeMentorChatEcho(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+
+  return (
+    /\bhow can i support you\b/i.test(t) ||
+    /\bcan you tell me (more|about)\b/i.test(t) ||
+    /\bi can imagine how\b/i.test(t) ||
+    /\bwhat (do|might) you think\b/i.test(t) ||
+    /\bwould you like some (resources|guidance)\b/i.test(t) ||
+    /\bwhen you found out\b/i.test(t) ||
+    /\bgoing through your mind\b/i.test(t) ||
+    /\bcomment puis-je (vous |t')?(aider|soutenir)\b/i.test(t) ||
+    /\bpouvez-vous m['']en dire\b/i.test(t) ||
+    /\bdites-moi (en )?plus\b/i.test(t) ||
+    /\bj['']imagine (à quel point|combien)\b/i.test(t) ||
+    /\bque penses-tu\b/i.test(t) ||
+    /\bresources or guidance on rebuilding\b/i.test(t)
+  );
+}
+
 function normalizeTemplates(
   templates: unknown,
   fb: PlanFallback
@@ -410,7 +435,7 @@ function normalizeTemplates(
         timing: asString(row.timing, fb.templateTiming),
       };
     })
-    .filter((t) => t.text.length > 0)
+    .filter((t) => t.text.length > 0 && !looksLikeMentorChatEcho(t.text))
     .slice(0, 3);
 }
 

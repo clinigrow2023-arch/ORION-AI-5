@@ -17,7 +17,13 @@ export const MAX_PLAN_CONTEXT_CHARS = 3500;
 export const PLAN_SYSTEM_PROMPT = `You are Orion AI. Output ONLY valid JSON. No markdown.
 Create a personalized reconciliation action plan from the chat history.
 Include: diagnosis, exactly 3 steps (title, description, duration), 3 messageTemplates (situation, text, timing), dos[], donts[], distancingStrategy, neurologicalTriggers.
-Be specific to the user's situation. Keep each field concise.`;
+Be specific to the user's situation. Keep each field concise.
+
+CRITICAL — messageTemplates:
+- Each "text" is a ready-to-send message the USER will copy/paste to the other person (SMS/WhatsApp tone, first person as the user).
+- "situation" = when to send it; "timing" = when in the plan timeline.
+- NEVER paste Orion's chat replies. NEVER write mentor/therapist questions to the user (e.g. "Can you tell me…", "How can I support you…").
+- Do not invent who cheated or other facts that contradict the chat.`;
 
 /**
  * Plan runs on a plain base model (no Modelfile), so the language rule can ride
@@ -90,13 +96,21 @@ REGENERATION (required): Create a completely NEW plan — different diagnosis an
     return `Chat:
 ${truncatedHistory}
 ${regenBlock}
-${languageBlock}Return ONLY one JSON object. Max ~60 chars per string field. Keys: diagnosis, steps[3]{title,description,duration}, messageTemplates[3]{situation,text,timing}, dos[3], donts[3], distancingStrategy, neurologicalTriggers. No markdown.`;
+${languageBlock}Return ONLY one JSON object. Max ~60 chars per string field.
+Keys: diagnosis, steps[3]{title,description,duration}, messageTemplates[3]{situation,text,timing}, dos[3], donts[3], distancingStrategy, neurologicalTriggers.
+messageTemplates.text = ready-to-send texts FROM the user TO the other person (not Orion chat quotes, not questions to the user). No markdown.`;
   }
 
   return `Chat history:
 ${truncatedHistory}
 ${regenBlock}
-${languageBlock}Return one JSON object with keys: diagnosis, steps (array of 3), messageTemplates (array of 3), dos, donts, distancingStrategy, neurologicalTriggers.`;
+${languageBlock}Return one JSON object with keys: diagnosis, steps (array of 3), messageTemplates (array of 3), dos, donts, distancingStrategy, neurologicalTriggers.
+
+For messageTemplates (required):
+- text: a short message the USER sends to the other person (copy-paste ready). Write as the user speaking.
+- situation: label for when that message fits.
+- timing: when in the plan to send it.
+Forbidden in messageTemplates.text: Orion's previous answers, therapist questions to the user, "Can you tell me…", "How can I support you…".`;
 }
 
 export function limitHistory<T extends { parts: Array<{ text: string }> }>(

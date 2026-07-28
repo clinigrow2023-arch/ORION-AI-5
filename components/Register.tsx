@@ -157,6 +157,11 @@ const Register: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
                   tabIndex={-1}
+                  aria-label={
+                    showPassword
+                      ? t('common.hidePassword')
+                      : t('common.showPassword')
+                  }
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -188,6 +193,11 @@ const Register: React.FC = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
                   tabIndex={-1}
+                  aria-label={
+                    showConfirmPassword
+                      ? t('common.hidePassword')
+                      : t('common.showPassword')
+                  }
                 >
                   {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>

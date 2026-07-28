@@ -128,6 +128,16 @@ const AdminUserSearchBar = React.memo(function AdminUserSearchBar({
 const AdminDashboard: React.FC = () => {
   const { user: currentUser } = useAuth();
   const { t, formatDate } = useI18n();
+
+  const roleLabel = (role: string) =>
+    role === "admin" ? t("admin.roles.admin") : t("admin.roles.user");
+
+  const changeRoleTitle = () =>
+    t("admin.users.changeRoleTitle", {
+      userRole: t("admin.roles.user"),
+      adminRole: t("admin.roles.admin"),
+    });
+
   const [users, setUsers] = useState<User[]>([]);
   /** Primeira carga da lista na aba Users (tela cheia); depois só refresh suave */
   const [usersBootstrapping, setUsersBootstrapping] = useState(true);
@@ -713,8 +723,8 @@ const AdminDashboard: React.FC = () => {
                     disabled={creatingUser}
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                   >
-                    <option value="user">user</option>
-                    <option value="admin">admin</option>
+                    <option value="user">{t("admin.roles.user")}</option>
+                    <option value="admin">{t("admin.roles.admin")}</option>
                   </select>
                 </div>
 
@@ -1008,7 +1018,7 @@ const AdminDashboard: React.FC = () => {
                             : "bg-slate-700 text-slate-300"
                         }`}
                       >
-                        {user.role}
+                        {roleLabel(user.role)}
                       </span>
                     </td>
                     <td className="px-4 lg:px-6 py-3 lg:py-4">
@@ -1066,7 +1076,7 @@ const AdminDashboard: React.FC = () => {
                           title={
                             user.id === currentUser?.id
                               ? t("admin.users.ownRoleTitle")
-                              : t("admin.users.changeRoleTitle")
+                              : changeRoleTitle()
                           }
                         >
                           {updating === user.id ? (
@@ -1178,7 +1188,7 @@ const AdminDashboard: React.FC = () => {
                         : "bg-slate-700 text-slate-300"
                     }`}
                   >
-                    {user.role}
+                    {roleLabel(user.role)}
                   </span>
                 </div>
               </div>
@@ -1229,7 +1239,7 @@ const AdminDashboard: React.FC = () => {
                   title={
                     user.id === currentUser?.id
                       ? t("admin.users.ownRoleTitle")
-                      : t("admin.users.changeRoleTitle")
+                      : changeRoleTitle()
                   }
                 >
                   {updating === user.id ? (
@@ -1471,8 +1481,8 @@ const AdminDashboard: React.FC = () => {
               disabled={updating === roleModal.userId}
               className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="user">user</option>
-              <option value="admin">admin</option>
+              <option value="user">{t("admin.roles.user")}</option>
+              <option value="admin">{t("admin.roles.admin")}</option>
             </select>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button

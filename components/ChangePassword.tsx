@@ -121,6 +121,11 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-label={
+                  showCurrentPassword
+                    ? t('common.hidePassword')
+                    : t('common.showPassword')
+                }
               >
                 {showCurrentPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -144,6 +149,11 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-label={
+                  showNewPassword
+                    ? t('common.hidePassword')
+                    : t('common.showPassword')
+                }
               >
                 {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -167,6 +177,11 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-label={
+                  showConfirmPassword
+                    ? t('common.hidePassword')
+                    : t('common.showPassword')
+                }
               >
                 {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>

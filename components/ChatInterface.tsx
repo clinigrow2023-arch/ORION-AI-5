@@ -754,6 +754,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading || !user}
+            aria-label={t("chat.input.send")}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
           >
             <Send size={18} />

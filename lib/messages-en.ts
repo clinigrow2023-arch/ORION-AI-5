@@ -18,6 +18,8 @@ export const messagesEn = {
     active: "Active",
     inactive: "Inactive",
     blocked: "Blocked",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
   },
 
   language: {
@@ -53,6 +55,12 @@ export const messagesEn = {
     passwordPlaceholder: "••••••••",
     submit: "Sign In",
     submitting: "Signing in...",
+    purchaseNoticeBefore:
+      "Just purchased? Your access email may take a few minutes. If you don't see it in your inbox, check your",
+    purchaseNoticeSpam: "Spam",
+    purchaseNoticeJoiner: "or",
+    purchaseNoticePromotions: "Promotions",
+    purchaseNoticeAfter: "folder.",
     errors: {
       emailRequired: "Email is required",
       emailInvalid: "Invalid email format",
@@ -378,6 +386,10 @@ export const messagesEn = {
       create: "Create User",
       usage: "AI Usage",
     },
+    roles: {
+      user: "User",
+      admin: "Admin",
+    },
     stats: {
       all: "Total users",
       active: "Active (can use app)",
@@ -408,7 +420,7 @@ export const messagesEn = {
       delete: "Delete",
       deleteShort: "Del",
       ownRoleTitle: "You cannot change your own role here",
-      changeRoleTitle: "Change role (user / admin)",
+      changeRoleTitle: "Change role ({{userRole}} / {{adminRole}})",
       resetPasswordTitle:
         "Reset password - user will need to set new password on next login",
       ownAccountTitle: "You cannot delete your own account",

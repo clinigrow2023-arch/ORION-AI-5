@@ -68,9 +68,15 @@ const Login: React.FC = () => {
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2 text-amber-200/90 text-sm">
             <Info className="shrink-0 mt-0.5" size={16} />
             <p>
-              Just purchased? Your access email may take a few minutes. If you don&apos;t see it in your inbox, check your{' '}
-              <strong className="font-medium text-amber-100">Spam</strong> or{' '}
-              <strong className="font-medium text-amber-100">Promotions</strong> folder.
+              {t('login.purchaseNoticeBefore')}{' '}
+              <strong className="font-medium text-amber-100">
+                {t('login.purchaseNoticeSpam')}
+              </strong>{' '}
+              {t('login.purchaseNoticeJoiner')}{' '}
+              <strong className="font-medium text-amber-100">
+                {t('login.purchaseNoticePromotions')}
+              </strong>{' '}
+              {t('login.purchaseNoticeAfter')}
             </p>
           </div>
 
@@ -127,6 +133,11 @@ const Login: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
                   tabIndex={-1}
+                  aria-label={
+                    showPassword
+                      ? t('common.hidePassword')
+                      : t('common.showPassword')
+                  }
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>

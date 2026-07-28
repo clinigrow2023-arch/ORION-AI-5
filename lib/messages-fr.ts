@@ -19,6 +19,8 @@ export const messagesFr: MessageCatalog = {
     active: "Actif",
     inactive: "Inactif",
     blocked: "Bloqué",
+    showPassword: "Afficher le mot de passe",
+    hidePassword: "Masquer le mot de passe",
   },
 
   language: {
@@ -55,6 +57,12 @@ export const messagesFr: MessageCatalog = {
     passwordPlaceholder: "••••••••",
     submit: "Se connecter",
     submitting: "Connexion...",
+    purchaseNoticeBefore:
+      "Vous venez d'acheter ? L'e-mail d'accès peut prendre quelques minutes. S'il n'apparaît pas dans votre boîte de réception, vérifiez les dossiers",
+    purchaseNoticeSpam: "Spam",
+    purchaseNoticeJoiner: "ou",
+    purchaseNoticePromotions: "Promotions",
+    purchaseNoticeAfter: ".",
     errors: {
       emailRequired: "L'e-mail est obligatoire",
       emailInvalid: "Format d'e-mail invalide",
@@ -157,7 +165,7 @@ export const messagesFr: MessageCatalog = {
     },
     conversations: {
       manage: "Gérer les conversations",
-      title: "Conversations",
+      title: "Discussions",
       item: "Chat du {{date}}",
       empty: "Aucune conversation pour le moment",
       create: "+ Nouvelle conversation",
@@ -383,6 +391,10 @@ export const messagesFr: MessageCatalog = {
       create: "Créer un utilisateur",
       usage: "Usage de l'IA",
     },
+    roles: {
+      user: "Utilisateur",
+      admin: "Administrateur",
+    },
     stats: {
       all: "Total d'utilisateurs",
       active: "Actifs (accès à l'app)",
@@ -414,7 +426,7 @@ export const messagesFr: MessageCatalog = {
       delete: "Supprimer",
       deleteShort: "Suppr.",
       ownRoleTitle: "Vous ne pouvez pas modifier votre propre rôle ici",
-      changeRoleTitle: "Changer le rôle (user / admin)",
+      changeRoleTitle: "Changer le rôle ({{userRole}} / {{adminRole}})",
       resetPasswordTitle:
         "Réinitialiser le mot de passe - l'utilisateur devra en définir un nouveau à sa prochaine connexion",
       ownAccountTitle: "Vous ne pouvez pas supprimer votre propre compte",
@@ -459,7 +471,7 @@ export const messagesFr: MessageCatalog = {
       planRequests: "Générations de plan",
       columnWindow: "Fenêtre horaire",
       columnUsers: "Utilisateurs (total)",
-      columnChat: "Chat",
+      columnChat: "Discussion",
       columnPlan: "Plan",
       columnLoad: "Charge",
       requests: "({{count}} req.)",

@@ -5,6 +5,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Globe,
   KeyRound,
   Loader2,
   Mail,
@@ -19,7 +20,9 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { authService } from "../lib/auth";
+import { useI18n } from "../contexts/I18nContext";
+import { apiFetch } from "../lib/api-endpoints";
+import { LOCALES, SUPPORTED_LOCALES, type Locale } from "../lib/locale";
 
 interface User {
   id: string;
@@ -35,8 +38,12 @@ const USER_PAGE_SIZES = [25, 50, 100] as const;
 /** Busca local: digitar não re-renderiza o painel inteiro; só o pai atualiza após debounce */
 const AdminUserSearchBar = React.memo(function AdminUserSearchBar({
   onDebouncedChange,
+  placeholder,
+  clearLabel,
 }: {
   onDebouncedChange: (query: string) => void;
+  placeholder: string;
+  clearLabel: string;
 }) {
   const [local, setLocal] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,7 +89,7 @@ const AdminUserSearchBar = React.memo(function AdminUserSearchBar({
         />
         <input
           type="text"
-          placeholder="Search by name or email..."
+          placeholder={placeholder}
           value={local}
           onChange={(e) => setLocal(e.target.value)}
           className="w-full pl-10 pr-10 py-2 md:py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
@@ -92,7 +99,7 @@ const AdminUserSearchBar = React.memo(function AdminUserSearchBar({
             type="button"
             onClick={clearNow}
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
-            title="Clear search"
+            title={clearLabel}
           >
             <X size={18} />
           </button>
@@ -104,6 +111,7 @@ const AdminUserSearchBar = React.memo(function AdminUserSearchBar({
 
 const AdminDashboard: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const { t, locale, formatDate, formatDateTime } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
   /** Primeira carga da lista na aba Users (tela cheia); depois só refresh suave */
   const [usersBootstrapping, setUsersBootstrapping] = useState(true);
@@ -146,6 +154,7 @@ const AdminDashboard: React.FC = () => {
   const [createUserEmail, setCreateUserEmail] = useState("");
   const [createUserName, setCreateUserName] = useState("");
   const [createUserRole, setCreateUserRole] = useState<"user" | "admin">("user");
+  const [createUserLocale, setCreateUserLocale] = useState<Locale>(locale);
   const [creatingUser, setCreatingUser] = useState(false);
   const [roleModal, setRoleModal] = useState<{
     userId: string;
@@ -155,6 +164,9 @@ const AdminDashboard: React.FC = () => {
   } | null>(null);
   const [createUserSuccess, setCreateUserSuccess] = useState<string | null>(null);
   const [systemPrompt, setSystemPrompt] = useState("");
+  /** Idioma do prompt em edição: independente do idioma da interface. */
+  const [promptLocale, setPromptLocale] = useState<Locale>(locale);
+  const [promptInherited, setPromptInherited] = useState(false);
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptSaving, setPromptSaving] = useState(false);
   const [promptVersion, setPromptVersion] = useState(0);
@@ -183,28 +195,17 @@ const AdminDashboard: React.FC = () => {
         setUsersBootstrapping(true);
       }
 
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
-
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(
-        `${getApiEndpoint(
-          "admin-users"
-        )}?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await apiFetch(
+        `admin-users?page=${page}&limit=${limit}&search=${encodeURIComponent(
+          search
+        )}`
       );
 
       if (!response.ok) {
         if (response.status === 403) {
-          throw new Error("Access denied. Admin privileges required.");
+          throw new Error(t("admin.errors.accessDenied"));
         }
-        throw new Error("Failed to fetch users");
+        throw new Error(t("admin.errors.fetchUsers"));
       }
 
       const data = await response.json();
@@ -231,7 +232,7 @@ const AdminDashboard: React.FC = () => {
       usersListInitialized.current = true;
     } catch (err: any) {
       if (seq === usersFetchSeq.current) {
-        setError(err.message || "Failed to load users");
+        setError(err.message || t("admin.errors.loadUsers"));
       }
     } finally {
       if (seq === usersFetchSeq.current) {
@@ -263,45 +264,36 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === "prompt") {
-      fetchSystemPrompt();
+      void fetchSystemPrompt(promptLocale);
     }
-  }, [activeTab]);
+  }, [activeTab, promptLocale]);
 
-  const fetchSystemPrompt = async () => {
+  const fetchSystemPrompt = async (targetLocale: Locale) => {
     try {
       setPromptLoading(true);
       setError(null);
       setPromptSuccess(null);
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("system-prompt"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch(
+        `system-prompt?promptLocale=${targetLocale}`
+      );
 
       if (!response.ok) {
         if (response.status === 403) {
-          throw new Error("Access denied. Admin privileges required.");
+          throw new Error(t("admin.errors.accessDenied"));
         }
-        throw new Error("Failed to fetch system prompt");
+        throw new Error(t("admin.errors.loadPrompt"));
       }
 
       const data = await response.json();
       setSystemPrompt(data.prompt || "");
       setPromptVersion(data.version || 0);
-      if (data.updatedAt) {
-        const date = new Date(data.updatedAt);
-        setPromptUpdatedAt(date.toLocaleString());
-      } else {
-        setPromptUpdatedAt(null);
-      }
+      setPromptInherited(Boolean(data.inherited));
+      setPromptUpdatedAt(
+        data.updatedAt ? formatDateTime(data.updatedAt) : null
+      );
     } catch (err: any) {
-      setError(err.message || "Failed to load system prompt");
+      setError(err.message || t("admin.errors.loadPrompt"));
     } finally {
       setPromptLoading(false);
     }
@@ -309,7 +301,7 @@ const AdminDashboard: React.FC = () => {
 
   const saveSystemPrompt = async () => {
     if (!systemPrompt.trim()) {
-      setError("Prompt cannot be empty");
+      setError(t("admin.prompt.empty"));
       return;
     }
 
@@ -317,52 +309,47 @@ const AdminDashboard: React.FC = () => {
       setPromptSaving(true);
       setError(null);
       setPromptSuccess(null);
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("system-prompt"), {
+      const response = await apiFetch("system-prompt", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: systemPrompt,
+          promptLocale,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        let errorData;
+        let errorData: { error?: string };
         try {
           errorData = JSON.parse(errorText);
         } catch {
-          errorData = { error: errorText || `HTTP ${response.status}: ${response.statusText}` };
+          errorData = {};
         }
-        throw new Error(errorData.error || "Failed to save system prompt");
+        throw new Error(errorData.error || t("admin.errors.savePrompt"));
       }
 
       const data = await response.json();
       setPromptVersion(data.version);
+      setPromptInherited(false);
       if (data.updatedAt) {
-        const date = new Date(data.updatedAt);
-        setPromptUpdatedAt(date.toLocaleString());
+        setPromptUpdatedAt(formatDateTime(data.updatedAt));
       }
       setPromptSuccess(
-        `✅ Prompt saved successfully! Version ${data.version} is now active. All AI providers (Ollama, Groq, OpenAI, etc.) will use this prompt.`
+        t("admin.prompt.saved", {
+          version: data.version,
+          language: LOCALES[promptLocale].nativeName,
+        })
       );
       setError(null);
-      
+
       // Limpar mensagem de sucesso após 5 segundos
       setTimeout(() => {
         setPromptSuccess(null);
       }, 5000);
     } catch (err: any) {
-      const errorMessage = err.message || "Failed to save system prompt";
-      setError(errorMessage);
+      setError(err.message || t("admin.errors.savePrompt"));
       setPromptSuccess(null);
       console.error("Error saving prompt:", err);
     } finally {
@@ -380,30 +367,22 @@ const AdminDashboard: React.FC = () => {
     try {
       setUpdating(userId);
       setError(null);
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("admin-users"), {
+      const response = await apiFetch("admin-users", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, updates }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to update user");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || t("admin.errors.updateUser"));
       }
 
       await reloadAfterMutation();
       return true;
     } catch (err: any) {
-      setError(err.message || "Failed to update user");
+      setError(err.message || t("admin.errors.updateUser"));
       return false;
     } finally {
       setUpdating(null);
@@ -468,33 +447,21 @@ const AdminDashboard: React.FC = () => {
       try {
         setUpdating(deleteConfirm.userId);
         setError(null);
-        const token = authService.getToken();
-        if (!token) {
-          throw new Error("No token found");
-        }
 
-        const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(
-          `${getApiEndpoint("admin-users")}?userId=${encodeURIComponent(
-            deleteConfirm.userId
-          )}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const response = await apiFetch(
+          `admin-users?userId=${encodeURIComponent(deleteConfirm.userId)}`,
+          { method: "DELETE" }
         );
 
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to delete user");
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || t("admin.errors.deleteUser"));
         }
 
         setDeleteConfirm(null);
         await reloadAfterMutation();
       } catch (err: any) {
-        setError(err.message || "Failed to delete user");
+        setError(err.message || t("admin.errors.deleteUser"));
       } finally {
         setUpdating(null);
       }
@@ -514,18 +481,10 @@ const AdminDashboard: React.FC = () => {
       try {
         setUpdating(resetPasswordConfirm.userId);
         setError(null);
-        const token = authService.getToken();
-        if (!token) {
-          throw new Error("No token found");
-        }
 
-        const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(getApiEndpoint("admin-users"), {
+        const response = await apiFetch("admin-users", {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: resetPasswordConfirm.userId,
             resetPassword: true,
@@ -533,15 +492,13 @@ const AdminDashboard: React.FC = () => {
         });
 
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to reset password");
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || t("admin.errors.resetPassword"));
         }
 
         const data = await response.json();
         if (data.emailSent === false) {
-          setError(
-            "Password was reset, but the email could not be sent. Configure GMAIL_USER and GMAIL_PASS on the server, or share access with the user manually."
-          );
+          setError(t("admin.errors.resetPasswordEmail"));
         } else {
           setError(null);
         }
@@ -549,7 +506,7 @@ const AdminDashboard: React.FC = () => {
         setResetPasswordConfirm(null);
         await reloadAfterMutation();
       } catch (err: any) {
-        setError(err.message || "Failed to reset password");
+        setError(err.message || t("admin.errors.resetPassword"));
       } finally {
         setUpdating(null);
       }
@@ -563,13 +520,13 @@ const AdminDashboard: React.FC = () => {
   // Criar usuário manualmente
   const handleCreateUser = async () => {
     if (!createUserEmail.trim() || !createUserName.trim()) {
-      setError("Email and name are required");
+      setError(t("admin.create.errorRequired"));
       return;
     }
 
     // Validar formato de email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createUserEmail)) {
-      setError("Invalid email format");
+      setError(t("admin.create.errorInvalidEmail"));
       return;
     }
 
@@ -577,47 +534,43 @@ const AdminDashboard: React.FC = () => {
       setCreatingUser(true);
       setError(null);
       setCreateUserSuccess(null);
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
 
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("admin-users"), {
+      const response = await apiFetch("admin-users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: createUserEmail.toLowerCase().trim(),
           name: createUserName.trim(),
           role: createUserRole,
+          locale: createUserLocale,
         }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create user");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || t("admin.create.errorFailed"));
       }
 
       const data = await response.json();
-      let successMsg = `User ${data.user.email} was created successfully.`;
+      let successMsg = t("admin.create.success", { email: data.user.email });
       if (data.passwordGenerated) {
-        successMsg += data.emailSent
-          ? " A temporary password was sent by email."
-          : " Email was not sent (configure GMAIL_USER/GMAIL_PASS on the server). You can use Reset PW to email a new temporary password once Gmail is configured.";
+        successMsg += ` ${
+          data.emailSent
+            ? t("admin.create.successEmailSent")
+            : t("admin.create.successEmailFailed")
+        }`;
       }
       setCreateUserSuccess(successMsg);
       setCreateUserEmail("");
       setCreateUserName("");
       setCreateUserRole("user");
+      setCreateUserLocale(locale);
       setUserPage(1);
       await loadUserList(1, pageSize, debouncedSearchQuery, {
         bypassDedupe: true,
       });
     } catch (err: any) {
-      setError(err.message || "Failed to create user");
+      setError(err.message || t("admin.create.errorFailed"));
     } finally {
       setCreatingUser(false);
     }
@@ -635,7 +588,7 @@ const AdminDashboard: React.FC = () => {
             className="animate-spin text-indigo-500 mx-auto mb-4"
             size={48}
           />
-          <p className="text-slate-400">Loading users...</p>
+          <p className="text-slate-400">{t("admin.users.loading")}</p>
         </div>
       </div>
     );
@@ -647,38 +600,27 @@ const AdminDashboard: React.FC = () => {
         <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">
-              Admin Dashboard
+              {t("admin.title")}
             </h1>
             <p className="text-sm md:text-base text-slate-400">
-              Manage users, blocks, and passwords
+              {t("admin.subtitle")}
             </p>
             {activeTab === "users" && (
               <p className="text-sm md:text-base text-indigo-400 mt-1">
-                {debouncedSearchQuery.trim() ? (
-                  <>
-                    Matches:{" "}
-                    <span className="font-semibold">{totalUsersMatching}</span>
-                    {listTotalPages > 1 ? (
-                      <span className="text-slate-500 font-normal">
-                        {" "}
-                        · page {listCurrentPage} of {listTotalPages} (
-                        {pageSize} per page)
-                      </span>
-                    ) : null}
-                  </>
-                ) : (
-                  <>
-                    Total users:{" "}
-                    <span className="font-semibold">{totalUsersMatching}</span>
-                    {listTotalPages > 1 ? (
-                      <span className="text-slate-500 font-normal">
-                        {" "}
-                        · page {listCurrentPage} of {listTotalPages} (
-                        {pageSize} per page)
-                      </span>
-                    ) : null}
-                  </>
-                )}
+                {debouncedSearchQuery.trim()
+                  ? t("admin.matches")
+                  : t("admin.totalUsers")}{" "}
+                <span className="font-semibold">{totalUsersMatching}</span>
+                {listTotalPages > 1 ? (
+                  <span className="text-slate-500 font-normal">
+                    {" "}
+                    {t("admin.pageInfo", {
+                      current: listCurrentPage,
+                      total: listTotalPages,
+                      size: pageSize,
+                    })}
+                  </span>
+                ) : null}
               </p>
             )}
           </div>
@@ -688,7 +630,7 @@ const AdminDashboard: React.FC = () => {
               className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm md:text-base"
             >
               <RefreshCw size={18} className="md:w-5 md:h-5" />
-              Refresh
+              {t("common.refresh")}
             </button>
           </div>
         </div>
@@ -705,7 +647,7 @@ const AdminDashboard: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <Users size={18} />
-              Users
+              {t("admin.tabs.users")}
               {totalUsersMatching > 0 && (
                 <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
                   {totalUsersMatching}
@@ -723,7 +665,7 @@ const AdminDashboard: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <UserPlus size={18} />
-              Create User
+              {t("admin.tabs.create")}
             </span>
           </button>
           <button
@@ -736,7 +678,7 @@ const AdminDashboard: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <Bot size={18} />
-              AI Prompt
+              {t("admin.tabs.prompt")}
             </span>
           </button>
         </div>
@@ -747,10 +689,10 @@ const AdminDashboard: React.FC = () => {
             <div className="max-w-2xl mx-auto">
               <div className="mb-6">
                 <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-                  Create User Manually
+                  {t("admin.create.title")}
                 </h2>
                 <p className="text-sm md:text-base text-slate-400">
-                  Use this when a DigiStore payment was approved but email wasn't sent, or if there was an error. A random password will be generated and sent via email.
+                  {t("admin.create.description")}
                 </p>
               </div>
 
@@ -770,44 +712,56 @@ const AdminDashboard: React.FC = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label
+                    htmlFor="admin-create-email"
+                    className="block text-sm font-medium text-slate-300 mb-2"
+                  >
                     <span className="flex items-center gap-2">
                       <Mail size={16} />
-                      Email
+                      {t("admin.create.email")}
                     </span>
                   </label>
                   <input
+                    id="admin-create-email"
                     type="email"
                     value={createUserEmail}
                     onChange={(e) => setCreateUserEmail(e.target.value)}
-                    placeholder="user@example.com"
+                    placeholder={t("admin.create.emailPlaceholder")}
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                     disabled={creatingUser}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label
+                    htmlFor="admin-create-name"
+                    className="block text-sm font-medium text-slate-300 mb-2"
+                  >
                     <span className="flex items-center gap-2">
                       <Users size={16} />
-                      Name
+                      {t("admin.create.name")}
                     </span>
                   </label>
                   <input
+                    id="admin-create-name"
                     type="text"
                     value={createUserName}
                     onChange={(e) => setCreateUserName(e.target.value)}
-                    placeholder="User Name"
+                    placeholder={t("admin.create.namePlaceholder")}
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
                     disabled={creatingUser}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Role
+                  <label
+                    htmlFor="admin-create-role"
+                    className="block text-sm font-medium text-slate-300 mb-2"
+                  >
+                    {t("admin.create.role")}
                   </label>
                   <select
+                    id="admin-create-role"
                     value={createUserRole}
                     onChange={(e) =>
                       setCreateUserRole(e.target.value as "user" | "admin")
@@ -820,6 +774,36 @@ const AdminDashboard: React.FC = () => {
                   </select>
                 </div>
 
+                <div>
+                  <label
+                    htmlFor="admin-create-locale"
+                    className="block text-sm font-medium text-slate-300 mb-2"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Globe size={16} />
+                      {t("admin.create.language")}
+                    </span>
+                  </label>
+                  <select
+                    id="admin-create-locale"
+                    value={createUserLocale}
+                    onChange={(e) =>
+                      setCreateUserLocale(e.target.value as Locale)
+                    }
+                    disabled={creatingUser}
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+                  >
+                    {SUPPORTED_LOCALES.map((option) => (
+                      <option key={option} value={option}>
+                        {LOCALES[option].nativeName}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {t("admin.create.languageHint")}
+                  </p>
+                </div>
+
                 <button
                   onClick={handleCreateUser}
                   disabled={creatingUser || !createUserEmail.trim() || !createUserName.trim()}
@@ -828,19 +812,22 @@ const AdminDashboard: React.FC = () => {
                   {creatingUser ? (
                     <>
                       <Loader2 className="animate-spin" size={18} />
-                      <span>Creating User...</span>
+                      <span>{t("admin.create.submitting")}</span>
                     </>
                   ) : (
                     <>
                       <UserPlus size={18} />
-                      <span>Create User & Send Email</span>
+                      <span>{t("admin.create.submit")}</span>
                     </>
                   )}
                 </button>
 
                 <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                   <p className="text-xs md:text-sm text-slate-400">
-                    <strong className="text-slate-300">Note:</strong> A random password will be automatically generated and sent to the user's email. The user will be required to change this password on their first login.
+                    <strong className="text-slate-300">
+                      {t("admin.create.noteLabel")}
+                    </strong>{" "}
+                    {t("admin.create.note")}
                   </p>
                 </div>
               </div>
@@ -853,47 +840,101 @@ const AdminDashboard: React.FC = () => {
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:p-6 flex-1 min-h-0 flex flex-col">
             <div className="mb-6">
               <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
-                System Prompt Management
+                {t("admin.prompt.title")}
               </h2>
               <p className="text-sm md:text-base text-slate-400 mb-3">
-                Edit the system instruction that all AI providers (Ollama, Groq, OpenAI, etc.) will use. Changes apply globally to all AI responses.
+                {t("admin.prompt.description")}
               </p>
-              
+
+              {/* Idioma do prompt */}
+              <div className="mb-4">
+                <label
+                  htmlFor="admin-prompt-locale"
+                  className="block text-sm font-medium text-slate-300 mb-2"
+                >
+                  <span className="flex items-center gap-2">
+                    <Globe size={16} />
+                    {t("admin.prompt.languageLabel")}
+                  </span>
+                </label>
+                <select
+                  id="admin-prompt-locale"
+                  value={promptLocale}
+                  onChange={(e) => setPromptLocale(e.target.value as Locale)}
+                  disabled={promptLoading || promptSaving}
+                  className="w-full md:w-64 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm md:text-base"
+                >
+                  {SUPPORTED_LOCALES.map((option) => (
+                    <option key={option} value={option}>
+                      {LOCALES[option].nativeName}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-slate-500">
+                  {t("admin.prompt.languageHint")}
+                </p>
+              </div>
+
               {/* Status do Prompt Atual */}
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 md:p-4 mb-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium text-slate-300 mb-1">
-                      Current Active Prompt
+                      {t("admin.prompt.currentTitle")}
                     </p>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                      {promptVersion > 0 ? (
+                      {promptVersion > 0 && !promptInherited ? (
                         <>
                           <span className="flex items-center gap-1">
                             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            Version {promptVersion}
+                            {t("admin.prompt.version", {
+                              version: promptVersion,
+                            })}
                           </span>
                           {promptUpdatedAt && (
-                            <span>• Last updated: {promptUpdatedAt}</span>
+                            <span>
+                              {t("admin.prompt.lastUpdated", {
+                                date: promptUpdatedAt,
+                              })}
+                            </span>
                           )}
                         </>
                       ) : (
-                        <span className="text-slate-500">No prompt saved yet</span>
+                        <span className="text-slate-500">
+                          {t("admin.prompt.noPrompt")}
+                        </span>
                       )}
                     </div>
                   </div>
-                  {promptVersion > 0 && (
+                  {promptVersion > 0 && !promptInherited && (
                     <div className="text-xs text-indigo-400 font-medium">
-                      ✅ Active on all AI providers
+                      {t("admin.prompt.activeBadge")}
                     </div>
                   )}
                 </div>
               </div>
 
+              {promptInherited && (
+                <div className="mb-4 p-3 md:p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-sm text-amber-300">
+                    {t("admin.prompt.inherited", {
+                      language: LOCALES[promptLocale].nativeName,
+                    })}
+                  </p>
+                </div>
+              )}
+
               {/* Mensagem de Sucesso */}
               {promptSuccess && (
                 <div className="mb-4 p-3 md:p-4 bg-green-900/30 border border-green-700 rounded-lg">
                   <p className="text-sm md:text-base text-green-300">{promptSuccess}</p>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-4 p-3 md:p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm md:text-base">
+                  <AlertCircle size={18} className="md:w-5 md:h-5 shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
             </div>
@@ -902,25 +943,29 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center justify-center flex-1">
                 <div className="text-center">
                   <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={48} />
-                  <p className="text-slate-400">Loading prompt...</p>
+                  <p className="text-slate-400">{t("admin.prompt.loading")}</p>
                 </div>
               </div>
             ) : (
               <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0 mb-4">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    System Instruction
+                  <label
+                    htmlFor="admin-prompt-instruction"
+                    className="block text-sm font-medium text-slate-300 mb-2"
+                  >
+                    {t("admin.prompt.instructionLabel")}
                   </label>
                   <textarea
+                    id="admin-prompt-instruction"
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     className="w-full h-full min-h-[400px] p-4 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Enter the system instruction for all AI providers..."
+                    placeholder={t("admin.prompt.placeholder")}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-800">
                   <div className="text-xs text-slate-500">
-                    {systemPrompt.length} characters
+                    {t("common.characters", { count: systemPrompt.length })}
                   </div>
                   <button
                     onClick={saveSystemPrompt}
@@ -930,12 +975,12 @@ const AdminDashboard: React.FC = () => {
                     {promptSaving ? (
                       <>
                         <Loader2 className="animate-spin" size={18} />
-                        Saving...
+                        {t("admin.prompt.saving")}
                       </>
                     ) : (
                       <>
                         <Save size={18} />
-                        Save Prompt
+                        {t("admin.prompt.save")}
                       </>
                     )}
                   </button>
@@ -951,17 +996,21 @@ const AdminDashboard: React.FC = () => {
         <AdminUserSearchBar
           key={searchBarKey}
           onDebouncedChange={setDebouncedSearchQuery}
+          placeholder={t("admin.users.searchPlaceholder")}
+          clearLabel={t("admin.users.clearSearchTitle")}
         />
         {debouncedSearchQuery.trim() ? (
           <p className="mb-3 text-sm text-slate-400 -mt-2">
-            This page: {users.length} users · total matches:{" "}
-            {totalUsersMatching}
+            {t("admin.users.pageSummary", {
+              shown: users.length,
+              total: totalUsersMatching,
+            })}
           </p>
         ) : null}
 
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-slate-300">
           <label className="flex items-center gap-2">
-            <span className="text-slate-400">Per page</span>
+            <span className="text-slate-400">{t("admin.users.perPage")}</span>
             <select
               value={pageSize}
               disabled={usersRefreshing}
@@ -987,10 +1036,13 @@ const AdminDashboard: React.FC = () => {
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-white"
             >
               <ChevronLeft size={18} />
-              Prev
+              {t("admin.users.prev")}
             </button>
             <span className="text-slate-400 tabular-nums px-1">
-              Page {listCurrentPage} of {listTotalPages}
+              {t("admin.users.pageStatus", {
+                current: listCurrentPage,
+                total: listTotalPages,
+              })}
             </span>
             <button
               type="button"
@@ -1002,7 +1054,7 @@ const AdminDashboard: React.FC = () => {
               }
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-white"
             >
-              Next
+              {t("admin.users.next")}
               <ChevronRight size={18} />
             </button>
           </div>
@@ -1024,7 +1076,7 @@ const AdminDashboard: React.FC = () => {
               <Loader2
                 className="animate-spin text-indigo-400"
                 size={36}
-                aria-label="Updating list"
+                aria-label={t("admin.users.updatingList")}
               />
             </div>
           )}
@@ -1042,19 +1094,19 @@ const AdminDashboard: React.FC = () => {
               <thead className="bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
                 <tr>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
-                    User
+                    {t("admin.users.columnUser")}
                   </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
-                    Email
+                    {t("admin.users.columnEmail")}
                   </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
-                    Role
+                    {t("admin.users.columnRole")}
                   </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
-                    Blocked
+                    {t("admin.users.columnBlocked")}
                   </th>
                   <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-slate-300">
-                    Actions
+                    {t("admin.users.columnActions")}
                   </th>
                 </tr>
               </thead>
@@ -1077,7 +1129,7 @@ const AdminDashboard: React.FC = () => {
                             {user.name}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {new Date(user.createdAt).toLocaleDateString()}
+                            {formatDate(user.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -1102,12 +1154,16 @@ const AdminDashboard: React.FC = () => {
                       {user.isBlocked ? (
                         <span className="flex items-center gap-1.5 lg:gap-2 text-red-400">
                           <Ban size={14} className="lg:w-4 lg:h-4" />
-                          <span className="text-xs lg:text-sm">Blocked</span>
+                          <span className="text-xs lg:text-sm">
+                            {t("common.blocked")}
+                          </span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-1.5 lg:gap-2 text-green-400">
                           <CheckCircle size={14} className="lg:w-4 lg:h-4" />
-                          <span className="text-xs lg:text-sm">Active</span>
+                          <span className="text-xs lg:text-sm">
+                            {t("common.active")}
+                          </span>
                         </span>
                       )}
                     </td>
@@ -1128,9 +1184,9 @@ const AdminDashboard: React.FC = () => {
                               size={14}
                             />
                           ) : user.isBlocked ? (
-                            "Unblock"
+                            t("admin.users.unblock")
                           ) : (
-                            "Block"
+                            t("admin.users.block")
                           )}
                         </button>
                         <button
@@ -1141,8 +1197,8 @@ const AdminDashboard: React.FC = () => {
                           className="px-2 lg:px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title={
                             user.id === currentUser?.id
-                              ? "You cannot change your own role here"
-                              : "Change role (user / admin)"
+                              ? t("admin.users.ownRoleTitle")
+                              : t("admin.users.changeRoleTitle")
                           }
                         >
                           {updating === user.id ? (
@@ -1153,7 +1209,9 @@ const AdminDashboard: React.FC = () => {
                           ) : (
                             <span className="flex items-center gap-1">
                               <UserCog size={12} className="lg:w-3 lg:h-3" />
-                              <span className="hidden lg:inline">Role</span>
+                              <span className="hidden lg:inline">
+                                {t("admin.users.role")}
+                              </span>
                             </span>
                           )}
                         </button>
@@ -1161,7 +1219,7 @@ const AdminDashboard: React.FC = () => {
                           onClick={() => handleResetPassword(user)}
                           disabled={updating === user.id}
                           className="px-2 lg:px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 transition-colors"
-                          title="Reset password - user will need to set new password on next login"
+                          title={t("admin.users.resetPasswordTitle")}
                         >
                           {updating === user.id ? (
                             <Loader2
@@ -1171,8 +1229,12 @@ const AdminDashboard: React.FC = () => {
                           ) : (
                             <span className="flex items-center gap-1">
                               <KeyRound size={12} className="lg:w-3 lg:h-3" />
-                              <span className="hidden lg:inline">Reset PW</span>
-                              <span className="lg:hidden">Reset</span>
+                              <span className="hidden lg:inline">
+                                {t("admin.users.resetPassword")}
+                              </span>
+                              <span className="lg:hidden">
+                                {t("admin.users.resetPasswordShort")}
+                              </span>
                             </span>
                           )}
                         </button>
@@ -1184,8 +1246,8 @@ const AdminDashboard: React.FC = () => {
                           className="px-2 lg:px-3 py-1 bg-red-700 hover:bg-red-800 text-white rounded text-xs lg:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title={
                             user.id === currentUser?.id
-                              ? "You cannot delete your own account"
-                              : "Delete user account"
+                              ? t("admin.users.ownAccountTitle")
+                              : t("admin.users.deleteUserTitle")
                           }
                         >
                           {updating === user.id ? (
@@ -1196,8 +1258,12 @@ const AdminDashboard: React.FC = () => {
                           ) : (
                             <span className="flex items-center gap-1">
                               <Trash2 size={12} className="lg:w-3 lg:h-3" />
-                              <span className="hidden lg:inline">Delete</span>
-                              <span className="lg:hidden">Del</span>
+                              <span className="hidden lg:inline">
+                                {t("admin.users.delete")}
+                              </span>
+                              <span className="lg:hidden">
+                                {t("admin.users.deleteShort")}
+                              </span>
                             </span>
                           )}
                         </button>
@@ -1232,7 +1298,7 @@ const AdminDashboard: React.FC = () => {
                       {user.email}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {formatDate(user.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -1253,12 +1319,12 @@ const AdminDashboard: React.FC = () => {
                 {user.isBlocked ? (
                   <span className="flex items-center gap-1.5 text-red-400 text-xs">
                     <Ban size={14} />
-                    <span>Blocked</span>
+                    <span>{t("common.blocked")}</span>
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 text-green-400 text-xs">
                     <CheckCircle size={14} />
-                    <span>Active</span>
+                    <span>{t("common.active")}</span>
                   </span>
                 )}
               </div>
@@ -1276,9 +1342,9 @@ const AdminDashboard: React.FC = () => {
                   {updating === user.id ? (
                     <Loader2 className="animate-spin mx-auto" size={14} />
                   ) : user.isBlocked ? (
-                    "Unblock"
+                    t("admin.users.unblock")
                   ) : (
-                    "Block"
+                    t("admin.users.block")
                   )}
                 </button>
                 <button
@@ -1289,8 +1355,8 @@ const AdminDashboard: React.FC = () => {
                   className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
                   title={
                     user.id === currentUser?.id
-                      ? "You cannot change your own role here"
-                      : "Change role"
+                      ? t("admin.users.ownRoleTitle")
+                      : t("admin.users.changeRoleTitle")
                   }
                 >
                   {updating === user.id ? (
@@ -1298,7 +1364,7 @@ const AdminDashboard: React.FC = () => {
                   ) : (
                     <>
                       <UserCog size={12} />
-                      <span>Role</span>
+                      <span>{t("admin.users.role")}</span>
                     </>
                   )}
                 </button>
@@ -1306,13 +1372,14 @@ const AdminDashboard: React.FC = () => {
                   onClick={() => handleResetPassword(user)}
                   disabled={updating === user.id}
                   className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                  title={t("admin.users.resetPasswordTitle")}
                 >
                   {updating === user.id ? (
                     <Loader2 className="animate-spin mx-auto" size={14} />
                   ) : (
                     <>
                       <KeyRound size={12} />
-                      <span>Reset PW</span>
+                      <span>{t("admin.users.resetPassword")}</span>
                     </>
                   )}
                 </button>
@@ -1320,13 +1387,18 @@ const AdminDashboard: React.FC = () => {
                   onClick={() => handleDeleteUser(user)}
                   disabled={updating === user.id || user.id === currentUser?.id}
                   className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                  title={
+                    user.id === currentUser?.id
+                      ? t("admin.users.ownAccountTitle")
+                      : t("admin.users.deleteUserTitle")
+                  }
                 >
                   {updating === user.id ? (
                     <Loader2 className="animate-spin mx-auto" size={14} />
                   ) : (
                     <>
                       <Trash2 size={12} />
-                      <span>Delete</span>
+                      <span>{t("admin.users.delete")}</span>
                     </>
                   )}
                 </button>
@@ -1343,8 +1415,8 @@ const AdminDashboard: React.FC = () => {
             <Users size={48} className="text-slate-600 mx-auto mb-4" />
             <p className="text-slate-400">
               {debouncedSearchQuery.trim()
-                ? "No users found matching your search"
-                : "No users found"}
+                ? t("admin.users.emptySearch")
+                : t("admin.users.empty")}
             </p>
             {debouncedSearchQuery.trim() && (
               <button
@@ -1356,7 +1428,7 @@ const AdminDashboard: React.FC = () => {
                 }}
                 className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
-                Clear search
+                {t("admin.users.clearSearch")}
               </button>
             )}
           </div>
@@ -1386,21 +1458,26 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg md:text-xl font-bold text-white">
-                  {blockConfirm.isBlocked ? "Unblock User" : "Block User"}
+                  {blockConfirm.isBlocked
+                    ? t("admin.blockModal.unblockTitle")
+                    : t("admin.blockModal.blockTitle")}
                 </h3>
-                <p className="text-sm text-slate-400">Confirm action</p>
+                <p className="text-sm text-slate-400">
+                  {t("common.confirmAction")}
+                </p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to{" "}
-              {blockConfirm.isBlocked ? "unblock" : "block"}{" "}
-              <span className="font-semibold text-white">
-                {blockConfirm.userName}
-              </span>
-              ?
+              {blockConfirm.isBlocked
+                ? t("admin.blockModal.unblockMessage", {
+                    name: blockConfirm.userName,
+                  })
+                : t("admin.blockModal.blockMessage", {
+                    name: blockConfirm.userName,
+                  })}
               {!blockConfirm.isBlocked && (
                 <span className="block mt-2 text-red-400 text-xs md:text-sm">
-                  This will prevent the user from accessing the platform.
+                  {t("admin.blockModal.warning")}
                 </span>
               )}
             </p>
@@ -1410,7 +1487,7 @@ const AdminDashboard: React.FC = () => {
                 disabled={updating === blockConfirm.userId}
                 className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={confirmBlockToggle}
@@ -1424,13 +1501,12 @@ const AdminDashboard: React.FC = () => {
                 {updating === blockConfirm.userId ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="animate-spin" size={16} />
-                    <span className="hidden sm:inline">Updating...</span>
-                    <span className="sm:hidden">...</span>
+                    <span>{t("admin.blockModal.updating")}</span>
                   </span>
                 ) : blockConfirm.isBlocked ? (
-                  "Unblock"
+                  t("admin.users.unblock")
                 ) : (
-                  "Block"
+                  t("admin.users.block")
                 )}
               </button>
             </div>
@@ -1448,20 +1524,20 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg md:text-xl font-bold text-white">
-                  Delete User Account
+                  {t("admin.deleteModal.title")}
                 </h3>
-                <p className="text-sm text-slate-400">Confirm action</p>
+                <p className="text-sm text-slate-400">
+                  {t("common.confirmAction")}
+                </p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to permanently delete the account for{" "}
-              <span className="font-semibold text-white">
-                {deleteConfirm.userName}
-              </span>{" "}
-              ({deleteConfirm.userEmail})?
+              {t("admin.deleteModal.message", {
+                name: deleteConfirm.userName,
+                email: deleteConfirm.userEmail,
+              })}
               <span className="block mt-2 text-red-400 text-xs md:text-sm font-semibold">
-                ⚠️ This action cannot be undone. All user data and conversations
-                will be permanently deleted.
+                {t("admin.deleteModal.warning")}
               </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -1470,7 +1546,7 @@ const AdminDashboard: React.FC = () => {
                 disabled={updating === deleteConfirm.userId}
                 className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={confirmDeleteUser}
@@ -1480,11 +1556,10 @@ const AdminDashboard: React.FC = () => {
                 {updating === deleteConfirm.userId ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="animate-spin" size={16} />
-                    <span className="hidden sm:inline">Deleting...</span>
-                    <span className="sm:hidden">...</span>
+                    <span>{t("admin.deleteModal.deleting")}</span>
                   </span>
                 ) : (
-                  "Delete Account"
+                  t("admin.deleteModal.confirm")
                 )}
               </button>
             </div>
@@ -1502,15 +1577,21 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg md:text-xl font-bold text-white">
-                  Change role
+                  {t("admin.roleModal.title")}
                 </h3>
-                <p className="text-sm text-slate-400">User: {roleModal.userName}</p>
+                <p className="text-sm text-slate-400">
+                  {t("admin.roleModal.user", { name: roleModal.userName })}
+                </p>
               </div>
             </div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Role
+            <label
+              htmlFor="admin-role-modal-select"
+              className="block text-sm font-medium text-slate-300 mb-2"
+            >
+              {t("admin.roleModal.label")}
             </label>
             <select
+              id="admin-role-modal-select"
               value={roleModal.selectedRole}
               onChange={(e) =>
                 setRoleModal({
@@ -1531,7 +1612,7 @@ const AdminDashboard: React.FC = () => {
                 disabled={updating === roleModal.userId}
                 className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -1542,10 +1623,10 @@ const AdminDashboard: React.FC = () => {
                 {updating === roleModal.userId ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="animate-spin" size={16} />
-                    Saving...
+                    {t("common.saving")}
                   </span>
                 ) : (
-                  "Save role"
+                  t("admin.roleModal.confirm")
                 )}
               </button>
             </div>
@@ -1563,20 +1644,19 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg md:text-xl font-bold text-white">
-                  Reset Password
+                  {t("admin.resetPasswordModal.title")}
                 </h3>
-                <p className="text-sm text-slate-400">Confirm action</p>
+                <p className="text-sm text-slate-400">
+                  {t("common.confirmAction")}
+                </p>
               </div>
             </div>
             <p className="text-sm md:text-base text-slate-300 mb-4 md:mb-6">
-              Are you sure you want to reset the password for{" "}
-              <span className="font-semibold text-white">
-                {resetPasswordConfirm.userName}
-              </span>
-              ?
+              {t("admin.resetPasswordModal.message", {
+                name: resetPasswordConfirm.userName,
+              })}
               <span className="block mt-2 text-yellow-400 text-xs md:text-sm">
-                The user will be required to set a new password on their next
-                login attempt.
+                {t("admin.resetPasswordModal.warning")}
               </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -1585,7 +1665,7 @@ const AdminDashboard: React.FC = () => {
                 disabled={updating === resetPasswordConfirm.userId}
                 className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 transition-colors text-sm md:text-base"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 onClick={confirmResetPassword}
@@ -1595,11 +1675,10 @@ const AdminDashboard: React.FC = () => {
                 {updating === resetPasswordConfirm.userId ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="animate-spin" size={16} />
-                    <span className="hidden sm:inline">Resetting...</span>
-                    <span className="sm:hidden">...</span>
+                    <span>{t("admin.resetPasswordModal.resetting")}</span>
                   </span>
                 ) : (
-                  "Reset Password"
+                  t("admin.resetPasswordModal.confirm")
                 )}
               </button>
             </div>

@@ -1,6 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { prisma } from "./_prisma.js";
 import jwt from "jsonwebtoken";
+import { apiMessage, type ApiMessageKey } from "../lib/api-messages.js";
+import type { Locale } from "../lib/locale.js";
+import {
+  resolveRequestLocale,
+  resolveUserLocale,
+} from "../lib/server-locale.js";
 import {
   setCorsHeaders,
   handleOptions,
@@ -37,10 +43,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleOptions(req, res);
   }
 
+  let locale: Locale = resolveRequestLocale(req);
+
+  const fail = (
+    status: number,
+    key: ApiMessageKey,
+    extra: Record<string, unknown> = {}
+  ) => res.status(status).json({ error: apiMessage(locale, key), ...extra });
+
   // Verificar autenticação
   const auth = verifyAuth(req);
   if (!auth) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return fail(401, "unauthorized");
   }
 
   // Verificar se usuário está bloqueado
@@ -49,18 +63,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     select: {
       role: true,
       isBlocked: true,
+      locale: true,
     },
   });
 
   if (!user) {
-    return res.status(404).json({ error: "User not found" });
+    return fail(404, "userNotFound");
   }
+
+  locale = resolveUserLocale(user.locale, req);
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
   // Verificar apenas se usuário está bloqueado
   if (user.role !== "admin") {
     if (user.isBlocked) {
-      return res.status(403).json({ error: "Account is blocked" });
+      return fail(403, "accountBlocked", { blocked: true });
     }
   }
 
@@ -81,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Parse messages JSON string para objeto
       const parsedConversations = conversations.map((conv) => ({
         ...conv,
-        messages: JSON.parse(conv.messages || "[]"),
+        messages: parseMessages(conv.id, conv.messages),
       }));
 
       return res.status(200).json({ conversations: parsedConversations });
@@ -92,7 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { messages } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
-        return res.status(400).json({ error: "Messages array is required" });
+        return fail(400, "messagesArrayRequired");
       }
 
       // IMPORTANTE: Validar limite de 3 conversas por usuário (exceto admin)
@@ -102,11 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (conversationCount >= 3) {
-          return res.status(403).json({
-            error:
-              "Maximum of 3 conversations allowed. Please delete a conversation to create a new one.",
-            maxConversations: true,
-          });
+          return fail(403, "maxConversations", { maxConversations: true });
         }
       }
 
@@ -126,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json({
         conversation: {
           ...conversation,
-          messages: JSON.parse(conversation.messages),
+          messages: parseMessages(conversation.id, conversation.messages),
         },
       });
     }
@@ -136,9 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { conversationId, messages } = req.body;
 
       if (!conversationId || !messages || !Array.isArray(messages)) {
-        return res.status(400).json({
-          error: "conversationId and messages array are required",
-        });
+        return fail(400, "conversationPayloadRequired");
       }
 
       // Verificar se a conversa pertence ao usuário
@@ -150,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!existingConv) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return fail(404, "conversationNotFound");
       }
 
       const updated = await prisma.conversation.update({
@@ -169,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         conversation: {
           ...updated,
-          messages: JSON.parse(updated.messages),
+          messages: parseMessages(updated.id, updated.messages),
         },
       });
     }
@@ -179,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { conversationId } = req.body;
 
       if (!conversationId) {
-        return res.status(400).json({ error: "conversationId is required" });
+        return fail(400, "conversationIdRequired");
       }
 
       // Verificar se a conversa pertence ao usuário
@@ -191,7 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!existingConv) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return fail(404, "conversationNotFound");
       }
 
       await prisma.conversation.delete({
@@ -201,11 +212,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     }
 
-    return res.status(405).json({ error: "Method not allowed" });
+    return fail(405, "methodNotAllowed");
   } catch (error: any) {
     console.error("Conversations error:", error);
-    return res.status(500).json({
-      error: error.message || "Internal server error",
-    });
+    return fail(500, "internalError");
+  }
+}
+
+/**
+ * Uma conversa corrompida no banco não deve derrubar a listagem inteira:
+ * devolvemos um histórico vazio e registramos o problema no log.
+ */
+function parseMessages(conversationId: string, raw: string | null): unknown[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Invalid conversation payload:", { conversationId });
+    return [];
   }
 }

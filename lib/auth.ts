@@ -1,10 +1,14 @@
 // Auth service for client-side
-import { getApiEndpoint } from "./api-endpoints";
+import { apiFetch } from "./api-endpoints";
+import { translateActive } from "./i18n";
+import { normalizeLocale, type Locale } from "./locale";
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  /** Preferred language stored on the server (absent on legacy accounts). */
+  locale?: Locale;
 }
 
 export interface AuthResponse {
@@ -12,82 +16,91 @@ export interface AuthResponse {
   user: User;
 }
 
+/**
+ * Turns a failed response into a localized `Error`.
+ *
+ * The API already answers in the caller's language (see `lib/api-messages.ts`),
+ * so we surface `error` as-is and only translate transport-level failures,
+ * which never reach the handlers.
+ */
+async function toError(response: Response): Promise<Error> {
+  const text = await response.text();
+
+  try {
+    const data = JSON.parse(text) as { error?: string };
+    if (data.error) {
+      return new Error(data.error);
+    }
+  } catch {
+    // Non-JSON body: the request did not reach the API handler.
+    if (response.status === 404) {
+      return new Error(translateActive("authErrors.serviceUnavailable"));
+    }
+  }
+
+  return new Error(
+    translateActive("authErrors.requestFailed", { status: response.status })
+  );
+}
+
+/** Network failures (offline, dev server down) share one clear message. */
+function isTransportError(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message ?? "";
+  return message.includes("Failed to fetch") || message.includes("NetworkError");
+}
+
+function serviceUnavailable(): Error {
+  return new Error(translateActive("authErrors.serviceUnavailable"));
+}
+
 export const authService = {
+  /**
+   * @param locale Language chosen on the device, persisted with the account so
+   * server-side e-mails use it.
+   */
   async register(
     name: string,
     email: string,
-    password: string
+    password: string,
+    locale?: Locale
   ): Promise<AuthResponse> {
     try {
-      const response = await fetch(getApiEndpoint("auth-register"), {
+      const response = await apiFetch("auth-register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password }),
+        auth: false,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, locale }),
       });
 
-      // Verificar se a resposta é válida antes de fazer parse
       if (!response.ok) {
-        const text = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(text);
-        } catch {
-          // Se não conseguir fazer parse, usar o texto da resposta
-          throw new Error(
-            response.status === 404
-              ? "Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production."
-              : `Registration failed: ${response.status} ${response.statusText}`
-          );
-        }
-        throw new Error(errorData.error || "Registration failed");
+        throw await toError(response);
       }
 
-      const data = await response.json();
-
       // Login automático após registro
-      return this.login(email, password);
+      return this.login(email, password, locale);
     } catch (error: any) {
-      // Se falhar em dev (404), mostrar erro claro
-      if (
-        error.message?.includes("Failed to fetch") ||
-        error.message?.includes("404") ||
-        error.message?.includes("Authentication service not available")
-      ) {
-        throw new Error(
-          "Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production."
-        );
+      if (isTransportError(error)) {
+        throw serviceUnavailable();
       }
       throw error;
     }
   },
 
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(
+    email: string,
+    password: string,
+    locale?: Locale
+  ): Promise<AuthResponse> {
     try {
-      const response = await fetch(getApiEndpoint("auth-login"), {
+      const response = await apiFetch("auth-login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+        auth: false,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, locale }),
       });
 
-      // Verificar se a resposta é válida antes de fazer parse
       if (!response.ok) {
-        const text = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(text);
-        } catch {
-          // Se não conseguir fazer parse, usar o texto da resposta
-          throw new Error(
-            response.status === 404
-              ? "Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production."
-              : `Login failed: ${response.status} ${response.statusText}`
-          );
-        }
-        throw new Error(errorData.error || "Login failed");
+        throw await toError(response);
       }
 
       const data = await response.json();
@@ -101,15 +114,8 @@ export const authService = {
         user: data.user,
       };
     } catch (error: any) {
-      // Se falhar em dev (404), mostrar erro claro
-      if (
-        error.message?.includes("Failed to fetch") ||
-        error.message?.includes("404") ||
-        error.message?.includes("Authentication service not available")
-      ) {
-        throw new Error(
-          "Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production."
-        );
+      if (isTransportError(error)) {
+        throw serviceUnavailable();
       }
       throw error;
     }
@@ -123,20 +129,12 @@ export const authService = {
     }
 
     try {
-      const response = await fetch(getApiEndpoint("auth-verify"), {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("auth-verify", { method: "GET" });
 
       if (!response.ok) {
         // Se for 404, usar dados do localStorage como fallback
         if (response.status === 404) {
-          const userStr = localStorage.getItem("user");
-          if (userStr) {
-            return JSON.parse(userStr);
-          }
+          return this.getUser();
         }
 
         // Se for 403, verificar se é notActive ou expired (não fazer logout nesses casos)
@@ -146,9 +144,9 @@ export const authService = {
             if (data.notActive || data.expired) {
               // Usuário sem acesso ativo ou expirado - retornar dados do localStorage
               // O AuthContext vai tratar isso e mostrar a tela de espera
-              const userStr = localStorage.getItem("user");
-              if (userStr) {
-                return JSON.parse(userStr);
+              const stored = this.getUser();
+              if (stored) {
+                return stored;
               }
             }
           } catch {
@@ -165,14 +163,9 @@ export const authService = {
       return data.user;
     } catch (error) {
       // Em dev, se a function não estiver disponível, usar dados do localStorage
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        try {
-          return JSON.parse(userStr);
-        } catch {
-          this.logout();
-          return null;
-        }
+      const stored = this.getUser();
+      if (stored) {
+        return stored;
       }
       this.logout();
       return null;
@@ -190,7 +183,36 @@ export const authService = {
 
   getUser(): User | null {
     const userStr = localStorage.getItem("user");
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(userStr) as User;
+    } catch {
+      // Dados corrompidos: melhor descartar do que quebrar o carregamento.
+      localStorage.removeItem("user");
+      return null;
+    }
+  },
+
+  /**
+   * Persists the language chosen by a signed-in user, so transactional e-mails
+   * and AI answers triggered by the server follow the same language.
+   */
+  async updateLocale(locale: Locale): Promise<Locale> {
+    const response = await apiFetch("user-locale", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locale }),
+    });
+
+    if (!response.ok) {
+      throw await toError(response);
+    }
+
+    const data = await response.json();
+    return normalizeLocale(data.locale, locale);
   },
 
   async changePassword(
@@ -198,46 +220,18 @@ export const authService = {
     newPassword: string
   ): Promise<void> {
     try {
-      const token = this.getToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
-
-      const response = await fetch(getApiEndpoint("change-password"), {
+      const response = await apiFetch("change-password", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(text);
-        } catch {
-          throw new Error(
-            response.status === 404
-              ? "Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production."
-              : `Password change failed: ${response.status} ${response.statusText}`
-          );
-        }
-        throw new Error(errorData.error || "Password change failed");
+        throw await toError(response);
       }
-
-      const data = await response.json();
-      return;
     } catch (error: any) {
-      if (
-        error.message?.includes("Failed to fetch") ||
-        error.message?.includes("404") ||
-        error.message?.includes("Authentication service not available")
-      ) {
-        throw new Error(
-          "Authentication service not available. Please make sure the development server is running (npm run dev) or deploy to production."
-        );
+      if (isTransportError(error)) {
+        throw serviceUnavailable();
       }
       throw error;
     }

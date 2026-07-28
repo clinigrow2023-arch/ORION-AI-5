@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from '../contexts/I18nContext';
+import LanguageSelector from './LanguageSelector';
 import { Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 const Register: React.FC = () => {
   const { register } = useAuth();
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,27 +20,27 @@ const Register: React.FC = () => {
     const newErrors: { name?: string; email?: string; password?: string; confirmPassword?: string } = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = t('register.errors.nameRequired');
     } else if (name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+      newErrors.name = t('register.errors.nameTooShort');
     }
 
     if (!email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('register.errors.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = t('register.errors.emailInvalid');
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('register.errors.passwordRequired');
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('register.errors.passwordTooShort');
     }
 
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = t('register.errors.confirmRequired');
     } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t('register.errors.passwordsMismatch');
     }
 
     setErrors(newErrors);
@@ -56,7 +59,7 @@ const Register: React.FC = () => {
     try {
       await register(name.trim(), email.trim().toLowerCase(), password);
     } catch (error: any) {
-      setErrors({ general: error.message || 'Registration failed. Please try again.' });
+      setErrors({ general: error.message || t('register.errors.failed') });
     } finally {
       setIsLoading(false);
     }
@@ -65,10 +68,13 @@ const Register: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-4">
+          <LanguageSelector variant="compact" />
+        </div>
         <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Orion AI</h1>
-            <p className="text-slate-400">Create your account</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('app.name')}</h1>
+            <p className="text-slate-400">{t('register.subtitle')}</p>
           </div>
 
           {errors.general && (
@@ -81,7 +87,7 @@ const Register: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
-                Name
+                {t('register.name')}
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -93,7 +99,7 @@ const Register: React.FC = () => {
                   className={`w-full pl-10 pr-4 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                     errors.name ? 'border-red-500' : 'border-slate-700'
                   }`}
-                  placeholder="Your name"
+                  placeholder={t('register.namePlaceholder')}
                   disabled={isLoading}
                 />
               </div>
@@ -104,7 +110,7 @@ const Register: React.FC = () => {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                Email
+                {t('register.email')}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -116,7 +122,7 @@ const Register: React.FC = () => {
                   className={`w-full pl-10 pr-4 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                     errors.email ? 'border-red-500' : 'border-slate-700'
                   }`}
-                  placeholder="your@email.com"
+                  placeholder={t('register.emailPlaceholder')}
                   disabled={isLoading}
                 />
               </div>
@@ -127,7 +133,7 @@ const Register: React.FC = () => {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                Password
+                {t('register.password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -139,7 +145,7 @@ const Register: React.FC = () => {
                   className={`w-full pl-10 pr-12 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                     errors.password ? 'border-red-500' : 'border-slate-700'
                   }`}
-                  placeholder="••••••••"
+                  placeholder={t('register.passwordPlaceholder')}
                   disabled={isLoading}
                 />
                 <button
@@ -158,7 +164,7 @@ const Register: React.FC = () => {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
-                Confirm Password
+                {t('register.confirmPassword')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -170,7 +176,7 @@ const Register: React.FC = () => {
                   className={`w-full pl-10 pr-12 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                     errors.confirmPassword ? 'border-red-500' : 'border-slate-700'
                   }`}
-                  placeholder="••••••••"
+                  placeholder={t('register.passwordPlaceholder')}
                   disabled={isLoading}
                 />
                 <button
@@ -195,18 +201,18 @@ const Register: React.FC = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  <span>Creating account...</span>
+                  <span>{t('register.submitting')}</span>
                 </>
               ) : (
-                'Sign Up'
+                t('register.submit')
               )}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-400">
-            Already have an account?{' '}
+            {t('register.haveAccount')}{' '}
             <a href="#login" className="text-indigo-400 hover:text-indigo-300 font-medium">
-              Sign in
+              {t('register.signIn')}
             </a>
           </p>
         </div>
@@ -216,4 +222,3 @@ const Register: React.FC = () => {
 };
 
 export default Register;
-

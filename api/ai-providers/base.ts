@@ -1,3 +1,5 @@
+import type { Locale } from "../../lib/locale.js";
+
 // Base interface for AI providers
 export interface AIProvider {
   name: string;
@@ -6,9 +8,11 @@ export interface AIProvider {
     history: Array<{ role: string; parts: Array<{ text: string }> }>,
     systemInstruction: string
   ): Promise<string>;
+  /** `locale` drives the language of every string value inside the JSON plan. */
   generatePlan(
     contextHistory: string,
-    systemInstruction: string
+    systemInstruction: string,
+    locale: Locale
   ): Promise<string>;
 }
 

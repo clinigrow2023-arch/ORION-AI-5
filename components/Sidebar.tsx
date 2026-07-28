@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useTranslation } from "../contexts/I18nContext";
 import ChangePassword from "./ChangePassword";
+import LanguageSelector from "./LanguageSelector";
 import LogoutModal from "./LogoutModal";
 
 interface SidebarProps {
@@ -22,6 +24,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
   const { user, logout, isAdmin } = useAuth();
+  const { t } = useTranslation();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -32,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           <Star className="w-5 h-5 text-white fill-white " />
         </div>
         <h1 className="text-xl font-bold text-white tracking-tight md:mt-0 mt-16">
-          Orion AI
+          {t("app.name")}
         </h1>
       </div>
 
@@ -63,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           }`}
         >
           <MessageSquare size={20} />
-          <span className="font-medium">Mentor Chat</span>
+          <span className="font-medium">{t("sidebar.chat")}</span>
         </button>
 
         <button
@@ -75,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           }`}
         >
           <FileText size={20} />
-          <span className="font-medium">My Action Plan</span>
+          <span className="font-medium">{t("sidebar.plan")}</span>
         </button>
 
         <button
@@ -87,7 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           }`}
         >
           <BookOpen size={20} />
-          <span className="font-medium">Strategy Guide</span>
+          <span className="font-medium">{t("sidebar.guide")}</span>
         </button>
 
         <button
@@ -99,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           }`}
         >
           <Mail size={20} />
-          <span className="font-medium">Support</span>
+          <span className="font-medium">{t("sidebar.support")}</span>
         </button>
 
         {isAdmin && (
@@ -112,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
             }`}
           >
             <Shield size={20} />
-            <span className="font-medium">Admin Dashboard</span>
+            <span className="font-medium">{t("sidebar.admin")}</span>
           </button>
         )}
       </nav>
@@ -120,25 +123,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       <div className="p-4 border-t border-slate-800 space-y-2">
         <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
           <p className="text-xs text-slate-400 leading-relaxed">
-            "Emotions are the fuel, but strategy is the engine."
+            {t("sidebar.quote")}
           </p>
           <p className="text-xs text-indigo-400 mt-1 font-semibold">
-            — Orion Philosophy
+            {t("sidebar.quoteAuthor")}
           </p>
         </div>
+        <LanguageSelector variant="sidebar" />
         <button
           onClick={() => setShowChangePassword(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all duration-200"
         >
           <Lock size={20} />
-          <span className="font-medium">Change Password</span>
+          <span className="font-medium">{t("sidebar.changePassword")}</span>
         </button>
         <button
           onClick={() => setShowLogoutModal(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all duration-200"
         >
           <LogOut size={20} />
-          <span className="font-medium">Sign Out</span>
+          <span className="font-medium">{t("sidebar.signOut")}</span>
         </button>
       </div>
 

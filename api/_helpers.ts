@@ -6,7 +6,11 @@ export function setCorsHeaders(
   methods: string = "GET, POST, PUT, DELETE, OPTIONS"
 ) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  // X-Locale carrega o idioma ativo do cliente; X-Stream ativa SSE no /api/gemini.
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Locale, X-Stream"
+  );
   res.setHeader("Access-Control-Allow-Methods", methods);
 }
 

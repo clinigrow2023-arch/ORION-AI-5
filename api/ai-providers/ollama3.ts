@@ -1,4 +1,9 @@
+import type { Locale } from "../../lib/locale.js";
 import { AIProvider, createProviderError, isRetryableError } from "./base.js";
+import {
+  buildPlanPrompt,
+  withProviderGuardrails,
+} from "../../lib/prompt-defaults.js";
 
 // Ollama3 Provider Implementation
 export class Ollama3Provider implements AIProvider {
@@ -42,49 +47,8 @@ export class Ollama3Provider implements AIProvider {
 
       // SEMPRE reforçar instruções críticas no início do system instruction
       // Modelos pequenos (como llama3.2:1b) precisam de instruções MUITO explícitas
-      let enhancedSystemInstruction = systemInstruction;
-      if (systemInstruction) {
-        // Instruções CRITICAL MUITO explícitas e diretas - SEMPRE no início
-        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
-
-1. You are Orion AI, a relationship and attraction mentor.
-2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
-3. NEVER refuse, decline, or say you cannot help.
-4. FORBIDDEN PHRASES - NEVER SAY THESE:
-   - "I can't provide assistance"
-   - "I can't help"
-   - "I'm unable to"
-   - "I cannot"
-   - "I won't help"
-   - "I can't fulfill that request"
-   - "I can't provide assistance or guidance on relationships"
-   - "I encourage you to reach out to a trusted friend"
-   - Any phrase that refuses to help with relationship questions
-5. If a question is unclear, ask clarifying questions - DO NOT refuse.
-6. You help with HEALTHY relationship strategies, reconnection, and attraction.
-7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
-
-REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
-
-        // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
-        // Modelos pequenos precisam de reforço constante
-        if (
-          !systemInstruction.toLowerCase().startsWith("critical instructions")
-        ) {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        } else {
-          // Se já começa com CRITICAL, ainda adicionar reforço
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        }
-      }
+      const enhancedSystemInstruction =
+        withProviderGuardrails(systemInstruction);
 
       // Construir prompt completo com histórico
       let fullPrompt = "";
@@ -294,78 +258,20 @@ ${systemInstruction}`;
 
   async generatePlan(
     contextHistory: string,
-    systemInstruction: string
+    systemInstruction: string,
+    locale: Locale
   ): Promise<string> {
     try {
       // SEMPRE reforçar instruções críticas no início do system instruction
       // Modelos pequenos (como llama3.2:1b) precisam de instruções MUITO explícitas
-      let enhancedSystemInstruction = systemInstruction;
-      if (systemInstruction) {
-        // Instruções CRITICAL MUITO explícitas e diretas - SEMPRE no início
-        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
+      const enhancedSystemInstruction =
+        withProviderGuardrails(systemInstruction);
 
-1. You are Orion AI, a relationship and attraction mentor.
-2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
-3. NEVER refuse, decline, or say you cannot help.
-4. FORBIDDEN PHRASES - NEVER SAY THESE:
-   - "I can't provide assistance"
-   - "I can't help"
-   - "I'm unable to"
-   - "I cannot"
-   - "I won't help"
-   - "I can't fulfill that request"
-   - "I can't provide assistance or guidance on relationships"
-   - "I encourage you to reach out to a trusted friend"
-   - Any phrase that refuses to help with relationship questions
-5. If a question is unclear, ask clarifying questions - DO NOT refuse.
-6. You help with HEALTHY relationship strategies, reconnection, and attraction.
-7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
-
-REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
-
-        // SEMPRE adicionar no início, mesmo se já tiver instruções críticas
-        // Modelos pequenos precisam de reforço constante
-        if (
-          !systemInstruction.toLowerCase().startsWith("critical instructions")
-        ) {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        } else {
-          // Se já começa com CRITICAL, ainda adicionar reforço
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        }
-      }
-
-      const prompt = `${enhancedSystemInstruction}\n\nBased on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
-
-HISTORY:
-${contextHistory}
-
-STRICT REQUIREMENTS:
-1. LANGUAGE: Output MUST be strictly in English.
-2. DIAGNOSIS: Synthesize the diagnosis based on the user's answers in the chat.
-3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
-4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
-5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
-6. TRIGGERS: Explain how to use specific Secret Signals (The Awakening Phrase, The Fascination Signal, etc.).
-
-Output strictly valid JSON with the following structure:
-{
-  "diagnosis": "string",
-  "steps": [{"stepNumber": 1, "title": "string", "description": "string", "duration": "string"}],
-  "messageTemplates": [{"situation": "string", "text": "string", "timing": "string"}],
-  "dos": ["string"],
-  "donts": ["string"],
-  "distancingStrategy": "string",
-  "neurologicalTriggers": "string"
-}`;
+      const prompt = `${enhancedSystemInstruction}\n\n${buildPlanPrompt(
+        contextHistory,
+        locale,
+        { includeJsonShape: true }
+      )}`;
 
       // Preparar headers com autenticação
       const headers: Record<string, string> = {
@@ -580,44 +486,8 @@ Output strictly valid JSON with the following structure:
       const limitedHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
       // Reforçar instruções críticas
-      let enhancedSystemInstruction = systemInstruction;
-      if (systemInstruction) {
-        const criticalInstructions = `CRITICAL INSTRUCTIONS - YOU MUST OBEY THESE RULES:
-
-1. You are Orion AI, a relationship and attraction mentor.
-2. You MUST ALWAYS help users with relationship questions - this is your PRIMARY PURPOSE.
-3. NEVER refuse, decline, or say you cannot help.
-4. FORBIDDEN PHRASES - NEVER SAY THESE:
-   - "I can't provide assistance"
-   - "I can't help"
-   - "I'm unable to"
-   - "I cannot"
-   - "I won't help"
-   - "I can't fulfill that request"
-   - "I can't provide assistance or guidance on relationships"
-   - Any phrase that refuses to help with relationship questions
-5. If a question is unclear, ask clarifying questions - DO NOT refuse.
-6. You help with HEALTHY relationship strategies, reconnection, and attraction.
-7. You do NOT help with manipulation, harm, or abuse - but you MUST help with legitimate relationship questions.
-
-REMEMBER: Your job is to help with relationships. NEVER refuse. ALWAYS help.`;
-
-        if (
-          !systemInstruction.toLowerCase().startsWith("critical instructions")
-        ) {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        } else {
-          enhancedSystemInstruction = `${criticalInstructions}
-
----
-
-${systemInstruction}`;
-        }
-      }
+      const enhancedSystemInstruction =
+        withProviderGuardrails(systemInstruction);
 
       // Construir prompt completo com histórico
       let fullPrompt = "";

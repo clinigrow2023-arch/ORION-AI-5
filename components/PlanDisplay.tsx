@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { ActionPlan } from "../types";
 import { geminiService } from "../services/geminiService";
 import { useAuth } from "../contexts/AuthContext";
+import { useI18n } from "../contexts/I18nContext";
 import { authService } from "../lib/auth";
+import { apiFetch } from "../lib/api-endpoints";
 import {
   Target,
   Clock,
@@ -30,6 +32,7 @@ interface Conversation {
 
 const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
   const { user } = useAuth();
+  const { t, formatDate, formatTime } = useI18n();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -46,15 +49,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
   useEffect(() => {
     const loadConversations = async () => {
       try {
-        const token = authService.getToken();
-        if (!token) return;
+        if (!authService.getToken()) return;
 
-        const { getApiEndpoint } = await import("../lib/api-endpoints");
-        const response = await fetch(getApiEndpoint("conversations"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await apiFetch("conversations");
 
         if (response.ok) {
           const data = await response.json();
@@ -100,17 +97,13 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
   const generatePlan = async () => {
     // Verificar acesso antes de gerar plano
     if (!hasAccess) {
-      setError(
-        "Your account access has not been granted or has expired. Please contact an administrator."
-      );
+      setError(t("plan.errors.noAccess"));
       return;
     }
 
     const history = getSelectedConversationHistory();
     if (!history) {
-      setError(
-        "Please select a conversation or chat with Orion first to provide context about your situation."
-      );
+      setError(t("plan.errors.noContext"));
       return;
     }
 
@@ -126,18 +119,18 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
         !Array.isArray(newPlan.steps) ||
         newPlan.steps.length === 0
       ) {
-        setError(
-          "The generated plan is incomplete. Please try again or provide more details in the chat."
-        );
+        setError(t("plan.errors.incomplete"));
         return;
       }
 
       setPlan(newPlan);
     } catch (err: any) {
-      const errorMessage =
-        err?.message ||
-        "Failed to generate plan. Make sure you have provided enough details in the chat.";
-      setError(errorMessage);
+      // Erros do serviço de IA são técnicos/em inglês: mostrar texto localizado.
+      setError(
+        err?.code === "access_denied"
+          ? t("plan.errors.noAccess")
+          : t("plan.errors.failed")
+      );
       console.error("Plan generation error:", err);
     } finally {
       setIsGenerating(false);
@@ -160,13 +153,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
         <div className="bg-slate-800/50 p-8 rounded-2xl border border-slate-700 max-w-lg">
           <Target className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-white mb-4">
-            Generate Your Strategy
+            {t("plan.empty.title")}
           </h2>
-          <p className="text-slate-400 mb-8">
-            Orion will analyze your chat history to create a custom 3-step
-            reconciliation plan, including specific texts and psychological
-            triggers.
-          </p>
+          <p className="text-slate-400 mb-8">{t("plan.empty.description")}</p>
 
           {error && (
             <div className="mb-6 p-3 bg-red-900/30 border border-red-800 text-red-300 rounded-lg flex items-center gap-2 text-sm text-left">
@@ -179,7 +168,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
           {conversations.length > 0 && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Select conversation to use as context:
+                {t("plan.empty.selectorLabel")}
               </label>
               <div className="relative">
                 <button
@@ -190,12 +179,14 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
                 >
                   <span>
                     {selectedConversationId
-                      ? `Chat from ${new Date(
-                          conversations.find(
-                            (c) => c.id === selectedConversationId
-                          )?.updatedAt || ""
-                        ).toLocaleDateString()}`
-                      : "Select a conversation"}
+                      ? t("plan.empty.conversationItem", {
+                          date: formatDate(
+                            conversations.find(
+                              (c) => c.id === selectedConversationId
+                            )?.updatedAt || ""
+                          ),
+                        })
+                      : t("plan.empty.selectorPlaceholder")}
                   </span>
                   <ChevronDown
                     size={16}
@@ -219,12 +210,15 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
                         }`}
                       >
                         <div className="font-medium">
-                          Chat from{" "}
-                          {new Date(conv.updatedAt).toLocaleDateString()}
+                          {t("plan.empty.conversationItem", {
+                            date: formatDate(conv.updatedAt),
+                          })}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {conv.messages?.length || 0} messages •{" "}
-                          {new Date(conv.updatedAt).toLocaleTimeString()}
+                          {t("plan.empty.conversationMeta", {
+                            count: conv.messages?.length || 0,
+                            time: formatTime(conv.updatedAt),
+                          })}
                         </div>
                       </button>
                     ))}
@@ -244,7 +238,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
             ) : (
               <BrainCircuit />
             )}
-            {isGenerating ? "Synthesizing Strategy..." : "Generate Action Plan"}
+            {isGenerating
+              ? t("plan.empty.generating")
+              : t("plan.empty.generate")}
           </button>
         </div>
       </div>
@@ -256,7 +252,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       {/* Diagnosis Section */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
         <h3 className="text-lg font-bold text-indigo-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Target size={20} /> Diagnostic Analysis
+          <Target size={20} /> {t("plan.sections.diagnosis")}
         </h3>
         <p className="text-slate-200 leading-relaxed text-lg">
           {plan.diagnosis}
@@ -266,7 +262,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       {/* 3-Step Plan */}
       <section>
         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <Clock size={24} className="text-indigo-500" /> 3-Step Action Plan
+          <Clock size={24} className="text-indigo-500" />{" "}
+          {t("plan.sections.steps")}
         </h3>
         <div className="grid gap-6 md:grid-cols-3">
           {plan.steps.map((step) => (
@@ -296,8 +293,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       {/* Message Templates */}
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <MessageCircle size={24} className="text-indigo-500" /> Strategic
-          Communication
+          <MessageCircle size={24} className="text-indigo-500" />{" "}
+          {t("plan.sections.messages")}
         </h3>
         <div className="space-y-4">
           {plan.messageTemplates.map((msg, idx) => (
@@ -325,7 +322,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       <div className="grid md:grid-cols-2 gap-6">
         <section className="bg-slate-900/50 border border-green-900/30 rounded-2xl p-6">
           <h3 className="text-green-400 font-bold mb-4 flex items-center gap-2">
-            <ShieldCheck size={20} /> Essential Actions
+            <ShieldCheck size={20} /> {t("plan.sections.dos")}
           </h3>
           <ul className="space-y-3">
             {plan.dos.map((item, idx) => (
@@ -342,7 +339,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
 
         <section className="bg-slate-900/50 border border-red-900/30 rounded-2xl p-6">
           <h3 className="text-red-400 font-bold mb-4 flex items-center gap-2">
-            <ShieldAlert size={20} /> Critical Mistakes to Avoid
+            <ShieldAlert size={20} /> {t("plan.sections.donts")}
           </h3>
           <ul className="space-y-3">
             {plan.donts.map((item, idx) => (
@@ -362,14 +359,16 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
       <section className="grid md:grid-cols-2 gap-6">
         <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-6">
           <h4 className="text-indigo-300 font-semibold mb-2">
-            Strategic Distancing
+            {t("plan.sections.distancing")}
           </h4>
           <p className="text-slate-400 text-sm leading-relaxed">
             {plan.distancingStrategy}
           </p>
         </div>
         <div className="bg-indigo-950/20 border border-indigo-500/20 rounded-2xl p-6">
-          <h4 className="text-indigo-300 font-semibold mb-2">Secret Signals</h4>
+          <h4 className="text-indigo-300 font-semibold mb-2">
+            {t("plan.sections.triggers")}
+          </h4>
           <p className="text-slate-400 text-sm leading-relaxed">
             {plan.neurologicalTriggers}
           </p>
@@ -381,7 +380,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, setPlan }) => {
           onClick={() => setPlan(null)} // Reset to allow re-generation
           className="text-xs text-slate-500 hover:text-slate-300 underline"
         >
-          Discard and regenerate plan
+          {t("plan.discard")}
         </button>
       </div>
     </div>

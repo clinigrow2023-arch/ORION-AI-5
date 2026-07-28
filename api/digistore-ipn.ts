@@ -7,6 +7,7 @@ import {
   sendExistingUserEmail,
   sendRenewalThankYouEmail,
 } from "../lib/email.js";
+import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "../lib/locale.js";
 
 // IPN Passphrase configured in DigiStore IPN settings
 const IPN_PASSPHRASE = process.env.DIGISTORE_IPN_PASSPHRASE || "";
@@ -125,6 +126,20 @@ function postedValue(data: Record<string, any>, varname: string): string {
 function isAllowedDigistoreProduct(productId: string): boolean {
   return ALLOWED_DIGISTORE_PRODUCT_IDS.has((productId || "").trim());
 }
+
+/**
+ * Idioma do comprador informado pela DigiStore (campo `language`, ex.: "en",
+ * "fr"). Como o campo é opcional, tudo que não for suportado cai no padrão.
+ */
+function buyerLocale(data: Record<string, string>): Locale {
+  return normalizeLocale(postedValue(data, "language"), DEFAULT_LOCALE);
+}
+
+/** Título do bloco de credenciais devolvido para a página de obrigado. */
+const CREDENTIALS_HEADLINE: Record<Locale, string> = {
+  en: "Your Access Credentials",
+  fr: "Vos identifiants d'accès",
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // DigiStore sends data via POST form-urlencoded
@@ -458,6 +473,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           postedValue(postData, "last_name");
 
         const isTestMode = apiMode !== "live";
+        const ipnLocale = buyerLocale(postData);
 
         // Log removido por segurança (não expor dados de pagamento)
 
@@ -506,6 +522,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         let tempPasswordForDisplay = "";
         const saltRounds = 10;
+        // E-mails seguem a preferência já salva; sem preferência, o idioma da IPN.
+        const userLocale = normalizeLocale(user?.locale, ipnLocale);
 
         if (user) {
           // Check if legacy user (without digistoreOrderId or subscriptionStatus)
@@ -549,7 +567,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await sendNewUserEmail(
                   user.email,
                   user.name,
-                  tempPasswordForDisplay
+                  tempPasswordForDisplay,
+                  userLocale
                 );
               } catch (emailError) {
                 // Log removido por segurança
@@ -573,7 +592,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
               // Enviar email informando que acesso foi liberado
               try {
-                await sendExistingUserEmail(user.email, user.name);
+                await sendExistingUserEmail(user.email, user.name, userLocale);
               } catch (emailError) {
                 // Log removido por segurança
                 // Não bloquear o processo se email falhar
@@ -598,7 +617,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             try {
-              await sendRenewalThankYouEmail(user.email, user.name);
+              await sendRenewalThankYouEmail(user.email, user.name, userLocale);
             } catch (emailError) {
               // Log removido por segurança
               // Não bloquear o processo se email falhar
@@ -630,6 +649,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               nextPaymentDate: nextPaymentDate,
               productId: productId,
               billingType: billingType,
+              locale: ipnLocale,
             },
           });
 
@@ -640,7 +660,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await sendNewUserEmail(
               user.email,
               user.name,
-              tempPasswordForDisplay
+              tempPasswordForDisplay,
+              ipnLocale
             );
           } catch (emailError) {
             // Log removido por segurança
@@ -655,7 +676,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const loginUrl = `${SITE_URL}/#login`;
         const thankyouUrl = `${SITE_URL}/#login`;
 
-        const headline = "Your Access Credentials";
+        const headline = CREDENTIALS_HEADLINE[userLocale];
         const showOn = "all"; // Mostrar em todos os lugares
         const hideOn = "none";
 

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from '../contexts/I18nContext';
+import LanguageSelector from './LanguageSelector';
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 const Login: React.FC = () => {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,15 +17,15 @@ const Login: React.FC = () => {
     const newErrors: { email?: string; password?: string } = {};
 
     if (!email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('login.errors.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = t('login.errors.emailInvalid');
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('login.errors.passwordRequired');
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('login.errors.passwordTooShort');
     }
 
     setErrors(newErrors);
@@ -41,7 +44,7 @@ const Login: React.FC = () => {
     try {
       await login(email.trim().toLowerCase(), password);
     } catch (error: any) {
-      setErrors({ general: error.message || 'Login failed. Please try again.' });
+      setErrors({ general: error.message || t('login.errors.failed') });
     } finally {
       setIsLoading(false);
     }
@@ -50,10 +53,13 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-4">
+          <LanguageSelector variant="compact" />
+        </div>
         <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Orion AI</h1>
-            <p className="text-slate-400">Sign in to continue</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('app.name')}</h1>
+            <p className="text-slate-400">{t('login.subtitle')}</p>
           </div>
 
           {errors.general && (
@@ -66,7 +72,7 @@ const Login: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                Email
+                {t('login.email')}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -78,7 +84,7 @@ const Login: React.FC = () => {
                   className={`w-full pl-10 pr-4 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                     errors.email ? 'border-red-500' : 'border-slate-700'
                   }`}
-                  placeholder="your@email.com"
+                  placeholder={t('login.emailPlaceholder')}
                   disabled={isLoading}
                 />
               </div>
@@ -89,7 +95,7 @@ const Login: React.FC = () => {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                Password
+                {t('login.password')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
@@ -101,7 +107,7 @@ const Login: React.FC = () => {
                   className={`w-full pl-10 pr-12 py-3 bg-slate-800 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                     errors.password ? 'border-red-500' : 'border-slate-700'
                   }`}
-                  placeholder="••••••••"
+                  placeholder={t('login.passwordPlaceholder')}
                   disabled={isLoading}
                 />
                 <button
@@ -126,10 +132,10 @@ const Login: React.FC = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  <span>Signing in...</span>
+                  <span>{t('login.submitting')}</span>
                 </>
               ) : (
-                'Sign In'
+                t('login.submit')
               )}
             </button>
           </form>
@@ -141,4 +147,3 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-

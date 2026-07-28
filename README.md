@@ -71,6 +71,65 @@ The app requires user authentication. Users must:
 - JWT-based authentication
 - Credit system: users start with 10 credits, each message costs 1 credit
 
+## Internationalization (i18n)
+
+The whole product ships in **English (default)** and **French**: interface, validation
+messages, API errors, AI answers and transactional e-mails.
+
+### How the language is resolved
+
+1. Explicit choice saved on the device (`localStorage`, key `orion_locale`).
+2. Language stored on the account (`User.locale`), adopted when the device has no
+   explicit choice.
+3. Browser `navigator.language` / `Accept-Language`.
+4. Fallback: `en`.
+
+Every request goes through `apiFetch` (`lib/api-endpoints.ts`), which always sends the
+active language in the `X-Locale` header. On the server, `resolveRequestLocale` reads
+that header (falling back to `Accept-Language`) and `resolveUserLocale` gives priority
+to the language stored on the authenticated account.
+
+When a signed-in user changes the language, `AuthContext` persists it through
+`PUT /api/user-locale`, so e-mails triggered later by the backend (renewal, expiration,
+credentials) use the same language.
+
+### Where the strings live
+
+| Area                        | File                                            |
+| --------------------------- | ----------------------------------------------- |
+| Locale list, header, helpers | `lib/locale.ts`                                 |
+| UI catalogs                 | `lib/messages-en.ts`, `lib/messages-fr.ts`      |
+| Runtime + date/time formats | `lib/i18n.ts`, `contexts/I18nContext.tsx`       |
+| API messages                | `lib/api-messages.ts`                           |
+| E-mail copy                 | `lib/email-copy.ts`                             |
+| AI prompt building blocks   | `lib/prompt-defaults.ts`                        |
+
+`MessageCatalog` is derived from the English catalog, so **any missing or extra key in
+the French catalog breaks the build** — translations can never silently drift.
+
+In components, use the hook instead of literals:
+
+```tsx
+const { t } = useTranslation();
+return <h1>{t("guide.title")}</h1>;
+```
+
+### AI answers
+
+`SystemPrompt` rows are stored per language (`SystemPrompt.locale`) and the admin panel
+has a language switch for editing them. `getSystemInstruction` looks for the prompt in
+the requested language, falls back to English, and always appends a language directive
+so the model answers in the user's language even when the prompt body is in English.
+
+### Adding a new language
+
+1. Add the code to `SUPPORTED_LOCALES` and `LOCALES` in `lib/locale.ts`.
+2. Create `lib/messages-<code>.ts` implementing `MessageCatalog` and register it in
+   `lib/i18n.ts`.
+3. Add the entries in `lib/api-messages.ts` and `lib/email-copy.ts` (TypeScript points
+   out anything missing).
+4. Optionally create the system prompt for the language in the admin panel.
+
 ## Deployment (Vercel)
 
 1. Set environment variables in Vercel:

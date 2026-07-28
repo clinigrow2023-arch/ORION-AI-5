@@ -8,7 +8,9 @@ import React, {
 } from "react";
 import { authService, User } from "../lib/auth";
 import { geminiService } from "../services/geminiService";
-import { getApiEndpoint } from "../lib/api-endpoints";
+import { apiFetch } from "../lib/api-endpoints";
+import { normalizeLocale, type Locale } from "../lib/locale";
+import { useI18n } from "./I18nContext";
 
 export interface ExtendedUser extends User {
   role?: string;
@@ -47,6 +49,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const hasCheckedAuth = useRef(false);
+  const { locale, hasExplicitLocale, adoptServerLocale, t } = useI18n();
+
+  // Idioma já enviado ao servidor nesta sessão: evita repetir o PUT enquanto a
+  // resposta não chega (o seletor pode ser clicado várias vezes seguidas).
+  const syncingLocaleRef = useRef<Locale | null>(null);
+
+  /**
+   * Aplica no cliente o idioma salvo na conta. Uma escolha explícita feita
+   * neste dispositivo tem prioridade: nesse caso o efeito de sincronização
+   * abaixo envia a escolha ao servidor em vez de sobrescrevê-la.
+   */
+  const applyServerUser = (serverUser: ExtendedUser | null) => {
+    if (!serverUser?.locale) {
+      return;
+    }
+    if (!hasExplicitLocale) {
+      adoptServerLocale(normalizeLocale(serverUser.locale));
+    }
+  };
 
   const refreshUser = async () => {
     try {
@@ -57,12 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Fazer apenas uma chamada direta para auth-verify
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("auth-verify"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("auth-verify");
 
       if (response.ok) {
         const data = await response.json();
@@ -71,6 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Isso garante que os dados persistam entre recarregamentos
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
+        applyServerUser(updatedUser);
 
         // Se usuário foi bloqueado, fazer logout imediatamente
         if (updatedUser.isBlocked) {
@@ -118,11 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // A otimização de não fazer requisição quando isActive !== true só se aplica após a primeira verificação
 
         // Fazer apenas uma chamada direta para auth-verify
-        const response = await fetch(getApiEndpoint("auth-verify"), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await apiFetch("auth-verify");
 
         if (response.ok) {
           const data = await response.json();
@@ -131,6 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Limpar histórico do geminiService ao carregar usuário para evitar compartilhamento
           geminiService.clearHistory();
           setUser(userData);
+          applyServerUser(userData);
 
           // Se usuário foi bloqueado, fazer logout imediatamente
           if (userData.isBlocked) {
@@ -158,16 +172,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error("Auth check failed:", error);
         // Em caso de erro, tentar usar dados do localStorage
-        const userStr = localStorage.getItem("user");
-        if (userStr) {
-          try {
-            setUser(JSON.parse(userStr));
-          } catch {
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
+        const stored = authService.getUser();
+        setUser(stored);
+        applyServerUser(stored);
       } finally {
         setLoading(false);
       }
@@ -182,20 +189,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = authService.getToken();
         if (token) {
           try {
-            const response = await fetch(getApiEndpoint("auth-verify"), {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
+            const response = await apiFetch("auth-verify");
             if (response.status === 403) {
               const data = await response.json().catch(() => ({}));
-              if (data.blocked || data.error?.includes("blocked")) {
+              if (data.blocked) {
                 // Usuário bloqueado - fazer logout
                 authService.logout();
                 setUser(null);
-                alert(
-                  "Sua conta foi bloqueada. Entre em contato com um administrador."
-                );
+                alert(t("authErrors.accountBlocked"));
                 window.location.reload();
               }
             } else if (response.ok) {
@@ -205,9 +206,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               if (updatedUser?.isBlocked) {
                 authService.logout();
                 setUser(null);
-                alert(
-                  "Sua conta foi bloqueada. Entre em contato com um administrador."
-                );
+                alert(t("authErrors.accountBlocked"));
                 window.location.reload();
               } else {
                 // Atualizar dados do usuário
@@ -225,10 +224,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => clearInterval(interval);
   }, [user?.isBlocked]); // Re-executar se isBlocked mudar
 
+  // Propaga para o servidor a troca de idioma feita por um usuário logado, para
+  // que e-mails e respostas da IA disparados pelo backend usem o mesmo idioma.
+  useEffect(() => {
+    if (!user || !hasExplicitLocale) {
+      return;
+    }
+    if (user.locale === locale || syncingLocaleRef.current === locale) {
+      return;
+    }
+
+    syncingLocaleRef.current = locale;
+    let cancelled = false;
+
+    authService
+      .updateLocale(locale)
+      .then((saved) => {
+        if (cancelled) {
+          return;
+        }
+        setUser((prev) => {
+          if (!prev) {
+            return prev;
+          }
+          const next = { ...prev, locale: saved };
+          localStorage.setItem("user", JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch(() => {
+        // Falha de rede: permite nova tentativa na próxima troca de idioma.
+        if (syncingLocaleRef.current === locale) {
+          syncingLocaleRef.current = null;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.locale, locale, hasExplicitLocale]);
+
   const login = async (email: string, password: string) => {
     // Limpar histórico do geminiService ao fazer login para evitar compartilhamento entre usuários
     geminiService.clearHistory();
-    const response = await authService.login(email, password);
+    const response = await authService.login(
+      email,
+      password,
+      hasExplicitLocale ? locale : undefined
+    );
     // Após login, atualizar localStorage e estado com dados completos do servidor
     // O login agora retorna isActive e accessExpiresAt, então não precisa fazer refreshUser
     if (response.user) {
@@ -236,15 +279,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem("user", JSON.stringify(response.user));
       // Atualizar estado do contexto
       setUser(response.user);
+      applyServerUser(response.user);
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const response = await authService.register(name, email, password);
+    const response = await authService.register(
+      name,
+      email,
+      password,
+      hasExplicitLocale ? locale : undefined
+    );
     // Após registro, usuário já está ativo e pode usar a IA imediatamente
     if (response.user) {
       localStorage.setItem("user", JSON.stringify(response.user));
       setUser(response.user);
+      applyServerUser(response.user);
     }
   };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, X, Trash2 } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
+import { useTranslation } from '../contexts/I18nContext';
 
 interface DeleteConversationModalProps {
   onConfirm: () => void;
@@ -13,6 +14,8 @@ const DeleteConversationModal: React.FC<DeleteConversationModalProps> = ({
   onCancel,
   conversationDate 
 }) => {
+  const { t } = useTranslation();
+
   const modalContent = (
     <div 
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" 
@@ -24,6 +27,7 @@ const DeleteConversationModal: React.FC<DeleteConversationModalProps> = ({
       >
         <button
           onClick={onCancel}
+          aria-label={t('common.close')}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
         >
           <X size={20} />
@@ -34,17 +38,18 @@ const DeleteConversationModal: React.FC<DeleteConversationModalProps> = ({
             <Trash2 size={24} className="text-red-400" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Delete Conversation</h2>
+            <h2 className="text-xl font-bold text-white">{t('chat.deleteModal.title')}</h2>
             <p className="text-sm text-slate-400">
-              {conversationDate ? `Chat from ${conversationDate}` : 'This conversation'}
+              {conversationDate
+                ? t('chat.deleteModal.subtitleWithDate', { date: conversationDate })
+                : t('chat.deleteModal.subtitleGeneric')}
             </p>
           </div>
         </div>
 
         <div className="mb-6">
           <p className="text-slate-300 text-sm leading-relaxed">
-            Are you sure you want to delete this conversation? All messages will be permanently removed. 
-            This action cannot be undone.
+            {t('chat.deleteModal.message')}
           </p>
         </div>
 
@@ -54,14 +59,14 @@ const DeleteConversationModal: React.FC<DeleteConversationModalProps> = ({
             onClick={onCancel}
             className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
           >
-            Delete Conversation
+            {t('chat.deleteModal.confirm')}
           </button>
         </div>
       </div>
@@ -77,4 +82,3 @@ const DeleteConversationModal: React.FC<DeleteConversationModalProps> = ({
 };
 
 export default DeleteConversationModal;
-

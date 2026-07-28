@@ -1,5 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
+import type { Locale } from "../../lib/locale.js";
 import { AIProvider, createProviderError, isRetryableError } from "./base.js";
+import { buildPlanPrompt } from "../../lib/prompt-defaults.js";
 
 // Gemini Provider Implementation
 export class GeminiProvider implements AIProvider {
@@ -103,7 +105,8 @@ export class GeminiProvider implements AIProvider {
 
   async generatePlan(
     contextHistory: string,
-    systemInstruction: string
+    systemInstruction: string,
+    locale: Locale
   ): Promise<string> {
     try {
       const planSchema = {
@@ -187,20 +190,7 @@ export class GeminiProvider implements AIProvider {
         ],
       };
 
-      const prompt = `Based on the conversation history below, generate a comprehensive Reconciliation Action Plan in JSON format.
-
-HISTORY:
-${contextHistory}
-
-STRICT REQUIREMENTS:
-1. LANGUAGE: Output MUST be strictly in English.
-2. DIAGNOSIS: Synthesize the diagnosis based on the user's answers in the chat.
-3. STEPS: Exactly 3 distinct, sequential steps with specific timing.
-4. MESSAGES: Exactly 3 personalized message templates for specific scenarios.
-5. DISTANCING: Explain "Strategic Distancing" (duration + logic).
-6. TRIGGERS: Explain how to use specific Secret Signals (The Awakening Phrase, The Fascination Signal, etc.).
-
-Output strictly valid JSON.`;
+      const prompt = buildPlanPrompt(contextHistory, locale);
 
       const response = await this.ai.models.generateContent({
         model: "gemini-2.5-flash",

@@ -2,7 +2,12 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import jwt from "jsonwebtoken";
 import { handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
-import { sendMessageStreamWithFallback, sendMessageWithFallback } from "./ai-providers/fallback.js";
+import { apiMessage } from "../lib/api-messages.js";
+import { resolveRequestLocale, resolveUserLocale } from "../lib/server-locale.js";
+import {
+  sendMessageStreamWithFallback,
+  sendMessageWithFallback,
+} from "./ai-providers/fallback.js";
 
 export default async function geminiHandler(
   req: VercelRequest,
@@ -16,11 +21,14 @@ export default async function geminiHandler(
 
   setCorsHeaders(res);
 
+  // Idioma provisório (antes de conhecer o usuário) para localizar erros de auth.
+  let locale = resolveRequestLocale(req);
+
   try {
     // Verificar autenticação
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      return res.status(401).json({ error: "Authentication required" });
+      return res.status(401).json({ error: apiMessage(locale, "authRequired") });
     }
 
     // Verificar se o token é válido
@@ -31,29 +39,38 @@ export default async function geminiHandler(
       };
       userId = decoded.userId;
     } catch (error) {
-      return res.status(401).json({ error: "Invalid token" });
+      return res.status(401).json({ error: apiMessage(locale, "invalidToken") });
     }
 
     // Verificar se o usuário existe e não está bloqueado
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { isBlocked: true },
+      select: { isBlocked: true, locale: true },
     });
 
     if (!user || user.isBlocked) {
-      return res.status(403).json({ error: "Access denied" });
+      return res.status(403).json({
+        error: apiMessage(locale, "accessDenied"),
+        blocked: Boolean(user?.isBlocked),
+      });
     }
+
+    // A preferência salva vence: garante que a IA responda no idioma do usuário
+    // mesmo se o cliente enviar um header divergente.
+    locale = resolveUserLocale(user.locale, req);
 
     if (req.method === "POST") {
       const { message, history = [] } = req.body;
 
       if (!message) {
-        return res.status(400).json({ error: "Message is required" });
+        return res
+          .status(400)
+          .json({ error: apiMessage(locale, "messageRequired") });
       }
 
       // Verificar se é streaming
       const isStreaming = req.query.stream === "true" || req.headers["x-stream"] === "true";
-      
+
       if (isStreaming) {
         // Resposta de streaming SSE
         res.writeHead(200, {
@@ -65,24 +82,35 @@ export default async function geminiHandler(
 
         try {
           // Enviar mensagem via provedor fallback com streaming
-          const { response, provider } = await sendMessageStreamWithFallback(
+          const { response } = await sendMessageStreamWithFallback(
             message,
             history,
             (chunk) => {
               res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-            }
+            },
+            locale
           );
-          
+
           // Enviar mensagem de conclusão
           res.write(`data: ${JSON.stringify({ done: true, response: response })}\n\n`);
           res.end();
         } catch (error: any) {
-          res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+          console.error("Gemini streaming error:", error);
+          // Detalhes técnicos ficam no log; o cliente recebe texto localizado.
+          res.write(
+            `data: ${JSON.stringify({
+              error: apiMessage(locale, "internalError"),
+            })}\n\n`
+          );
           res.end();
         }
       } else {
         // Resposta normal
-        const { response } = await sendMessageWithFallback(message, history);
+        const { response } = await sendMessageWithFallback(
+          message,
+          history,
+          locale
+        );
 
         return res.status(200).json({ 
           response,
@@ -90,10 +118,14 @@ export default async function geminiHandler(
         });
       }
     } else {
-      return res.status(405).json({ error: "Method not allowed" });
+      return res
+        .status(405)
+        .json({ error: apiMessage(locale, "methodNotAllowed") });
     }
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    return res
+      .status(500)
+      .json({ error: apiMessage(locale, "internalError") });
   }
 }

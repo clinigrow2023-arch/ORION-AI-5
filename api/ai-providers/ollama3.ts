@@ -11,8 +11,11 @@ import {
   attachSystemIfPresent,
   buildPlanSystemPrompt,
   buildPlanUserPrompt,
-  enhanceSystemInstruction,
+  CHAT_STOP_SEQUENCES,
+  findChatLeakIndex,
   getOllamaAuthHeaders,
+  resolveChatSystemForRequest,
+  sanitizeChatResponse,
   truncatePlanContext,
 } from "./ollama-helpers.js";
 import { DEFAULT_LOCALE, type Locale } from "../../lib/locale.js";
@@ -54,20 +57,23 @@ export class Ollama3Provider implements AIProvider {
 
       const fullPrompt = buildConversationPrompt(message, history, locale);
       const headers = getOllamaAuthHeaders(this.apiKey);
-      const systemForRequest = systemInstruction.trim()
-        ? enhanceSystemInstruction(systemInstruction)
-        : "";
+      const systemForRequest = resolveChatSystemForRequest(
+        systemInstruction,
+        this.model
+      );
 
       const requestBody: Record<string, unknown> = {
         model: this.model,
         prompt: fullPrompt,
         stream: false,
         num_ctx: 2048,
+        stop: [...CHAT_STOP_SEQUENCES],
         options: {
           temperature: 0.65,
           num_predict: CHAT_NUM_PREDICT,
           top_p: 0.9,
           repeat_penalty: 1.15,
+          stop: [...CHAT_STOP_SEQUENCES],
         },
       };
       attachSystemIfPresent(requestBody, systemForRequest);
@@ -181,7 +187,7 @@ export class Ollama3Provider implements AIProvider {
           `[Ollama3] Prompt eval duration: ${data.prompt_eval_duration / 1e9}s`
         );
       }
-      return content;
+      return sanitizeChatResponse(content);
     } catch (error: any) {
       if (error.provider) {
         // Log removido por segurança
@@ -384,20 +390,23 @@ export class Ollama3Provider implements AIProvider {
     try {
       const fullPrompt = buildConversationPrompt(message, history, locale);
       const headers = getOllamaAuthHeaders(this.apiKey);
-      const systemForRequest = systemInstruction.trim()
-        ? enhanceSystemInstruction(systemInstruction)
-        : "";
+      const systemForRequest = resolveChatSystemForRequest(
+        systemInstruction,
+        this.model
+      );
 
       const requestBody: Record<string, unknown> = {
         model: this.model,
         prompt: fullPrompt,
         stream: true,
         num_ctx: 2048,
+        stop: [...CHAT_STOP_SEQUENCES],
         options: {
           temperature: 0.65,
           num_predict: CHAT_NUM_PREDICT,
           top_p: 0.9,
           repeat_penalty: 1.15,
+          stop: [...CHAT_STOP_SEQUENCES],
         },
       };
       attachSystemIfPresent(requestBody, systemForRequest);
@@ -463,7 +472,25 @@ export class Ollama3Provider implements AIProvider {
 
       const decoder = new TextDecoder();
       let fullResponse = "";
-      let buffer = "";
+      let lineBuffer = "";
+      // Hold back trailing chars so leak markers spanning chunks are not
+      // shown to the UI before we can cut them.
+      const HOLDBACK = 72;
+      let emitted = 0;
+      let stoppedForLeak = false;
+
+      const releaseSafe = (force: boolean): boolean => {
+        const leakAt = findChatLeakIndex(fullResponse);
+        const safeEnd = leakAt >= 0 ? leakAt : fullResponse.length;
+        const releaseUntil = force
+          ? safeEnd
+          : Math.max(emitted, Math.max(0, safeEnd - HOLDBACK));
+        if (releaseUntil > emitted) {
+          onChunk(fullResponse.slice(emitted, releaseUntil));
+          emitted = releaseUntil;
+        }
+        return leakAt >= 0;
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -472,12 +499,10 @@ export class Ollama3Provider implements AIProvider {
           break;
         }
 
-        // Decodificar chunk
-        buffer += decoder.decode(value, { stream: true });
+        lineBuffer += decoder.decode(value, { stream: true });
 
-        // Processar linhas completas
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Manter última linha incompleta no buffer
+        const lines = lineBuffer.split("\n");
+        lineBuffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.trim() === "") continue;
@@ -485,44 +510,53 @@ export class Ollama3Provider implements AIProvider {
           try {
             const json = JSON.parse(line);
 
-            // Ollama retorna chunks no campo 'response'
             if (json.response) {
-              const chunk = json.response;
-              fullResponse += chunk;
-              onChunk(chunk); // Enviar chunk para callback
+              fullResponse += json.response;
+              if (releaseSafe(false)) {
+                stoppedForLeak = true;
+                break;
+              }
             }
 
-            // Se done for true, finalizou
             if (json.done) {
               break;
             }
-          } catch (parseError) {
-            // Ignorar linhas que não são JSON válido
+          } catch {
             continue;
           }
         }
+
+        if (stoppedForLeak) {
+          try {
+            await reader.cancel();
+          } catch {
+            // ignore cancel errors
+          }
+          break;
+        }
       }
 
-      // Processar último buffer se houver
-      if (buffer.trim()) {
+      if (!stoppedForLeak && lineBuffer.trim()) {
         try {
-          const json = JSON.parse(buffer);
+          const json = JSON.parse(lineBuffer);
           if (json.response) {
-            const chunk = json.response;
-            fullResponse += chunk;
-            onChunk(chunk);
+            fullResponse += json.response;
           }
-        } catch (e) {
+        } catch {
           // Ignorar
         }
       }
+
+      releaseSafe(true);
 
       console.log(
         `[Ollama3] Streaming completed. Total length: ${fullResponse.length}`
       );
 
+      const cleaned = sanitizeChatResponse(fullResponse);
+
       // Validar resposta
-      if (!fullResponse || fullResponse.trim() === "") {
+      if (!cleaned) {
         throw createProviderError(
           this.name,
           "Empty response from Ollama API",
@@ -531,7 +565,7 @@ export class Ollama3Provider implements AIProvider {
         );
       }
 
-      return fullResponse;
+      return cleaned;
     } catch (error: any) {
       if (error.provider) {
         throw error;

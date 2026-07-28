@@ -466,15 +466,15 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
               onClick={() => void openSavedPlan()}
               className="w-full mb-6 py-4 px-4 rounded-xl border-2 border-emerald-500/70 bg-emerald-950/50 hover:bg-emerald-900/40 transition-colors text-left shadow-lg shadow-emerald-900/20"
             >
-              <span className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/30 border border-emerald-500/50">
+              <span className="flex items-start gap-3 min-w-0">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/30 border border-emerald-500/50 shrink-0">
                   <FileText className="text-emerald-300" size={22} />
                 </span>
-                <span>
-                  <span className="block text-base font-semibold text-emerald-200">
+                <span className="min-w-0">
+                  <span className="block text-base font-semibold text-emerald-200 leading-snug break-words">
                     {t("plan.ready.title")}
                   </span>
-                  <span className="block text-xs text-emerald-400/90 mt-0.5">
+                  <span className="block text-xs text-emerald-400/90 mt-0.5 leading-snug break-words">
                     {t("plan.ready.hint")}
                   </span>
                 </span>
@@ -488,15 +488,15 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
               onClick={() => void openSavedPlan(savedPlanConversation.id)}
               className="w-full mb-6 py-4 px-4 rounded-xl border-2 border-emerald-500/70 bg-emerald-950/50 hover:bg-emerald-900/40 transition-colors text-left shadow-lg shadow-emerald-900/20"
             >
-              <span className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/30 border border-emerald-500/50">
+              <span className="flex items-start gap-3 min-w-0">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/30 border border-emerald-500/50 shrink-0">
                   <FileText className="text-emerald-300" size={22} />
                 </span>
-                <span>
-                  <span className="block text-base font-semibold text-emerald-200">
+                <span className="min-w-0">
+                  <span className="block text-base font-semibold text-emerald-200 leading-snug break-words">
                     {t("plan.saved.open")}
                   </span>
-                  <span className="block text-xs text-emerald-400/90 mt-0.5">
+                  <span className="block text-xs text-emerald-400/90 mt-0.5 leading-snug break-words">
                     {conversationLabel(savedPlanConversation)}
                   </span>
                 </span>
@@ -573,7 +573,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
             type="button"
             onClick={generatePlan}
             disabled={isGenerating || !hasAccess || !selectedConversationId}
-            className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 disabled:opacity-70 disabled:cursor-not-allowed leading-snug whitespace-normal text-center"
           >
             {isGenerating ? (
               <Loader2 className="animate-spin" />
@@ -591,8 +591,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
   return (
     <div className="h-full overflow-y-auto bg-slate-950 p-6 space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-400">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-400 min-w-0 flex-1 basis-[12rem] leading-snug break-words">
           {t("plan.header.planFor")}{" "}
           {selectedConversationId
             ? conversationLabel(
@@ -604,7 +604,7 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
               )
             : "—"}
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -612,22 +612,22 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
               setPlan(null);
               setError(null);
             }}
-            className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800"
+            className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 leading-snug whitespace-normal"
           >
             {t("plan.actions.otherChat")}
           </button>
           <button
             type="button"
             onClick={() => setConfirmAction("delete-plan")}
-            className="text-xs px-3 py-1.5 rounded-lg border border-red-800/50 text-red-300 hover:bg-red-900/20 flex items-center gap-1"
+            className="text-xs px-3 py-1.5 rounded-lg border border-red-800/50 text-red-300 hover:bg-red-900/20 flex items-center gap-1 leading-snug whitespace-normal"
           >
-            <Trash2 size={14} /> {t("plan.actions.delete")}
+            <Trash2 size={14} className="shrink-0" /> {t("plan.actions.delete")}
           </button>
           <button
             type="button"
             onClick={() => setConfirmAction("regenerate-plan")}
             disabled={isGenerating}
-            className="text-xs px-3 py-1.5 rounded-lg border border-indigo-600 text-indigo-300 hover:bg-indigo-900/30 disabled:opacity-50"
+            className="text-xs px-3 py-1.5 rounded-lg border border-indigo-600 text-indigo-300 hover:bg-indigo-900/30 disabled:opacity-50 leading-snug whitespace-normal"
           >
             {t("plan.actions.regenerate")}
           </button>
@@ -635,15 +635,16 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       </div>
 
       {backgroundNote && (
-        <div className="p-3 bg-indigo-900/30 border border-indigo-700 text-indigo-200 rounded-lg text-sm flex items-center gap-2">
-          <Loader2 className="animate-spin w-4 h-4" />
-          {backgroundNote}
+        <div className="p-3 bg-indigo-900/30 border border-indigo-700 text-indigo-200 rounded-lg text-sm flex items-start gap-2">
+          <Loader2 className="animate-spin w-4 h-4 shrink-0 mt-0.5" />
+          <span className="min-w-0 break-words leading-snug">{backgroundNote}</span>
         </div>
       )}
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <h3 className="text-lg font-bold text-indigo-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <Target size={20} /> {t("plan.sections.diagnosis")}
+        <h3 className="text-lg font-bold text-indigo-400 mb-4 flex items-start gap-2 leading-snug break-words">
+          <Target size={20} className="shrink-0 mt-0.5" />{" "}
+          {t("plan.sections.diagnosis")}
         </h3>
         <p className="text-slate-200 leading-relaxed text-lg">
           {viewPlan.diagnosis}
@@ -651,8 +652,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       </section>
 
       <section>
-        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <Clock size={24} className="text-indigo-500" />{" "}
+        <h3 className="text-xl font-bold text-white mb-4 flex items-start gap-2 leading-snug break-words">
+          <Clock size={24} className="text-indigo-500 shrink-0 mt-0.5" />{" "}
           {t("plan.sections.steps")}
         </h3>
         <div className="grid gap-6 md:grid-cols-3">
@@ -665,13 +666,13 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
                 {step.stepNumber}
               </div>
               <div className="relative z-10">
-                <div className="inline-block px-3 py-1 bg-indigo-900/50 text-indigo-300 rounded-full text-xs font-bold mb-3">
+                <div className="inline-block max-w-full px-3 py-1 bg-indigo-900/50 text-indigo-300 rounded-full text-xs font-bold mb-3 break-words whitespace-normal leading-snug">
                   {step.duration}
                 </div>
-                <h4 className="text-lg font-semibold text-white mb-2">
+                <h4 className="text-lg font-semibold text-white mb-2 break-words leading-snug">
                   {step.title}
                 </h4>
-                <p className="text-slate-400 text-sm leading-relaxed">
+                <p className="text-slate-400 text-sm leading-relaxed break-words">
                   {step.description}
                 </p>
               </div>
@@ -681,8 +682,8 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
       </section>
 
       <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <MessageCircle size={24} className="text-indigo-500" />{" "}
+        <h3 className="text-xl font-bold text-white mb-6 flex items-start gap-2 leading-snug break-words">
+          <MessageCircle size={24} className="text-indigo-500 shrink-0 mt-0.5" />{" "}
           {t("plan.sections.messages")}
         </h3>
         <div className="space-y-4">
@@ -691,15 +692,15 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
               key={idx}
               className="bg-slate-800/50 rounded-xl p-4 border border-slate-700"
             >
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-indigo-300 font-medium text-sm">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-3 mb-2 min-w-0">
+                <span className="text-indigo-300 font-medium text-sm min-w-0 break-words leading-snug">
                   {msg.situation}
                 </span>
-                <span className="text-slate-500 text-xs uppercase tracking-wide">
+                <span className="text-slate-500 text-xs shrink-0 leading-snug break-words sm:text-right">
                   {msg.timing}
                 </span>
               </div>
-              <div className="bg-slate-950 p-4 rounded-lg border-l-4 border-indigo-500 text-slate-200 font-mono text-sm relative">
+              <div className="bg-slate-950 p-4 rounded-lg border-l-4 border-indigo-500 text-slate-200 font-mono text-sm relative break-words whitespace-pre-wrap">
                 &quot;{msg.text}&quot;
               </div>
             </div>
@@ -709,8 +710,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
 
       <div className="grid md:grid-cols-2 gap-6">
         <section className="bg-slate-900/50 border border-green-900/30 rounded-2xl p-6">
-          <h3 className="text-green-400 font-bold mb-4 flex items-center gap-2">
-            <ShieldCheck size={20} /> {t("plan.sections.dos")}
+          <h3 className="text-green-400 font-bold mb-4 flex items-start gap-2 leading-snug break-words">
+            <ShieldCheck size={20} className="shrink-0 mt-0.5" />{" "}
+            {t("plan.sections.dos")}
           </h3>
           <ul className="space-y-3">
             {viewPlan.dos.map((item, idx) => (
@@ -726,8 +728,9 @@ const PlanDisplay: React.FC<PlanDisplayProps> = ({
         </section>
 
         <section className="bg-slate-900/50 border border-red-900/30 rounded-2xl p-6">
-          <h3 className="text-red-400 font-bold mb-4 flex items-center gap-2">
-            <ShieldAlert size={20} /> {t("plan.sections.donts")}
+          <h3 className="text-red-400 font-bold mb-4 flex items-start gap-2 leading-snug break-words">
+            <ShieldAlert size={20} className="shrink-0 mt-0.5" />{" "}
+            {t("plan.sections.donts")}
           </h3>
           <ul className="space-y-3">
             {viewPlan.donts.map((item, idx) => (

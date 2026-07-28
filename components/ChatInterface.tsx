@@ -486,18 +486,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div className="flex flex-col h-full bg-slate-950">
       {/* Chat Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-200">
+        <div className="flex items-start justify-between gap-3 min-w-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-3 justify-between min-w-0">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold text-slate-200 leading-snug break-words">
                   {t("chat.header.title")}
                 </h2>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-400 leading-snug break-words">
                   {t("chat.header.subtitle")}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 {/* Conversas Dropdown */}
                 <div className="relative">
                   <button
@@ -522,9 +522,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </button>
 
                   {showConversationsList && (
-                    <div className="absolute right-0 top-full mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
-                      <div className="p-2 border-b border-slate-700 flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-300">
+                    <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-2rem))] sm:w-80 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                      <div className="p-2 border-b border-slate-700 flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-sm font-medium text-slate-300 min-w-0 break-words leading-snug">
                           {t("chat.conversations.title")}
                         </span>
                         <button

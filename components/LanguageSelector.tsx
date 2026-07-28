@@ -92,8 +92,8 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   const isSidebar = variant === "sidebar";
 
   const triggerClasses = isSidebar
-    ? "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all duration-200"
-    : "flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 transition-colors";
+    ? "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all duration-200 min-w-0"
+    : "flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 transition-colors min-w-0";
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -112,15 +112,15 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         <Flag locale={locale} size={isSidebar ? "md" : "sm"} />
         {isSidebar ? (
           <>
-            <span className="font-medium flex-1 text-left">
+            <span className="font-medium flex-1 min-w-0 text-left leading-snug break-words">
               {t("language.label")}
             </span>
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-500 shrink-0">
               {LOCALES[locale].shortCode}
             </span>
           </>
         ) : (
-          <span className="text-sm font-medium">
+          <span className="text-sm font-medium min-w-0 truncate">
             <span className="hidden sm:inline">
               {LOCALES[locale].nativeName}
             </span>
@@ -129,7 +129,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         )}
         <ChevronDown
           size={isSidebar ? 16 : 14}
-          className={`transition-transform duration-200 ${
+          className={`shrink-0 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
           aria-hidden

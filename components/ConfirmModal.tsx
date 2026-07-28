@@ -70,28 +70,34 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           >
             <AlertTriangle size={24} className={styles.icon} />
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-white">{title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-white leading-snug break-words">
+              {title}
+            </h2>
             {subtitle ? (
-              <p className="text-sm text-slate-400">{subtitle}</p>
+              <p className="text-sm text-slate-400 leading-snug break-words">
+                {subtitle}
+              </p>
             ) : null}
           </div>
         </div>
 
-        <p className="text-slate-300 text-sm leading-relaxed mb-6">{message}</p>
+        <p className="text-slate-300 text-sm leading-relaxed mb-6 break-words">
+          {message}
+        </p>
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors"
+            className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors text-sm sm:text-base leading-snug whitespace-normal"
           >
             {cancelText}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`flex-1 px-4 py-3 text-white rounded-lg font-medium transition-colors ${styles.button}`}
+            className={`flex-1 px-4 py-3 text-white rounded-lg font-medium transition-colors text-sm sm:text-base leading-snug whitespace-normal ${styles.button}`}
           >
             {confirmLabel}
           </button>

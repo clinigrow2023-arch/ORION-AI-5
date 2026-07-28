@@ -81,12 +81,12 @@ const AdminUsagePanel: React.FC = () => {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={hours}
             onChange={(e) => setHours(Number(e.target.value))}
             aria-label={t("admin.usage.columnWindow")}
-            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm"
+            className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-sm max-w-full"
           >
             {HOUR_OPTIONS.map((h) => (
               <option key={h} value={h}>
@@ -98,60 +98,60 @@ const AdminUsagePanel: React.FC = () => {
             type="button"
             onClick={() => void load()}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm disabled:opacity-50 whitespace-normal leading-snug"
           >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={16} className={loading ? "animate-spin shrink-0" : "shrink-0"} />
             {t("common.refresh")}
           </button>
         </div>
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-lg p-3">
+        <p className="mb-4 text-sm text-red-300 bg-red-900/20 border border-red-800 rounded-lg p-3 break-words">
           {error}
         </p>
       )}
 
       {loading && !data ? (
-        <div className="flex flex-1 items-center justify-center text-slate-400">
-          <Loader2 className="animate-spin mr-2" size={24} />
+        <div className="flex flex-1 items-center justify-center text-slate-400 gap-2 px-4 text-center leading-snug">
+          <Loader2 className="animate-spin shrink-0" size={24} />
           {t("admin.usage.loading")}
         </div>
       ) : data ? (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">{t("admin.usage.peak")}</p>
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 min-w-0">
+              <p className="text-xs text-slate-400 break-words leading-snug">{t("admin.usage.peak")}</p>
               <p className="text-2xl font-bold text-indigo-300">
                 {data.peakConcurrent}
               </p>
               {data.peakBucket ? (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1 break-words leading-snug">
                   {t("admin.usage.peakAt", {
                     time: formatDateTime(data.peakBucket),
                   })}
                 </p>
               ) : null}
             </div>
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 min-w-0">
+              <p className="text-xs text-slate-400 break-words leading-snug">
                 {t("admin.usage.uniqueUsers", { hours })}
               </p>
               <p className="text-2xl font-bold text-white flex items-center gap-2">
-                <Users size={20} className="text-slate-400" />
+                <Users size={20} className="text-slate-400 shrink-0" />
                 {data.uniqueUsers}
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 min-w-0">
+              <p className="text-xs text-slate-400 break-words leading-snug">
                 {t("admin.usage.chatRequests")}
               </p>
               <p className="text-2xl font-bold text-emerald-300">
                 {data.totalChatEvents}
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
-              <p className="text-xs text-slate-400">
+            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 min-w-0">
+              <p className="text-xs text-slate-400 break-words leading-snug">
                 {t("admin.usage.planRequests")}
               </p>
               <p className="text-2xl font-bold text-amber-300">
@@ -161,14 +161,14 @@ const AdminUsagePanel: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-800 bg-slate-900">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[36rem]">
               <thead className="sticky top-0 bg-slate-900 border-b border-slate-800">
                 <tr className="text-left text-slate-400">
-                  <th className="px-4 py-3">{t("admin.usage.columnWindow")}</th>
-                  <th className="px-4 py-3">{t("admin.usage.columnUsers")}</th>
-                  <th className="px-4 py-3">{t("admin.usage.columnChat")}</th>
-                  <th className="px-4 py-3">{t("admin.usage.columnPlan")}</th>
-                  <th className="px-4 py-3 w-40">
+                  <th className="px-4 py-3 whitespace-nowrap">{t("admin.usage.columnWindow")}</th>
+                  <th className="px-4 py-3 whitespace-nowrap">{t("admin.usage.columnUsers")}</th>
+                  <th className="px-4 py-3 whitespace-nowrap">{t("admin.usage.columnChat")}</th>
+                  <th className="px-4 py-3 whitespace-nowrap">{t("admin.usage.columnPlan")}</th>
+                  <th className="px-4 py-3 w-40 whitespace-nowrap">
                     {t("admin.usage.columnLoad")}
                   </th>
                 </tr>
@@ -191,13 +191,13 @@ const AdminUsagePanel: React.FC = () => {
                       </td>
                       <td className="px-4 py-2 text-emerald-400">
                         {b.chatUsers}{" "}
-                        <span className="text-slate-500 text-xs">
+                        <span className="text-slate-500 text-xs whitespace-nowrap">
                           {t("admin.usage.requests", { count: b.chatEvents })}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-amber-400">
                         {b.planUsers}{" "}
-                        <span className="text-slate-500 text-xs">
+                        <span className="text-slate-500 text-xs whitespace-nowrap">
                           {t("admin.usage.requests", { count: b.planEvents })}
                         </span>
                       </td>

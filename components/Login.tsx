@@ -67,7 +67,7 @@ const Login: React.FC = () => {
 
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2 text-amber-200/90 text-sm">
             <Info className="shrink-0 mt-0.5" size={16} />
-            <p>
+            <p className="min-w-0 leading-snug break-words">
               {t('login.purchaseNoticeBefore')}{' '}
               <strong className="font-medium text-amber-100">
                 {t('login.purchaseNoticeSpam')}
@@ -81,9 +81,9 @@ const Login: React.FC = () => {
           </div>
 
           {errors.general && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-sm">
-              <AlertCircle size={16} />
-              <span>{errors.general}</span>
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span className="min-w-0 break-words leading-snug">{errors.general}</span>
             </div>
           )}
 

@@ -554,16 +554,16 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="h-full bg-slate-950 p-3 md:p-6 flex flex-col overflow-hidden">
       <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0">
-        <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2">
+        <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 md:mb-2 leading-snug break-words">
               {t("admin.title")}
             </h1>
-            <p className="text-sm md:text-base text-slate-400">
+            <p className="text-sm md:text-base text-slate-400 leading-snug break-words">
               {t("admin.subtitle")}
             </p>
             {activeTab === "users" && (
-              <p className="text-sm md:text-base text-indigo-400 mt-1">
+              <p className="text-sm md:text-base text-indigo-400 mt-1 leading-snug break-words">
                 <>
                   {debouncedSearchQuery.trim()
                     ? t("admin.matches")
@@ -584,32 +584,34 @@ const AdminDashboard: React.FC = () => {
               </p>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={handleRefreshClick}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm md:text-base"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm md:text-base leading-snug whitespace-normal"
             >
-              <RefreshCw size={18} className="md:w-5 md:h-5" />
+              <RefreshCw size={18} className="md:w-5 md:h-5 shrink-0" />
               {t("common.refresh")}
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="mb-4 md:mb-6 flex gap-2 border-b border-slate-800">
+        <div className="mb-4 md:mb-6 flex flex-wrap gap-2 border-b border-slate-800">
           <button
             onClick={() => setActiveTab("users")}
-            className={`px-4 py-2 font-medium transition-colors ${
+            className={`px-3 md:px-4 py-2 font-medium transition-colors text-sm md:text-base min-w-0 ${
               activeTab === "users"
                 ? "text-indigo-400 border-b-2 border-indigo-400"
                 : "text-slate-400 hover:text-slate-300"
             }`}
           >
-            <span className="flex items-center gap-2">
-              <Users size={18} />
-              {t("admin.tabs.users")}
+            <span className="flex items-center gap-2 min-w-0">
+              <Users size={18} className="shrink-0" />
+              <span className="leading-snug break-words text-left">
+                {t("admin.tabs.users")}
+              </span>
               {totalUsersMatching > 0 && (
-                <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full">
+                <span className="ml-1 px-2 py-0.5 bg-indigo-600 text-white text-xs rounded-full shrink-0">
                   {totalUsersMatching}
                 </span>
               )}
@@ -617,28 +619,32 @@ const AdminDashboard: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("create")}
-            className={`px-4 py-2 font-medium transition-colors ${
+            className={`px-3 md:px-4 py-2 font-medium transition-colors text-sm md:text-base min-w-0 ${
               activeTab === "create"
                 ? "text-indigo-400 border-b-2 border-indigo-400"
                 : "text-slate-400 hover:text-slate-300"
             }`}
           >
-            <span className="flex items-center gap-2">
-              <UserPlus size={18} />
-              {t("admin.tabs.create")}
+            <span className="flex items-center gap-2 min-w-0">
+              <UserPlus size={18} className="shrink-0" />
+              <span className="leading-snug break-words text-left">
+                {t("admin.tabs.create")}
+              </span>
             </span>
           </button>
           <button
             onClick={() => setActiveTab("usage")}
-            className={`px-4 py-2 font-medium transition-colors ${
+            className={`px-3 md:px-4 py-2 font-medium transition-colors text-sm md:text-base min-w-0 ${
               activeTab === "usage"
                 ? "text-indigo-400 border-b-2 border-indigo-400"
                 : "text-slate-400 hover:text-slate-300"
             }`}
           >
-            <span className="flex items-center gap-2">
-              <Activity size={18} />
-              {t("admin.tabs.usage")}
+            <span className="flex items-center gap-2 min-w-0">
+              <Activity size={18} className="shrink-0" />
+              <span className="leading-snug break-words text-left">
+                {t("admin.tabs.usage")}
+              </span>
             </span>
           </button>
         </div>
@@ -1216,7 +1222,7 @@ const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => handleBlockToggle(user)}
                   disabled={updating === user.id}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-1 min-w-[80px] ${
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-1 min-w-[7.5rem] leading-snug whitespace-normal text-center ${
                     user.isBlocked
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : "bg-red-600 hover:bg-red-700 text-white"
@@ -1235,7 +1241,7 @@ const AdminDashboard: React.FC = () => {
                   disabled={
                     updating === user.id || user.id === currentUser?.id
                   }
-                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[7.5rem] leading-snug whitespace-normal text-center flex items-center justify-center gap-1.5"
                   title={
                     user.id === currentUser?.id
                       ? t("admin.users.ownRoleTitle")
@@ -1254,21 +1260,21 @@ const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => handleResetPassword(user)}
                   disabled={updating === user.id}
-                  className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                  className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors flex-1 min-w-[7.5rem] leading-snug whitespace-normal text-center flex items-center justify-center gap-1.5"
                 >
                   {updating === user.id ? (
                     <Loader2 className="animate-spin mx-auto" size={14} />
                   ) : (
                     <>
-                      <KeyRound size={12} />
-                      <span>{t("admin.users.resetPassword")}</span>
+                      <KeyRound size={12} className="shrink-0" />
+                      <span>{t("admin.users.resetPasswordShort")}</span>
                     </>
                   )}
                 </button>
                 <button
                   onClick={() => handleDeleteUser(user)}
                   disabled={updating === user.id || user.id === currentUser?.id}
-                  className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[80px] flex items-center justify-center gap-1.5"
+                  className="px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 min-w-[7.5rem] leading-snug whitespace-normal text-center flex items-center justify-center gap-1.5"
                 >
                   {updating === user.id ? (
                     <Loader2 className="animate-spin mx-auto" size={14} />

@@ -9,6 +9,7 @@
     { "source": "/api/auth-verify", "destination": "/api/auth" },
     { "source": "/api/change-password", "destination": "/api/auth" },
     { "source": "/api/set-new-password", "destination": "/api/auth" },
+    { "source": "/api/user-locale", "destination": "/api/auth" },
     { "source": "/api/admin-users", "destination": "/api/admin-users" },
     { "source": "/api/conversations", "destination": "/api/conversations" },
     { "source": "/api/digistore-ipn", "destination": "/api/digistore-ipn" },

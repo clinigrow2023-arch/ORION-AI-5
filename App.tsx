@@ -8,6 +8,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import Auth from "./components/Auth";
 import SetNewPassword from "./components/SetNewPassword";
 import { useAuth } from "./contexts/AuthContext";
+import { useTranslation } from "./contexts/I18nContext";
 import { ViewState, Message, ActionPlan, Sender } from "./types";
 import { Menu, X, Loader2 } from "lucide-react";
 import { chatService } from "./services/chatService";
@@ -21,6 +22,7 @@ import { fetchConversationsSummary } from "./lib/conversations-client";
 
 const App: React.FC = () => {
   const { isAuthenticated, loading, isAdmin, user, logout } = useAuth();
+  const { t } = useTranslation();
   const [currentView, setCurrentView] = useState<ViewState | "admin">("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
@@ -176,7 +178,7 @@ const App: React.FC = () => {
             className="animate-spin text-indigo-500 mx-auto mb-4"
             size={48}
           />
-          <p className="text-slate-400">Loading...</p>
+          <p className="text-slate-400">{t("app.loading")}</p>
         </div>
       </div>
     );
@@ -203,7 +205,7 @@ const App: React.FC = () => {
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 bg-slate-800 text-white rounded-lg shadow-lg border border-slate-700 hover:bg-slate-700 transition-colors"
-          aria-label="Toggle menu"
+          aria-label={t("app.toggleMenu")}
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>

@@ -1,4 +1,16 @@
 import nodemailer from "nodemailer";
+import {
+  emailAccessLabel,
+  emailFooter,
+  existingUserEmail,
+  newUserEmail,
+  pickEmail,
+  renewalThankYouEmail,
+  subscriptionExpiredEmail,
+  type EmailContent,
+  type EmailTheme,
+} from "./email-copy.js";
+import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "./locale.js";
 
 // Configuração do Gmail
 const GMAIL_USER = (process.env.GMAIL_USER || "").trim();
@@ -25,32 +37,24 @@ const createTransporter = () => {
   });
 };
 
-/**
- * Sends email to new user with access credentials
- */
-export async function sendNewUserEmail(
-  email: string,
-  name: string,
-  password: string
-): Promise<boolean> {
-  const transporter = createTransporter();
-  if (!transporter) {
-    console.warn("Email transporter not available, skipping email send");
-    return false;
-  }
+const HEADER_GRADIENTS: Record<EmailTheme, string> = {
+  brand: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  success: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+  danger: "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)",
+};
 
-  const loginUrl = `${SITE_URL}/#login`;
+/** Escapa dados dinâmicos (nome, e-mail, senha) antes de injetar no HTML. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
-  const mailOptions = {
-    from: `"Orion AI" <${GMAIL_USER}>`,
-    to: email,
-    subject: "Welcome to Orion AI - Your Access Credentials",
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
+function styles(theme: EmailTheme): string {
+  return `
           body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
@@ -60,7 +64,7 @@ export async function sendNewUserEmail(
             padding: 20px;
           }
           .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: ${HEADER_GRADIENTS[theme]};
             color: white;
             padding: 30px;
             text-align: center;
@@ -93,390 +97,6 @@ export async function sendNewUserEmail(
             display: inline-block;
             margin-left: 10px;
           }
-          .button {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 20px 0;
-          }
-          .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Welcome to Orion AI!</h1>
-        </div>
-        <div class="content">
-          <p>Hello <strong>${name}</strong>,</p>
-          
-          <p>Your purchase has been confirmed successfully! Your account has been created and is active.</p>
-          
-          <div class="credentials">
-            <h3 style="margin-top: 0; color: #667eea;">Your access credentials:</h3>
-            <div class="credential-item">
-              <span class="label">Email:</span>
-              <span class="value">${email}</span>
-            </div>
-            <div class="credential-item">
-              <span class="label">Temporary password:</span>
-              <span class="value">${password}</span>
-            </div>
-          </div>
-          
-          <p><strong>Important:</strong> For security reasons, you will need to change this password on your first login.</p>
-          
-          <div style="text-align: center;">
-            <a href="${loginUrl}" class="button">Access Orion AI</a>
-          </div>
-          
-          <p>If you have any questions or need help, please don't hesitate to contact us.</p>
-          
-          <div class="footer">
-            <p>This is an automated email, please do not reply.</p>
-            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-Welcome to Orion AI!
-
-Hello ${name},
-
-Your purchase has been confirmed successfully! Your account has been created and is active.
-
-Your access credentials:
-Email: ${email}
-Temporary password: ${password}
-
-IMPORTANT: For security reasons, you will need to change this password on your first login.
-
-Access: ${loginUrl}
-
-If you have any questions or need help, please don't hesitate to contact us.
-
-This is an automated email, please do not reply.
-    `.trim(),
-  };
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully to new user:", {
-      email,
-      messageId: info.messageId,
-    });
-    return true;
-  } catch (error: any) {
-    console.error("Error sending email to new user:", {
-      email,
-      error: error.message,
-    });
-    return false;
-  }
-}
-
-/**
- * Sends email to existing user informing that access has been granted
- */
-export async function sendExistingUserEmail(
-  email: string,
-  name: string
-): Promise<boolean> {
-  const transporter = createTransporter();
-  if (!transporter) {
-    console.warn("Email transporter not available, skipping email send");
-    return false;
-  }
-
-  const loginUrl = `${SITE_URL}/#login`;
-
-  const mailOptions = {
-    from: `"Orion AI" <${GMAIL_USER}>`,
-    to: email,
-    subject: "Orion AI - Your Access Has Been Granted!",
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 10px 10px 0 0;
-          }
-          .content {
-            background: #f9f9f9;
-            padding: 30px;
-            border-radius: 0 0 10px 10px;
-          }
-          .button {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 20px 0;
-          }
-          .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Your Access Has Been Granted!</h1>
-        </div>
-        <div class="content">
-          <p>Hello <strong>${name}</strong>,</p>
-          
-          <p>Great news! Your payment has been confirmed and your access to Orion AI has been granted.</p>
-          
-          <p>You can now use all platform features with your existing account.</p>
-          
-          <div style="text-align: center;">
-            <a href="${loginUrl}" class="button">Access Orion AI</a>
-          </div>
-          
-          <p>Use your usual credentials to log in. If you forgot your password, you can reset it on the login page.</p>
-          
-          <p>If you have any questions or need help, please don't hesitate to contact us.</p>
-          
-          <div class="footer">
-            <p>This is an automated email, please do not reply.</p>
-            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-Your Access Has Been Granted!
-
-Hello ${name},
-
-Great news! Your payment has been confirmed and your access to Orion AI has been granted.
-
-You can now use all platform features with your existing account.
-
-Access: ${loginUrl}
-
-Use your usual credentials to log in. If you forgot your password, you can reset it on the login page.
-
-If you have any questions or need help, please don't hesitate to contact us.
-
-This is an automated email, please do not reply.
-    `.trim(),
-  };
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully to existing user:", {
-      email,
-      messageId: info.messageId,
-    });
-    return true;
-  } catch (error: any) {
-    console.error("Error sending email to existing user:", {
-      email,
-      error: error.message,
-    });
-    return false;
-  }
-}
-
-/**
- * Sends thank-you email when subscription is renewed
- */
-export async function sendRenewalThankYouEmail(
-  email: string,
-  name: string
-): Promise<boolean> {
-  const transporter = createTransporter();
-  if (!transporter) {
-    console.warn("Email transporter not available, skipping email send");
-    return false;
-  }
-
-  const loginUrl = `${SITE_URL}/#login`;
-
-  const mailOptions = {
-    from: `"Orion AI" <${GMAIL_USER}>`,
-    to: email,
-    subject: "Orion AI - Thanks for renewing your subscription!",
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 10px 10px 0 0;
-          }
-          .content {
-            background: #f9f9f9;
-            padding: 30px;
-            border-radius: 0 0 10px 10px;
-          }
-          .button {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 20px 0;
-          }
-          .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Thank you for renewing!</h1>
-        </div>
-        <div class="content">
-          <p>Hello <strong>${name}</strong>,</p>
-
-          <p>We have successfully confirmed your renewal payment.</p>
-          <p>Your access to Orion AI remains active and available.</p>
-
-          <div style="text-align: center;">
-            <a href="${loginUrl}" class="button">Access Orion AI</a>
-          </div>
-
-          <p>Thank you for continuing with us. If you need anything, we're here to help.</p>
-
-          <div class="footer">
-            <p>This is an automated email, please do not reply.</p>
-            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-Thank you for renewing!
-
-Hello ${name},
-
-We have successfully confirmed your renewal payment.
-Your access to Orion AI remains active and available.
-
-Access: ${loginUrl}
-
-Thank you for continuing with us. If you need anything, we're here to help.
-
-This is an automated email, please do not reply.
-    `.trim(),
-  };
-
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Renewal thank-you email sent successfully:", {
-      email,
-      messageId: info.messageId,
-    });
-    return true;
-  } catch (error: any) {
-    console.error("Error sending renewal thank-you email:", {
-      email,
-      error: error.message,
-    });
-    return false;
-  }
-}
-
-/**
- * Sends email to user informing that subscription has expired
- */
-export async function sendSubscriptionExpiredEmail(
-  email: string,
-  name: string
-): Promise<boolean> {
-  const transporter = createTransporter();
-  if (!transporter) {
-    console.warn("Email transporter not available, skipping email send");
-    return false;
-  }
-
-  const loginUrl = `${SITE_URL}/#login`;
-
-  const mailOptions = {
-    from: `"Orion AI" <${GMAIL_USER}>`,
-    to: email,
-    subject: "Orion AI - Your Subscription Has Expired",
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 10px 10px 0 0;
-          }
-          .content {
-            background: #f9f9f9;
-            padding: 30px;
-            border-radius: 0 0 10px 10px;
-          }
           .warning {
             background: #fff3cd;
             border-left: 4px solid #ffc107;
@@ -500,73 +120,254 @@ export async function sendSubscriptionExpiredEmail(
             font-size: 12px;
             color: #666;
             text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Your Subscription Has Expired</h1>
-        </div>
-        <div class="content">
-          <p>Hello <strong>${name}</strong>,</p>
-          
-          <div class="warning">
-            <p><strong>Important:</strong> Your Orion AI subscription has expired.</p>
-          </div>
-          
-          <p>Your access to Orion AI has been temporarily suspended because your subscription payment period has ended.</p>
-          
-          <p>To continue using our services, please renew your subscription by making a new payment.</p>
-          
-          <div style="text-align: center;">
-            <a href="${loginUrl}" class="button">Renew Subscription</a>
-          </div>
-          
-          <p>Once your payment is confirmed, your access will be automatically restored and you'll be able to use all platform features again.</p>
-          
-          <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-          
-          <div class="footer">
-            <p>This is an automated email, please do not reply.</p>
-            <p>&copy; ${new Date().getFullYear()} Orion AI. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    text: `
-Your Subscription Has Expired
+          }`;
+}
 
-Hello ${name},
+/**
+ * Renderiza um `EmailContent` nas duas partes exigidas pelos clientes de
+ * e-mail (HTML e texto puro) a partir da mesma lista de blocos.
+ */
+function render(
+  content: EmailContent,
+  locale: Locale,
+  name: string,
+  loginUrl: string
+): { html: string; text: string } {
+  const footer = emailFooter(locale);
+  const year = new Date().getFullYear();
+  const safeName = escapeHtml(name);
 
-IMPORTANT: Your Orion AI subscription has expired.
+  const htmlBlocks: string[] = [];
+  const textBlocks: string[] = [];
 
-Your access to Orion AI has been temporarily suspended because your subscription payment period has ended.
+  for (const block of content.blocks) {
+    switch (block.kind) {
+      case "greeting": {
+        htmlBlocks.push(
+          `<p>${escapeHtml(block.template).replace(
+            "{name}",
+            `<strong>${safeName}</strong>`
+          )}</p>`
+        );
+        textBlocks.push(block.template.replace("{name}", name));
+        break;
+      }
+      case "paragraph": {
+        htmlBlocks.push(`<p>${escapeHtml(block.text)}</p>`);
+        textBlocks.push(block.text);
+        break;
+      }
+      case "notice": {
+        htmlBlocks.push(
+          `<p><strong>${escapeHtml(block.label)}</strong> ${escapeHtml(
+            block.text
+          )}</p>`
+        );
+        textBlocks.push(`${block.label.toUpperCase()} ${block.text}`);
+        break;
+      }
+      case "warning": {
+        htmlBlocks.push(
+          `<div class="warning"><p><strong>${escapeHtml(
+            block.label
+          )}</strong> ${escapeHtml(block.text)}</p></div>`
+        );
+        textBlocks.push(`${block.label.toUpperCase()} ${block.text}`);
+        break;
+      }
+      case "credentials": {
+        const items = block.items
+          .map(
+            (item) =>
+              `<div class="credential-item"><span class="label">${escapeHtml(
+                item.label
+              )}</span><span class="value">${escapeHtml(
+                item.value
+              )}</span></div>`
+          )
+          .join("\n            ");
 
-To continue using our services, please renew your subscription by making a new payment.
+        htmlBlocks.push(
+          `<div class="credentials">
+            <h3 style="margin-top: 0; color: #667eea;">${escapeHtml(
+              block.title
+            )}</h3>
+            ${items}
+          </div>`
+        );
+        textBlocks.push(
+          [
+            block.title,
+            ...block.items.map((item) => `${item.label} ${item.value}`),
+          ].join("\n")
+        );
+        break;
+      }
+      case "button": {
+        htmlBlocks.push(
+          `<div style="text-align: center;"><a href="${escapeHtml(
+            loginUrl
+          )}" class="button">${escapeHtml(
+            block.label
+          )}</a></div>`
+        );
+        textBlocks.push(`${emailAccessLabel(locale)}: ${loginUrl}`);
+        break;
+      }
+      default: {
+        // Garante em tempo de compilação que todo bloco novo seja renderizado.
+        const exhaustive: never = block;
+        throw new Error(`Unhandled email block: ${JSON.stringify(exhaustive)}`);
+      }
+    }
+  }
 
-Access: ${loginUrl}
+  const html = `<!DOCTYPE html>
+<html lang="${locale}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(content.heading)}</title>
+  <style>${styles(content.theme)}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${escapeHtml(content.heading)}</h1>
+  </div>
+  <div class="content">
+    ${htmlBlocks.join("\n\n    ")}
 
-Once your payment is confirmed, your access will be automatically restored and you'll be able to use all platform features again.
+    <div class="footer">
+      <p>${escapeHtml(footer.automated)}</p>
+      <p>&copy; ${year} ${escapeHtml(footer.rights)}</p>
+    </div>
+  </div>
+</body>
+</html>`;
 
-If you have any questions or need assistance, please don't hesitate to contact us.
+  const text = [
+    content.heading,
+    "",
+    ...textBlocks.flatMap((block) => [block, ""]),
+    footer.automated,
+  ]
+    .join("\n")
+    .trim();
 
-This is an automated email, please do not reply.
-    `.trim(),
-  };
+  return { html, text };
+}
+
+/** Envia o e-mail já renderizado, tratando ausência de credenciais SMTP. */
+async function deliver(
+  to: string,
+  content: EmailContent,
+  locale: Locale,
+  name: string,
+  logLabel: string
+): Promise<boolean> {
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.warn("Email transporter not available, skipping email send");
+    return false;
+  }
+
+  const loginUrl = `${SITE_URL}/#login`;
+  const { html, text } = render(content, locale, name, loginUrl);
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully for expired subscription:", {
-      email,
+    const info = await transporter.sendMail({
+      from: `"Orion AI" <${GMAIL_USER}>`,
+      to,
+      subject: content.subject,
+      html,
+      text,
+    });
+    console.log(`${logLabel} sent successfully:`, {
+      email: to,
+      locale,
       messageId: info.messageId,
     });
     return true;
   } catch (error: any) {
-    console.error("Error sending expired subscription email:", {
-      email,
+    console.error(`Error sending ${logLabel}:`, {
+      email: to,
+      locale,
       error: error.message,
     });
     return false;
   }
+}
+
+/**
+ * Sends email to new user with access credentials
+ */
+export async function sendNewUserEmail(
+  email: string,
+  name: string,
+  password: string,
+  locale: Locale | string | null = DEFAULT_LOCALE
+): Promise<boolean> {
+  const resolved = normalizeLocale(locale);
+  return deliver(
+    email,
+    pickEmail(newUserEmail, resolved, name, email, password),
+    resolved,
+    name,
+    "New user email"
+  );
+}
+
+/**
+ * Sends email to existing user informing that access has been granted
+ */
+export async function sendExistingUserEmail(
+  email: string,
+  name: string,
+  locale: Locale | string | null = DEFAULT_LOCALE
+): Promise<boolean> {
+  const resolved = normalizeLocale(locale);
+  return deliver(
+    email,
+    pickEmail(existingUserEmail, resolved, name),
+    resolved,
+    name,
+    "Existing user email"
+  );
+}
+
+/**
+ * Sends thank-you email when subscription is renewed
+ */
+export async function sendRenewalThankYouEmail(
+  email: string,
+  name: string,
+  locale: Locale | string | null = DEFAULT_LOCALE
+): Promise<boolean> {
+  const resolved = normalizeLocale(locale);
+  return deliver(
+    email,
+    pickEmail(renewalThankYouEmail, resolved, name),
+    resolved,
+    name,
+    "Renewal thank-you email"
+  );
+}
+
+/**
+ * Sends email to user informing that subscription has expired
+ */
+export async function sendSubscriptionExpiredEmail(
+  email: string,
+  name: string,
+  locale: Locale | string | null = DEFAULT_LOCALE
+): Promise<boolean> {
+  const resolved = normalizeLocale(locale);
+  return deliver(
+    email,
+    pickEmail(subscriptionExpiredEmail, resolved, name),
+    resolved,
+    name,
+    "Subscription expired email"
+  );
 }

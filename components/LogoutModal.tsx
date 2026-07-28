@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { LogOut, X } from "lucide-react";
+import { useTranslation } from "../contexts/I18nContext";
 
 interface LogoutModalProps {
   onConfirm: () => void;
@@ -8,6 +9,8 @@ interface LogoutModalProps {
 }
 
 const LogoutModal: React.FC<LogoutModalProps> = ({ onConfirm, onCancel }) => {
+  const { t } = useTranslation();
+
   const modalContent = (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
@@ -19,6 +22,7 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ onConfirm, onCancel }) => {
       >
         <button
           onClick={onCancel}
+          aria-label={t("common.close")}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
         >
           <X size={20} />
@@ -29,15 +33,18 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ onConfirm, onCancel }) => {
             <LogOut size={24} className="text-red-400" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Sign Out</h2>
-            <p className="text-sm text-slate-400">Confirm logout</p>
+            <h2 className="text-xl font-bold text-white">
+              {t("logoutModal.title")}
+            </h2>
+            <p className="text-sm text-slate-400">
+              {t("logoutModal.subtitle")}
+            </p>
           </div>
         </div>
 
         <div className="mb-6">
           <p className="text-slate-300 text-sm leading-relaxed">
-            Are you sure you want to sign out? You will need to log in again to
-            access your account.
+            {t("logoutModal.message")}
           </p>
         </div>
 
@@ -47,14 +54,14 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ onConfirm, onCancel }) => {
             onClick={onCancel}
             className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
           >
-            Sign Out
+            {t("logoutModal.confirm")}
           </button>
         </div>
       </div>

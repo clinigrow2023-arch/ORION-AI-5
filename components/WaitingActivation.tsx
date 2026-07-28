@@ -1,29 +1,27 @@
 import React, { useState } from "react";
 import { Clock, Mail, LogOut, RefreshCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useTranslation } from "../contexts/I18nContext";
 import { authService } from "../lib/auth";
+import { apiFetch } from "../lib/api-endpoints";
+import LanguageSelector from "./LanguageSelector";
 import OrionLogo from "./OrionLogo";
 
 const WaitingActivation: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
+  const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const token = authService.getToken();
-      if (!token) {
+      if (!authService.getToken()) {
         setRefreshing(false);
         return;
       }
 
       // Fazer verificação direta quando usuário clicar
-      const { getApiEndpoint } = await import("../lib/api-endpoints");
-      const response = await fetch(getApiEndpoint("auth-verify"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await apiFetch("auth-verify");
 
       if (response.ok) {
         const data = await response.json();
@@ -48,9 +46,7 @@ const WaitingActivation: React.FC = () => {
         if (data.blocked) {
           // Usuário bloqueado - fazer logout
           authService.logout();
-          alert(
-            "Your account has been blocked. Please contact an administrator."
-          );
+          alert(t("chat.alerts.accountBlocked"));
           window.location.reload();
         } else if (data.notActive || data.expired) {
           // Ainda sem acesso ativo - atualizar estado para refletir status atual
@@ -64,23 +60,31 @@ const WaitingActivation: React.FC = () => {
     }
   };
 
+  const hasExpired = Boolean(
+    user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
+  );
+
   return (
     <div className="flex h-screen bg-slate-950 items-center justify-center p-4">
       <div className="max-w-md w-full bg-slate-900 rounded-xl border border-slate-800 p-8 text-center">
+        <div className="flex justify-end mb-2">
+          <LanguageSelector variant="compact" />
+        </div>
+
         <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-indigo-500/30 bg-slate-950">
           <OrionLogo size={56} />
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-3">
-          {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
-            ? "Access Expired"
-            : "Waiting for Activation"}
+          {hasExpired
+            ? t("waitingActivation.expiredTitle")
+            : t("waitingActivation.waitingTitle")}
         </h1>
 
         <p className="text-slate-400 mb-6 leading-relaxed">
-          {user?.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()
-            ? "Your access has expired. Please contact an administrator to renew your access."
-            : "Your access has not been granted yet. Please contact an administrator to grant access to the chat."}
+          {hasExpired
+            ? t("waitingActivation.expiredText")
+            : t("waitingActivation.waitingText")}
         </p>
 
         <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">
@@ -88,7 +92,7 @@ const WaitingActivation: React.FC = () => {
             <Mail className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-slate-300 mb-1">
-                Registered email:
+                {t("waitingActivation.registeredEmail")}
               </p>
               <p className="text-sm text-slate-400 break-all">{user?.email}</p>
             </div>
@@ -104,12 +108,12 @@ const WaitingActivation: React.FC = () => {
             {refreshing ? (
               <>
                 <RefreshCw className="w-5 h-5 animate-spin" />
-                <span>Checking...</span>
+                <span>{t("waitingActivation.checking")}</span>
               </>
             ) : (
               <>
                 <RefreshCw className="w-5 h-5" />
-                <span>Check Activation</span>
+                <span>{t("waitingActivation.check")}</span>
               </>
             )}
           </button>
@@ -119,12 +123,12 @@ const WaitingActivation: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-colors"
           >
             <LogOut className="w-5 h-5" />
-            <span>Sign Out</span>
+            <span>{t("waitingActivation.signOut")}</span>
           </button>
         </div>
 
         <p className="text-xs text-slate-500 mt-6">
-          You will receive access once an administrator grants your account access.
+          {t("waitingActivation.footer")}
         </p>
       </div>
     </div>

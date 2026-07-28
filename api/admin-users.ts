@@ -2,7 +2,13 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { apiMessage, type ApiMessageKey } from "../lib/api-messages.js";
 import { sendNewUserEmail } from "../lib/email.js";
+import { normalizeLocale, type Locale } from "../lib/locale.js";
+import {
+  resolveRequestLocale,
+  resolveUserLocale,
+} from "../lib/server-locale.js";
 import { getTokenFromHeader, handleOptions, setCorsHeaders } from "./_helpers.js";
 import { prisma } from "./_prisma.js";
 import {
@@ -22,6 +28,7 @@ const userListSelect = {
   subscriptionStatus: true,
   lastPaymentDate: true,
   nextPaymentDate: true,
+  locale: true,
   createdAt: true,
   updatedAt: true,
   digistoreOrderId: true,
@@ -62,11 +69,21 @@ export default async function adminUsersHandler(
 
   setCorsHeaders(res);
 
+  // Idioma do admin autenticado: define o idioma das mensagens desta resposta.
+  // E-mails usam o idioma do usuário-alvo, resolvido separadamente.
+  let locale: Locale = resolveRequestLocale(req);
+
+  const fail = (
+    status: number,
+    key: ApiMessageKey,
+    extra: Record<string, unknown> = {}
+  ) => res.status(status).json({ error: apiMessage(locale, key), ...extra });
+
   try {
     // Verificar autenticação e permissão de administrador
     const token = getTokenFromHeader(req);
     if (!token) {
-      return res.status(401).json({ error: "Authentication required" });
+      return fail(401, "authRequired");
     }
 
     let decoded: { userId: string; email: string };
@@ -76,18 +93,20 @@ export default async function adminUsersHandler(
         email: string;
       };
     } catch (error) {
-      return res.status(401).json({ error: "Invalid token" });
+      return fail(401, "invalidToken");
     }
 
     // Verificar se o usuário é administrador consultando o banco de dados
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { role: true },
+      select: { role: true, locale: true },
     });
 
     if (!user || user.role !== "admin") {
-      return res.status(403).json({ error: "Admin access required" });
+      return fail(403, "adminRequired");
     }
+
+    locale = resolveUserLocale(user.locale, req);
 
     if (req.method === "GET") {
       // Listar usuários
@@ -160,12 +179,16 @@ export default async function adminUsersHandler(
       });
     } else if (req.method === "POST") {
       // Criar novo usuário (admin). Senha opcional: se omitida, gera temporária e envia e-mail.
-      const { name, email, password, role = "user" } = req.body || {};
+      const {
+        name,
+        email,
+        password,
+        role = "user",
+        locale: requestedLocale,
+      } = req.body || {};
 
       if (!name || !email) {
-        return res.status(400).json({
-          error: "Name and email are required",
-        });
+        return fail(400, "nameAndEmailRequired");
       }
 
       const normalizedRole = role === "admin" ? "admin" : "user";
@@ -179,9 +202,7 @@ export default async function adminUsersHandler(
         : String(password);
 
       if (!passwordWasOmitted && plainPassword.length < 6) {
-        return res.status(400).json({
-          error: "Password must be at least 6 characters",
-        });
+        return fail(400, "passwordTooShort");
       }
 
       // Verificar se email já existe
@@ -190,11 +211,14 @@ export default async function adminUsersHandler(
       });
 
       if (existingUser) {
-        return res.status(409).json({ error: "Email already exists" });
+        return fail(409, "emailAlreadyExists");
       }
 
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
+
+      // Sem escolha explícita, o novo usuário herda o idioma do admin que o criou.
+      const newUserLocale = normalizeLocale(requestedLocale, locale);
 
       const newUser = await prisma.user.create({
         data: {
@@ -204,6 +228,7 @@ export default async function adminUsersHandler(
           role: normalizedRole,
           isActive: true,
           passwordResetRequired: passwordWasOmitted,
+          locale: newUserLocale,
         },
         select: {
           id: true,
@@ -212,6 +237,7 @@ export default async function adminUsersHandler(
           role: true,
           isBlocked: true,
           isActive: true,
+          locale: true,
           createdAt: true,
         },
       });
@@ -222,7 +248,8 @@ export default async function adminUsersHandler(
           emailSent = await sendNewUserEmail(
             newUser.email,
             newUser.name,
-            plainPassword
+            plainPassword,
+            newUserLocale
           );
         } catch {
           emailSent = false;
@@ -230,7 +257,7 @@ export default async function adminUsersHandler(
       }
 
       return res.status(201).json({
-        message: "User created successfully",
+        message: apiMessage(locale, "userCreated"),
         user: newUser,
         emailSent,
         passwordGenerated: passwordWasOmitted,
@@ -240,19 +267,17 @@ export default async function adminUsersHandler(
       const userId = body.userId as string | undefined;
 
       if (!userId) {
-        return res.status(400).json({
-          error: "User ID is required",
-        });
+        return fail(400, "userIdRequired");
       }
 
       // Reset de senha (fluxo do painel)
       if (body.resetPassword === true) {
         const target = await prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true, email: true, name: true },
+          select: { id: true, email: true, name: true, locale: true },
         });
         if (!target) {
-          return res.status(404).json({ error: "User not found" });
+          return fail(404, "userNotFound");
         }
 
         const tempPassword = generateRandomPassword(12);
@@ -274,6 +299,7 @@ export default async function adminUsersHandler(
             subscriptionStatus: true,
             lastPaymentDate: true,
             nextPaymentDate: true,
+            locale: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -284,14 +310,15 @@ export default async function adminUsersHandler(
           emailSent = await sendNewUserEmail(
             target.email,
             target.name,
-            tempPassword
+            tempPassword,
+            normalizeLocale(target.locale)
           );
         } catch {
           emailSent = false;
         }
 
         return res.status(200).json({
-          message: "Password reset successfully",
+          message: apiMessage(locale, "passwordResetDone"),
           user: updatedUser,
           emailSent,
         });
@@ -316,17 +343,16 @@ export default async function adminUsersHandler(
       if (rawUpdates.role === "admin" || rawUpdates.role === "user") {
         allowed.role = rawUpdates.role;
       }
+      if (rawUpdates.locale === "en" || rawUpdates.locale === "fr") {
+        allowed.locale = rawUpdates.locale;
+      }
 
       if (Object.keys(allowed).length === 0) {
-        return res.status(400).json({
-          error: "No valid updates provided",
-        });
+        return fail(400, "noValidUpdates");
       }
 
       if (userId === decoded.userId && allowed.role && allowed.role !== "admin") {
-        return res.status(403).json({
-          error: "Cannot change your own admin role",
-        });
+        return fail(403, "cannotChangeOwnRole");
       }
 
       const updatedUser = await prisma.user.update({
@@ -342,13 +368,14 @@ export default async function adminUsersHandler(
           subscriptionStatus: true,
           lastPaymentDate: true,
           nextPaymentDate: true,
+          locale: true,
           createdAt: true,
           updatedAt: true,
         },
       });
 
       return res.status(200).json({
-        message: "User updated successfully",
+        message: apiMessage(locale, "userUpdated"),
         user: updatedUser,
       });
     } else if (req.method === "DELETE") {
@@ -357,16 +384,12 @@ export default async function adminUsersHandler(
         (req.body && typeof req.body.userId === "string" ? req.body.userId : "");
 
       if (!userId) {
-        return res.status(400).json({
-          error: "User ID is required",
-        });
+        return fail(400, "userIdRequired");
       }
 
       // Não permitir excluir o próprio usuário admin
       if (userId === decoded.userId) {
-        return res.status(403).json({
-          error: "Cannot delete your own account",
-        });
+        return fail(403, "cannotDeleteOwnAccount");
       }
 
       await prisma.user.delete({
@@ -374,13 +397,13 @@ export default async function adminUsersHandler(
       });
 
       return res.status(200).json({
-        message: "User deleted successfully",
+        message: apiMessage(locale, "userDeleted"),
       });
     } else {
-      return res.status(405).json({ error: "Method not allowed" });
+      return fail(405, "methodNotAllowed");
     }
   } catch (error: any) {
     console.error("Admin Users API Error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    return fail(500, "internalError");
   }
 }

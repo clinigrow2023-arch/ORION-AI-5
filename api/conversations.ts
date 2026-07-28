@@ -11,6 +11,9 @@ import {
   parseStoredActionPlan,
 } from "../lib/plan-utils.js";
 import { deriveConversationPreview } from "../lib/conversation-label.js";
+import { apiMessage } from "../lib/api-messages.js";
+import type { Locale } from "../lib/locale.js";
+import { resolveRequestLocale, resolveUserLocale } from "../lib/server-locale.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
@@ -42,10 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleOptions(req, res);
   }
 
+  // Idioma provisório: antes de conhecer o usuário só temos os headers.
+  let locale: Locale = resolveRequestLocale(req);
+
   // Verificar autenticação
   const auth = verifyAuth(req);
   if (!auth) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return res.status(401).json({ error: apiMessage(locale, "unauthorized") });
   }
 
   // Verificar se usuário está bloqueado
@@ -54,18 +60,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     select: {
       role: true,
       isBlocked: true,
+      locale: true,
     },
   });
 
   if (!user) {
-    return res.status(404).json({ error: "User not found" });
+    return res.status(404).json({ error: apiMessage(locale, "userNotFound") });
   }
+
+  // A preferência salva na conta vence o header enviado pelo cliente.
+  locale = resolveUserLocale(user.locale, req);
 
   // IMPORTANTE: Admin sempre tem acesso ilimitado
   // Verificar apenas se usuário está bloqueado
   if (user.role !== "admin") {
     if (user.isBlocked) {
-      return res.status(403).json({ error: "Account is blocked" });
+      return res
+        .status(403)
+        .json({ error: apiMessage(locale, "accountBlocked") });
     }
   }
 
@@ -90,7 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!conversation) {
-          return res.status(404).json({ error: "Conversation not found" });
+          return res
+          .status(404)
+          .json({ error: apiMessage(locale, "conversationNotFound") });
         }
 
         const actionPlan = parseStoredActionPlan(conversation.actionPlan);
@@ -151,7 +165,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { messages } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
-        return res.status(400).json({ error: "Messages array is required" });
+        return res
+          .status(400)
+          .json({ error: apiMessage(locale, "messagesArrayRequired") });
       }
 
       // IMPORTANTE: Validar limite de 3 conversas por usuário (exceto admin)
@@ -162,8 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (conversationCount >= 3) {
           return res.status(403).json({
-            error:
-              "Maximum of 3 conversations allowed. Please delete a conversation to create a new one.",
+            error: apiMessage(locale, "maxConversations"),
             maxConversations: true,
           });
         }
@@ -196,7 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!conversationId || !messages || !Array.isArray(messages)) {
         return res.status(400).json({
-          error: "conversationId and messages array are required",
+          error: apiMessage(locale, "conversationPayloadRequired"),
         });
       }
 
@@ -209,7 +224,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!existingConv) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return res
+          .status(404)
+          .json({ error: apiMessage(locale, "conversationNotFound") });
       }
 
       const updated = await prisma.conversation.update({
@@ -241,7 +258,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
 
       if (!conversationId) {
-        return res.status(400).json({ error: "conversationId is required" });
+        return res
+          .status(400)
+          .json({ error: apiMessage(locale, "conversationIdRequired") });
       }
 
       const existingConv = await prisma.conversation.findFirst({
@@ -249,7 +268,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!existingConv) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return res
+          .status(404)
+          .json({ error: apiMessage(locale, "conversationNotFound") });
       }
 
       if (clearActionPlan) {
@@ -267,7 +288,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { conversationId } = req.body;
 
       if (!conversationId) {
-        return res.status(400).json({ error: "conversationId is required" });
+        return res
+          .status(400)
+          .json({ error: apiMessage(locale, "conversationIdRequired") });
       }
 
       // Verificar se a conversa pertence ao usuário
@@ -279,7 +302,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!existingConv) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return res
+          .status(404)
+          .json({ error: apiMessage(locale, "conversationNotFound") });
       }
 
       await prisma.conversation.delete({
@@ -289,11 +314,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true });
     }
 
-    return res.status(405).json({ error: "Method not allowed" });
+    return res
+      .status(405)
+      .json({ error: apiMessage(locale, "methodNotAllowed") });
   } catch (error: any) {
     console.error("Conversations error:", error);
     return res.status(500).json({
-      error: error.message || "Internal server error",
+      error: apiMessage(locale, "internalError"),
     });
   }
 }

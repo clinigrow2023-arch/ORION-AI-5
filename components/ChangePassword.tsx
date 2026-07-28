@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
 import { authService } from '../lib/auth';
+import { useTranslation } from '../contexts/I18nContext';
 
 interface ChangePasswordProps {
   onClose: () => void;
 }
 
 const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,22 +27,22 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
 
     // Validações
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError('All fields are required');
+      setError(t('changePassword.errors.allFieldsRequired'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
+      setError(t('changePassword.errors.passwordTooShort'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
+      setError(t('changePassword.errors.passwordsMismatch'));
       return;
     }
 
     if (currentPassword === newPassword) {
-      setError('New password must be different from current password');
+      setError(t('changePassword.errors.sameAsCurrent'));
       return;
     }
 
@@ -57,7 +59,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
         onClose();
       }, 2000);
     } catch (err: any) {
-      setError(err.message || 'Failed to change password');
+      setError(err.message || t('changePassword.errors.failed'));
     } finally {
       setLoading(false);
     }
@@ -71,6 +73,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
       >
         <button
           onClick={onClose}
+          aria-label={t('common.close')}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
         >
           <X size={20} />
@@ -81,8 +84,8 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
             <Lock size={24} className="text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Change Password</h2>
-            <p className="text-sm text-slate-400">Update your account password</p>
+            <h2 className="text-xl font-bold text-white">{t('changePassword.title')}</h2>
+            <p className="text-sm text-slate-400">{t('changePassword.subtitle')}</p>
           </div>
         </div>
 
@@ -96,14 +99,14 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
         {success && (
           <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-green-400 text-sm">
             <CheckCircle size={16} />
-            <span>Password changed successfully!</span>
+            <span>{t('changePassword.success')}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Current Password
+              {t('changePassword.currentPassword')}
             </label>
             <div className="relative">
               <input
@@ -111,7 +114,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full bg-slate-800 text-slate-200 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700"
-                placeholder="Enter current password"
+                placeholder={t('changePassword.currentPasswordPlaceholder')}
                 disabled={loading || success}
               />
               <button
@@ -126,7 +129,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              New Password
+              {t('changePassword.newPassword')}
             </label>
             <div className="relative">
               <input
@@ -134,7 +137,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full bg-slate-800 text-slate-200 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700"
-                placeholder="Enter new password (min. 6 characters)"
+                placeholder={t('changePassword.newPasswordPlaceholder')}
                 disabled={loading || success}
               />
               <button
@@ -149,7 +152,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Confirm New Password
+              {t('changePassword.confirmPassword')}
             </label>
             <div className="relative">
               <input
@@ -157,7 +160,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full bg-slate-800 text-slate-200 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700"
-                placeholder="Confirm new password"
+                placeholder={t('changePassword.confirmPasswordPlaceholder')}
                 disabled={loading || success}
               />
               <button
@@ -177,7 +180,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
               className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium transition-colors"
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -187,10 +190,10 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" size={18} />
-                  <span>Changing...</span>
+                  <span>{t('changePassword.submitting')}</span>
                 </>
               ) : (
-                'Change Password'
+                t('changePassword.submit')
               )}
             </button>
           </div>
@@ -208,4 +211,3 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose }) => {
 };
 
 export default ChangePassword;
-

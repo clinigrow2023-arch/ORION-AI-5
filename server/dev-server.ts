@@ -1,7 +1,8 @@
 // Development server to simulate Vercel API routes locally
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import cors from "cors";
 import dotenv from "dotenv";
-import express from "express";
+import express, { type RequestHandler } from "express";
 
 // Load environment variables
 dotenv.config();
@@ -93,33 +94,50 @@ app.use(express.urlencoded({ extended: true })); // Para outras rotas que usam f
 app.options("/api/:functionName", (req, res) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Locale, X-Stream"
+  );
   res.sendStatus(200);
 });
 
-// Routes - usando /api/ em vez de /.netlify/functions/
-app.post("/api/auth-register", authHandler);
-app.post("/api/chat", chatHandler);
-app.post("/api/plan", planHandler);
-app.post("/api/gemini", chatHandler);
-app.post("/api/auth-login", authHandler);
-app.get("/api/auth-verify", authHandler);
-app.get("/api/conversations", conversationsHandler);
-app.post("/api/conversations", conversationsHandler);
-app.put("/api/conversations", conversationsHandler);
-app.patch("/api/conversations", conversationsHandler);
-app.delete("/api/conversations", conversationsHandler);
-app.get("/api/admin-users", adminUsersHandler);
-app.post("/api/admin-users", adminUsersHandler);
-app.put("/api/admin-users", adminUsersHandler);
-app.delete("/api/admin-users", adminUsersHandler);
-app.get("/api/admin-ai-usage", adminAiUsageHandler);
+/**
+ * Vercel handlers receive `VercelRequest`/`VercelResponse`, which are supersets
+ * of the Express objects this server passes at runtime. The adapter keeps the
+ * route table readable and type-checked instead of casting at every call.
+ */
+type VercelHandler = (
+  req: VercelRequest,
+  res: VercelResponse
+) => void | Promise<unknown>;
 
-app.put("/api/change-password", authHandler);
-app.post("/api/set-new-password", authHandler);
-app.post("/api/digistore-ipn", digistoreIpnHandler);
-app.get("/api/system-prompt", systemPromptHandler);
-app.put("/api/system-prompt", systemPromptHandler);
+const route = (handler: VercelHandler): RequestHandler =>
+  handler as unknown as RequestHandler;
+
+// Routes - usando /api/ em vez de /.netlify/functions/
+app.post("/api/auth-register", route(authHandler));
+app.post("/api/chat", route(chatHandler));
+app.post("/api/plan", route(planHandler));
+app.post("/api/gemini", route(chatHandler));
+app.post("/api/auth-login", route(authHandler));
+app.get("/api/auth-verify", route(authHandler));
+app.get("/api/conversations", route(conversationsHandler));
+app.post("/api/conversations", route(conversationsHandler));
+app.put("/api/conversations", route(conversationsHandler));
+app.patch("/api/conversations", route(conversationsHandler));
+app.delete("/api/conversations", route(conversationsHandler));
+app.get("/api/admin-users", route(adminUsersHandler));
+app.post("/api/admin-users", route(adminUsersHandler));
+app.put("/api/admin-users", route(adminUsersHandler));
+app.delete("/api/admin-users", route(adminUsersHandler));
+app.get("/api/admin-ai-usage", route(adminAiUsageHandler));
+
+app.put("/api/change-password", route(authHandler));
+app.post("/api/set-new-password", route(authHandler));
+app.put("/api/user-locale", route(authHandler));
+app.post("/api/digistore-ipn", route(digistoreIpnHandler));
+app.get("/api/system-prompt", route(systemPromptHandler));
+app.put("/api/system-prompt", route(systemPromptHandler));
 
 async function logOllamaDevTarget(): Promise<void> {
   const url = (process.env.OLLAMA_URL || "http://127.0.0.1:11434").replace(

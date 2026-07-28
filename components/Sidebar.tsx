@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { ViewState } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useTranslation } from "../contexts/I18nContext";
 import ChangePassword from "./ChangePassword";
+import LanguageSelector from "./LanguageSelector";
 import LogoutModal from "./LogoutModal";
 import OrionLogo from "./OrionLogo";
 
@@ -31,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onOpenReadyPlan,
 }) => {
   const { user, logout, isAdmin } = useAuth();
+  const { t } = useTranslation();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -41,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <OrionLogo size={32} className="w-8 h-8" />
         </div>
         <h1 className="text-xl font-bold text-white tracking-tight md:mt-0 mt-16">
-          Orion AI
+          {t("app.name")}
         </h1>
       </div>
 
@@ -72,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <MessageSquare size={20} />
-          <span className="font-medium">Mentor Chat</span>
+          <span className="font-medium">{t("sidebar.chat")}</span>
         </button>
 
         <button
@@ -90,20 +93,17 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <FileText size={20} />
-          <span className="font-medium flex-1  text-left">My Action Plan</span>
+          <span className="font-medium flex-1  text-left">
+            {t("sidebar.plan")}
+          </span>
           {planNotice === "pending" && (
             <Loader2 size={16} className="animate-spin text-amber-300" />
           )}
           {planNotice === "ready" && (
             <span className="text-[10px] uppercase tracking-wide bg-emerald-600 text-white px-1.5 py-0.5 rounded animate-pulse">
-              Ready
+              {t("sidebar.planReady")}
             </span>
           )}
-          {/* {hasSavedPlan && planNotice !== "pending" && planNotice !== "ready" && (
-            <span className="text-[8px] uppercase tracking-wide bg-emerald-700/80 text-emerald-100 px-1.5 py-0.5 rounded border border-emerald-500/40">
-              Saved
-            </span>
-          )} */}
         </button>
 
         <button
@@ -115,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <BookOpen size={20} />
-          <span className="font-medium">Strategy Guide</span>
+          <span className="font-medium">{t("sidebar.guide")}</span>
         </button>
 
         <button
@@ -127,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           }`}
         >
           <Mail size={20} />
-          <span className="font-medium">Support</span>
+          <span className="font-medium">{t("sidebar.support")}</span>
         </button>
 
         {isAdmin && (
@@ -140,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <Shield size={20} />
-            <span className="font-medium">Admin Dashboard</span>
+            <span className="font-medium">{t("sidebar.admin")}</span>
           </button>
         )}
       </nav>
@@ -148,25 +148,26 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-t border-slate-800 space-y-2">
         <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
           <p className="text-xs text-slate-400 leading-relaxed">
-            "Emotions are the fuel, but strategy is the engine."
+            {t("sidebar.quote")}
           </p>
           <p className="text-xs text-indigo-400 mt-1 font-semibold">
-            — Orion Philosophy
+            {t("sidebar.quoteAuthor")}
           </p>
         </div>
+        <LanguageSelector variant="sidebar" />
         <button
           onClick={() => setShowChangePassword(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all duration-200"
         >
           <Lock size={20} />
-          <span className="font-medium">Change Password</span>
+          <span className="font-medium">{t("sidebar.changePassword")}</span>
         </button>
         <button
           onClick={() => setShowLogoutModal(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all duration-200"
         >
           <LogOut size={20} />
-          <span className="font-medium">Sign Out</span>
+          <span className="font-medium">{t("sidebar.signOut")}</span>
         </button>
       </div>
 

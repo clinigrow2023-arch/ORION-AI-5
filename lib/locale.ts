@@ -34,9 +34,9 @@ export const LOCALES: Record<Locale, LocaleDescriptor> = {
   en: {
     shortCode: "EN",
     nativeName: "English",
-    intlTag: "en-USA",
+    intlTag: "en-US",
     aiName: "English",
-    flag: "🇬🇧",
+    flag: "🇺🇸",
   },
   fr: {
     shortCode: "FR",

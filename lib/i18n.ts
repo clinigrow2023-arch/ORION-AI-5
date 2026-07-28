@@ -154,14 +154,24 @@ function toDate(value: Date | string | number): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function intlTagFor(locale: Locale): string {
+  const tag = LOCALES[locale].intlTag;
+  try {
+    void new Intl.DateTimeFormat(tag);
+    return tag;
+  } catch {
+    return locale === "fr" ? "fr-FR" : "en-US";
+  }
+}
+
 export function formatDate(value: Date | string | number, locale: Locale): string {
   const date = toDate(value);
-  return date ? date.toLocaleDateString(LOCALES[locale].intlTag) : "";
+  return date ? date.toLocaleDateString(intlTagFor(locale)) : "";
 }
 
 export function formatTime(value: Date | string | number, locale: Locale): string {
   const date = toDate(value);
-  return date ? date.toLocaleTimeString(LOCALES[locale].intlTag) : "";
+  return date ? date.toLocaleTimeString(intlTagFor(locale)) : "";
 }
 
 /** Hour and minute only, used for chat message timestamps. */
@@ -171,7 +181,7 @@ export function formatShortTime(
 ): string {
   const date = toDate(value);
   return date
-    ? date.toLocaleTimeString(LOCALES[locale].intlTag, {
+    ? date.toLocaleTimeString(intlTagFor(locale), {
         hour: "2-digit",
         minute: "2-digit",
       })
@@ -183,5 +193,5 @@ export function formatDateTime(
   locale: Locale
 ): string {
   const date = toDate(value);
-  return date ? date.toLocaleString(LOCALES[locale].intlTag) : "";
+  return date ? date.toLocaleString(intlTagFor(locale)) : "";
 }

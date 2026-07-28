@@ -283,15 +283,13 @@ async function deliver(
       html,
       text,
     });
-    console.log(`${logLabel} sent successfully:`, {
-      email: to,
+    console.log(`${logLabel} sent successfully`, {
       locale,
       messageId: info.messageId,
     });
     return true;
   } catch (error: any) {
     console.error(`Error sending ${logLabel}:`, {
-      email: to,
       locale,
       error: error.message,
     });

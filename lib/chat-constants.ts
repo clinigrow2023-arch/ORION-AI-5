@@ -1,5 +1,5 @@
-/** Must match server-side Ollama history window */
-export const MAX_HISTORY_MESSAGES = 2;
+/** Must match server-side Ollama history window (pairs of user+assistant turns). */
+export const MAX_HISTORY_MESSAGES = 8;
 
 /** Cap DB/cached system prompt size sent to Ollama (tokens) */
 export const MAX_SYSTEM_PROMPT_CHARS = 2400;

@@ -88,7 +88,7 @@ export class Ollama3Provider implements AIProvider {
       const startTime = Date.now();
       let response: Response;
       try {
-        console.log(
+        ollamaLog(
           `[Ollama] chat model=${this.model} promptLen=${fullPrompt.length} systemLen=${systemForRequest.length}`
         );
         response = await fetch(`${this.baseUrl}/api/generate`, {
@@ -99,7 +99,7 @@ export class Ollama3Provider implements AIProvider {
         });
         clearTimeout(timeoutId);
         const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`[Ollama3] Response received after ${elapsedTime} seconds`);
+        ollamaLog(`[Ollama3] Response received after ${elapsedTime} seconds`);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
         if (fetchError.name === "AbortError") {
@@ -136,7 +136,7 @@ export class Ollama3Provider implements AIProvider {
       }
 
       const data = await response.json();
-      console.log(`[Ollama3] Response keys:`, Object.keys(data));
+      ollamaLog(`[Ollama3] Response keys:`, Object.keys(data));
 
       // Ollama pode retornar response diretamente ou em diferentes formatos
       let content = "";
@@ -172,18 +172,18 @@ export class Ollama3Provider implements AIProvider {
         );
       }
 
-      console.log(`[Ollama3] Success! Response length: ${content.length}`);
-      console.log(
+      ollamaLog(`[Ollama3] Success! Response length: ${content.length}`);
+      ollamaLog(
         `[Ollama3] Response preview: ${content.substring(0, 200)}...`
       );
       if (data.total_duration) {
-        console.log(`[Ollama3] Total duration: ${data.total_duration / 1e9}s`);
+        ollamaLog(`[Ollama3] Total duration: ${data.total_duration / 1e9}s`);
       }
       if (data.eval_duration) {
-        console.log(`[Ollama3] Eval duration: ${data.eval_duration / 1e9}s`);
+        ollamaLog(`[Ollama3] Eval duration: ${data.eval_duration / 1e9}s`);
       }
       if (data.prompt_eval_duration) {
-        console.log(
+        ollamaLog(
           `[Ollama3] Prompt eval duration: ${data.prompt_eval_duration / 1e9}s`
         );
       }
@@ -251,7 +251,7 @@ export class Ollama3Provider implements AIProvider {
         const startTime = Date.now();
         let response: Response;
         try {
-          console.log(
+          ollamaLog(
             `[Ollama] plan model=${this.model} ctxLen=${contextHistory.length} num_predict=${numPredict} attempt=${attempt + 1}`
           );
           response = await fetch(`${this.baseUrl}/api/generate`, {
@@ -262,7 +262,7 @@ export class Ollama3Provider implements AIProvider {
           });
           clearTimeout(timeoutId);
           const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
-          console.log(
+          ollamaLog(
             `[Ollama3] Plan generation response received after ${elapsedTime} seconds`
           );
         } catch (fetchError: any) {
@@ -301,7 +301,7 @@ export class Ollama3Provider implements AIProvider {
         }
 
         const data = await response.json();
-        console.log(
+        ollamaLog(
           `[Ollama3] Plan generation response status: ${response.status} ${response.statusText}`
         );
 
@@ -337,7 +337,7 @@ export class Ollama3Provider implements AIProvider {
           Object.keys(parsed as object).length > 0;
 
         if (hasContent) {
-          console.log(
+          ollamaLog(
             `[Ollama3] Plan JSON OK (len=${jsonText.length}, done=${data.done_reason ?? "?"})`
           );
           return JSON.stringify(parsed);
@@ -549,7 +549,7 @@ export class Ollama3Provider implements AIProvider {
 
       releaseSafe(true);
 
-      console.log(
+      ollamaLog(
         `[Ollama3] Streaming completed. Total length: ${fullResponse.length}`
       );
 

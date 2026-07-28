@@ -10,7 +10,7 @@ import {
 } from "../../lib/locale.js";
 
 export { MAX_HISTORY_MESSAGES };
-export const MAX_MESSAGE_LENGTH = 280;
+export const MAX_MESSAGE_LENGTH = 600;
 export const MAX_PLAN_CONTEXT_CHARS = 3500;
 
 /** Compact system for action plan only — avoids loading the huge chat prompt */
@@ -213,6 +213,9 @@ export function buildConversationPrompt(
   if (directive) {
     fullPrompt += `${directive}\n`;
   }
+
+  // Âncora curta: modelos 3B inventam números/fatos que contradizem o usuário.
+  fullPrompt += `Stay consistent with facts the user already stated (dates, duration, names). Do not invent conflicting details.\n`;
 
   fullPrompt += `User: ${message}\nAssistant:`;
   return fullPrompt;

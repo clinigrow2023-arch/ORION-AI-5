@@ -26,20 +26,24 @@ export interface LocaleDescriptor {
   intlTag: string;
   /** Language name injected into AI instructions. */
   aiName: string;
+  /** Flag emoji shown in the language selector. */
+  flag: string;
 }
 
 export const LOCALES: Record<Locale, LocaleDescriptor> = {
   en: {
     shortCode: "EN",
     nativeName: "English",
-    intlTag: "en-US",
+    intlTag: "en-USA",
     aiName: "English",
+    flag: "🇬🇧",
   },
   fr: {
     shortCode: "FR",
     nativeName: "Français",
     intlTag: "fr-FR",
     aiName: "French (français)",
+    flag: "🇫🇷",
   },
 };
 

@@ -19,7 +19,7 @@ Meta **&lt; 30 s sempre** em CPU puro com prompt grande **não é garantível** 
 
 ## O que já acelera no código
 
-- Chat: `num_predict` menor, `num_ctx` 2048 no Modelfile, histórico 2 mensagens
+- Chat: `num_predict` menor, `num_ctx` 2048 no Modelfile, histórico de até 8 mensagens (4 turnos)
 - Plano: modelo base `llama3.2:3b` (sem Modelfile pesado)
 - Fila: `OLLAMA_APP_MAX_CONCURRENT` — evita fila de 4+ minutos
 - `OLLAMA_NUM_THREADS=8` no container Ollama (usa os vCPUs da KVM8)

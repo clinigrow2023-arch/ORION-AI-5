@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { Check, ChevronDown, Globe } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { useI18n } from "../contexts/I18nContext";
 import { LOCALES, SUPPORTED_LOCALES, type Locale } from "../lib/locale";
 
@@ -10,6 +10,20 @@ interface LanguageSelectorProps {
   variant?: Variant;
   className?: string;
 }
+
+const Flag: React.FC<{ locale: Locale; size?: "sm" | "md" }> = ({
+  locale,
+  size = "md",
+}) => (
+  <span
+    className={`leading-none select-none ${
+      size === "sm" ? "text-base" : "text-lg"
+    }`}
+    aria-hidden
+  >
+    {LOCALES[locale].flag}
+  </span>
+);
 
 const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   variant = "sidebar",
@@ -95,7 +109,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         aria-label={`${t("language.trigger")} (${LOCALES[locale].nativeName})`}
         title={t("language.trigger")}
       >
-        <Globe size={isSidebar ? 20 : 16} aria-hidden />
+        <Flag locale={locale} size={isSidebar ? "md" : "sm"} />
         {isSidebar ? (
           <>
             <span className="font-medium flex-1 text-left">
@@ -127,7 +141,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           id={listId}
           role="listbox"
           aria-label={t("language.options")}
-          className={`absolute z-50 w-full min-w-[10rem] p-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl ${
+          className={`absolute z-50 w-full min-w-[11rem] p-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl ${
             isSidebar ? "bottom-full mb-2" : "right-0 top-full mt-2"
           }`}
         >
@@ -147,7 +161,8 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                       : "text-slate-300 hover:bg-slate-700 hover:text-white"
                   }`}
                 >
-                  <span className="font-medium">
+                  <span className="flex items-center gap-2.5 font-medium">
+                    <Flag locale={option} size="sm" />
                     {LOCALES[option].nativeName}
                   </span>
                   {isSelected ? (

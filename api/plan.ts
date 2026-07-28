@@ -13,7 +13,6 @@ import {
 import { truncatePlanContext } from "./ai-providers/ollama-helpers.js";
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
 import { recordAiUsage } from "../lib/ai-usage.js";
-import { resolveOllamaPlanModel } from "../lib/ollama-model-env.js";
 import { apiMessage } from "../lib/api-messages.js";
 import type { Locale } from "../lib/locale.js";
 import {
@@ -117,9 +116,6 @@ export default async function planHandler(
 
     recordAiUsage(userId, "plan");
 
-    console.log(
-      `[plan] user=${userId} regenerate=${!!regenerate} ctxChars=${historyText.length} model=${resolveOllamaPlanModel()}`
-    );
     const raw = await generatePlanWithOllama(historyText, {
       regenerate: !!regenerate,
       locale: contentLocale,

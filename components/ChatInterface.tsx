@@ -398,8 +398,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setStreamedResponse("");
 
     try {
-      console.log("📤 Sending message:", input);
-
       const fullResponse = await chatService.sendMessageStream(
         input,
         (chunk) => {
@@ -407,23 +405,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
       );
 
-      console.log("📥 Received response:", {
-        hasResponse: !!fullResponse,
-        responseType: typeof fullResponse,
-        responseLength: fullResponse?.length || 0,
-        responsePreview: fullResponse?.substring(0, 100) || "empty",
-      });
-
       // Validar se a resposta não está vazia
       if (
         !fullResponse ||
         (typeof fullResponse === "string" && fullResponse.trim() === "")
       ) {
-        console.error("❌ Empty response from AI:", {
-          fullResponse,
-          type: typeof fullResponse,
-          length: fullResponse?.length,
-        });
         throw new Error(t("chat.notices.emptyResponse"));
       }
 
@@ -438,10 +424,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           : String(fullResponse || "").trim();
 
       if (!responseText) {
-        console.error("❌ Cannot create bot message - response is empty:", {
-          fullResponse,
-          type: typeof fullResponse,
-        });
         throw new Error(t("chat.notices.emptyResponse"));
       }
 
@@ -452,17 +434,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timestamp: new Date(),
       };
 
-      console.log("✅ Bot message created:", {
-        id: botMsg.id,
-        textLength: botMsg.text.length,
-        textPreview: botMsg.text.substring(0, 100),
-        sender: botMsg.sender,
-        hasText: !!botMsg.text,
-      });
-
       // Validar novamente antes de adicionar
       if (!botMsg.text || botMsg.text.trim() === "") {
-        console.error("❌ Bot message text is empty after creation:", botMsg);
         throw new Error(t("chat.notices.emptyResponse"));
       }
 

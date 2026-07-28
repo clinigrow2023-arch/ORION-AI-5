@@ -176,6 +176,12 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
               </li>
             );
           })}
+          <li
+            role="note"
+            className="px-3 py-2 text-[11px] leading-snug text-slate-500 border-t border-slate-700 mt-1"
+          >
+            {t("language.supportedHint")}
+          </li>
         </ul>
       )}
     </div>

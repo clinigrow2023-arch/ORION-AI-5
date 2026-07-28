@@ -9,6 +9,10 @@ import {
 import { isOllamaBusyError } from "../lib/ollama-queue.js";
 import { recordAiUsage } from "../lib/ai-usage.js";
 import { apiMessage } from "../lib/api-messages.js";
+import {
+  isUnsupportedLanguageMessage,
+  unsupportedLanguageReply,
+} from "../lib/language-guard.js";
 import type { Locale } from "../lib/locale.js";
 import {
   resolveRequestLocale,
@@ -78,10 +82,42 @@ export default async function chatHandler(
         .json({ error: apiMessage(locale, "messageRequired") });
     }
 
-    recordAiUsage(userId, "chat");
-
     const isStreaming =
       req.query.stream === "true" || req.headers["x-stream"] === "true";
+
+    // Idiomas fora de EN/FR: resposta fixa (não chama o modelo).
+    if (isUnsupportedLanguageMessage(String(message))) {
+      const refusal = unsupportedLanguageReply(contentLocale);
+      if (isStreaming) {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        });
+        res.write(`data: ${JSON.stringify({ chunk: refusal })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({
+            done: true,
+            response: refusal,
+            provider: "Orion",
+          })}\n\n`
+        );
+        res.end();
+        return;
+      }
+      return res.status(200).json({
+        response: refusal,
+        provider: "Orion",
+        history: [
+          ...history,
+          { role: "user", parts: [{ text: message }] },
+          { role: "model", parts: [{ text: refusal }] },
+        ],
+      });
+    }
+
+    recordAiUsage(userId, "chat");
 
     if (isStreaming) {
       res.writeHead(200, {

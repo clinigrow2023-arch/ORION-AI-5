@@ -26,6 +26,9 @@ export const messagesEn = {
     label: "Language",
     trigger: "Change language",
     options: "Available languages",
+    unsupported:
+      "I don't have access to that language. I can only reply in English or French — please choose one in the language menu.",
+    supportedHint: "Orion replies only in English or French.",
   },
 
   app: {

@@ -27,6 +27,9 @@ export const messagesFr: MessageCatalog = {
     label: "Langue",
     trigger: "Changer de langue",
     options: "Langues disponibles",
+    unsupported:
+      "Je n'ai pas accès à cette langue. Je ne peux répondre qu'en anglais ou en français — choisissez l'une de ces langues dans le menu.",
+    supportedHint: "Orion répond uniquement en anglais ou en français.",
   },
 
   app: {

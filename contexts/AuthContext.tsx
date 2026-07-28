@@ -9,6 +9,7 @@ import React, {
 import { authService, User } from "../lib/auth";
 import { chatService } from "../services/chatService";
 import { apiFetch } from "../lib/api-endpoints";
+import { translateActive } from "../lib/i18n";
 import { normalizeLocale, type Locale } from "../lib/locale";
 import { useI18n } from "./I18nContext";
 
@@ -45,11 +46,18 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+/** Hard block from the API — not the soft "account waiting for activation". */
+function isHardBlockPayload(data: {
+  blocked?: boolean;
+  notActive?: boolean;
+}): boolean {
+  return Boolean(data.blocked) && !data.notActive;
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const hasCheckedAuth = useRef(false);
-  const { locale, hasExplicitLocale, adoptServerLocale, t } = useI18n();
+  const { locale, hasExplicitLocale, adoptServerLocale } = useI18n();
 
   // Idioma já enviado ao servidor nesta sessão: evita repetir o PUT enquanto a
   // resposta não chega (o seletor pode ser clicado várias vezes seguidas).
@@ -58,6 +66,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // estar desatualizado se o usuário trocar de idioma durante a verificação.
   const hasExplicitLocaleRef = useRef(hasExplicitLocale);
   hasExplicitLocaleRef.current = hasExplicitLocale;
+
+  const userRef = useRef<ExtendedUser | null>(user);
+  userRef.current = user;
 
   /**
    * Aplica no cliente o idioma salvo na conta. Uma escolha explícita feita
@@ -73,6 +84,80 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const persistUser = (next: ExtendedUser) => {
+    localStorage.setItem("user", JSON.stringify(next));
+    setUser(next);
+    applyServerUser(next);
+  };
+
+  const clearSession = () => {
+    authService.logout();
+    setUser(null);
+  };
+
+  const restoreStoredUser = () => {
+    const stored = authService.getUser() as ExtendedUser | null;
+    if (stored) {
+      setUser(stored);
+      applyServerUser(stored);
+    }
+  };
+
+  /**
+   * Interpreta a resposta de auth-verify sem derrubar a sessão por erro
+   * transitório (API reiniciando, 502 do proxy, 500).
+   */
+  const handleVerifyResponse = async (
+    response: Response,
+    options?: { alertOnHardBlock?: boolean }
+  ): Promise<"ok" | "hard_block" | "soft_deny" | "unauthorized" | "transient"> => {
+    if (response.ok) {
+      const data = await response.json();
+      const updatedUser = data.user as ExtendedUser;
+      persistUser(updatedUser);
+
+      if (updatedUser.isBlocked) {
+        clearSession();
+        if (options?.alertOnHardBlock) {
+          alert(translateActive("authErrors.accountBlocked"));
+        }
+        window.location.reload();
+        return "hard_block";
+      }
+      return "ok";
+    }
+
+    if (response.status === 401) {
+      clearSession();
+      return "unauthorized";
+    }
+
+    if (response.status === 403) {
+      const data = (await response.json().catch(() => ({}))) as {
+        blocked?: boolean;
+        notActive?: boolean;
+        expired?: boolean;
+      };
+
+      if (isHardBlockPayload(data)) {
+        clearSession();
+        if (options?.alertOnHardBlock) {
+          alert(translateActive("authErrors.accountBlocked"));
+        }
+        window.location.reload();
+        return "hard_block";
+      }
+
+      // Conta inativa / sem acesso: mantém o token e o usuário local.
+      restoreStoredUser();
+      return "soft_deny";
+    }
+
+    // 5xx, 502 do Vite proxy, etc. — não desloga.
+    restoreStoredUser();
+    return "transient";
+  };
+
   const refreshUser = async () => {
     try {
       const token = authService.getToken();
@@ -81,152 +166,75 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      // Fazer apenas uma chamada direta para auth-verify
       const response = await apiFetch("auth-verify");
-
-      if (response.ok) {
-        const data = await response.json();
-        const updatedUser = data.user;
-        // IMPORTANTE: Atualizar localStorage com dados atualizados do servidor
-        // Isso garante que os dados persistam entre recarregamentos
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        setUser(updatedUser);
-        applyServerUser(updatedUser);
-
-        // Se usuário foi bloqueado, fazer logout imediatamente
-        if (updatedUser.isBlocked) {
-          authService.logout();
-          setUser(null);
-          window.location.reload();
-        }
-      } else if (response.status === 403) {
-        // Verificar se é bloqueado
-        const data = await response.json().catch(() => ({}));
-        if (data.blocked) {
-          // Usuário bloqueado - fazer logout
-          authService.logout();
-          setUser(null);
-          window.location.reload();
-        }
-      } else {
-        // Outros erros - fazer logout
-        authService.logout();
-        setUser(null);
-      }
+      await handleVerifyResponse(response);
     } catch (error) {
       console.error("Refresh user failed:", error);
+      // Rede instável: mantém a sessão local.
+      restoreStoredUser();
     }
   };
 
   useEffect(() => {
-    // Verificar autenticação ao carregar - fazer apenas UMA vez
-    if (hasCheckedAuth.current) return;
+    let cancelled = false;
 
     const checkAuth = async () => {
-      hasCheckedAuth.current = true;
-
       try {
         const token = authService.getToken();
         if (!token) {
-          setUser(null);
-          setLoading(false);
+          if (!cancelled) {
+            setUser(null);
+            setLoading(false);
+          }
           return;
         }
 
-        // Se já temos dados do usuário no localStorage, verificar se precisa fazer requisição
-        // IMPORTANTE: Sempre fazer requisição para garantir que temos os dados mais recentes do servidor
-        // Não confiar apenas no localStorage, pois pode estar desatualizado
-        // A otimização de não fazer requisição quando isActive !== true só se aplica após a primeira verificação
-
-        // Fazer apenas uma chamada direta para auth-verify
         const response = await apiFetch("auth-verify");
-
-        if (response.ok) {
-          const data = await response.json();
-          const userData = data.user;
-          localStorage.setItem("user", JSON.stringify(userData));
-          // Limpar histórico do chatService ao carregar usuário para evitar compartilhamento
-          chatService.clearHistory();
-          setUser(userData);
-          applyServerUser(userData);
-
-          // Se usuário foi bloqueado, fazer logout imediatamente
-          if (userData.isBlocked) {
-            authService.logout();
-            setUser(null);
-            window.location.reload();
-          }
-        } else if (response.status === 403) {
-          // Verificar se é bloqueado
-          const data = await response.json().catch(() => ({}));
-          if (data.blocked) {
-            // Usuário bloqueado - fazer logout
-            authService.logout();
-            setUser(null);
-            window.location.reload();
-          } else {
-            // Outros erros 403 - fazer logout
-            setUser(null);
-          }
-        } else {
-          // Outros erros - fazer logout
-          authService.logout();
-          setUser(null);
+        if (cancelled) {
+          return;
         }
+        await handleVerifyResponse(response);
       } catch (error) {
         console.error("Auth check failed:", error);
-        // Em caso de erro, tentar usar dados do localStorage
-        const stored = authService.getUser();
-        setUser(stored);
-        applyServerUser(stored);
+        if (!cancelled) {
+          restoreStoredUser();
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    checkAuth();
+    void checkAuth();
 
-    // Verificar periodicamente se o usuário foi bloqueado (a cada 30 segundos)
+    // Verificação periódica de bloqueio — usa ref para não depender de stale state.
     const interval = setInterval(async () => {
-      // Verificar se usuário existe e não está bloqueado
-      if (user && !user.isBlocked) {
-        const token = authService.getToken();
-        if (token) {
-          try {
-            const response = await apiFetch("auth-verify");
-            if (response.status === 403) {
-              const data = await response.json().catch(() => ({}));
-              if (data.blocked) {
-                // Usuário bloqueado - fazer logout
-                authService.logout();
-                setUser(null);
-                alert(t("authErrors.accountBlocked"));
-                window.location.reload();
-              }
-            } else if (response.ok) {
-              const data = await response.json();
-              const updatedUser = data.user;
-              // Se usuário foi bloqueado, fazer logout imediatamente
-              if (updatedUser?.isBlocked) {
-                authService.logout();
-                setUser(null);
-                alert(t("authErrors.accountBlocked"));
-                window.location.reload();
-              } else {
-                // Atualizar dados do usuário
-                localStorage.setItem("user", JSON.stringify(updatedUser));
-                setUser((prev) => (prev ? { ...prev, ...updatedUser } : null));
-              }
-            }
-          } catch (error) {
-            // Ignorar erros de rede na verificação periódica
-          }
-        }
+      const current = userRef.current;
+      if (!current || current.isBlocked) {
+        return;
       }
-    }, 30000); // Verificar a cada 30 segundos
+      const token = authService.getToken();
+      if (!token) {
+        return;
+      }
 
-    return () => clearInterval(interval);
-  }, [user?.isBlocked]); // Re-executar se isBlocked mudar
+      try {
+        const response = await apiFetch("auth-verify");
+        await handleVerifyResponse(response, { alertOnHardBlock: true });
+      } catch {
+        // Ignorar erros de rede na verificação periódica
+      }
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // Montagem única: logout espontâneo vinha de reexecutar o efeito e de
+    // tratar 502/conta inativa como hard logout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Propaga para o servidor a troca de idioma feita por um usuário logado, para
   // que e-mails e respostas da IA disparados pelo backend usem o mesmo idioma.
@@ -279,11 +287,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Após login, atualizar localStorage e estado com dados completos do servidor
     // O login agora retorna isActive e accessExpiresAt, então não precisa fazer refreshUser
     if (response.user) {
-      // Atualizar localStorage com dados completos do servidor
-      localStorage.setItem("user", JSON.stringify(response.user));
-      // Atualizar estado do contexto
-      setUser(response.user);
-      applyServerUser(response.user);
+      persistUser(response.user as ExtendedUser);
     }
   };
 
@@ -296,9 +300,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
     // Após registro, usuário já está ativo e pode usar a IA imediatamente
     if (response.user) {
-      localStorage.setItem("user", JSON.stringify(response.user));
-      setUser(response.user);
-      applyServerUser(response.user);
+      persistUser(response.user as ExtendedUser);
     }
   };
 

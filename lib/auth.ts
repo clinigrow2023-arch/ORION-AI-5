@@ -137,26 +137,27 @@ export const authService = {
           return this.getUser();
         }
 
-        // Se for 403, verificar se é notActive ou expired (não fazer logout nesses casos)
+        // Conta inativa / expirada: mantém a sessão local (UI decide o que mostrar).
         if (response.status === 403) {
           try {
             const data = await response.json();
-            if (data.notActive || data.expired) {
-              // Usuário sem acesso ativo ou expirado - retornar dados do localStorage
-              // O AuthContext vai tratar isso e mostrar a tela de espera
-              const stored = this.getUser();
-              if (stored) {
-                return stored;
-              }
+            if (data.notActive || data.expired || !data.blocked) {
+              return this.getUser();
             }
           } catch {
-            // Se não conseguir fazer parse, continuar com logout
+            // ignore parse errors
           }
+          this.logout();
+          return null;
         }
 
-        // Para outros erros (401, 500, etc), fazer logout
-        this.logout();
-        return null;
+        // 401 = token inválido. 5xx = não derruba a sessão.
+        if (response.status === 401) {
+          this.logout();
+          return null;
+        }
+
+        return this.getUser();
       }
 
       const data = await response.json();

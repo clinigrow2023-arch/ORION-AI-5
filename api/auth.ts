@@ -106,6 +106,7 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
         password: true,
         role: true,
         isBlocked: true,
+        isActive: true,
         passwordResetRequired: true,
         locale: true,
       },
@@ -156,6 +157,8 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
         name: user.name,
         email: user.email,
         role: user.role,
+        isBlocked: user.isBlocked,
+        isActive: user.isActive,
         passwordResetRequired: user.passwordResetRequired || false,
         locale: effectiveLocale,
       },
@@ -341,9 +344,10 @@ async function handleVerify(req: VercelRequest, res: VercelResponse) {
       }
 
       // Verificar se usuário está inativo
+      // Não enviar `blocked: true` aqui: o cliente trata `blocked` como hard
+      // logout, e conta só inativa deve permanecer com a sessão (WaitingActivation).
       if (!user.isActive) {
         return fail(res, 403, locale, "accountNotActive", {
-          blocked: true,
           notActive: true,
         });
       }

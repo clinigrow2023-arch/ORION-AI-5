@@ -1,0 +1,12 @@
+---
+description: Branch de deploy VPS — commits e push sempre em feature/vps-ollama-only
+alwaysApply: true
+---
+
+# Branch principal de deploy
+
+- A branch de produção/deploy na VPS é **`feature/vps-ollama-only`**.
+- Após qualquer implementação, correção, refatoração ou documentação: commit e **push em `feature/vps-ollama-only`**.
+- Se o trabalho estiver em outra branch (ex.: `feature/i18n-en-fr`), faça merge/fast-forward para `feature/vps-ollama-only` e faça push dessa branch antes de considerar a tarefa concluída.
+- Não use `main` como destino de deploy deste projeto, salvo pedido explícito do usuário.
+- Prefira trabalhar diretamente em `feature/vps-ollama-only` quando possível.

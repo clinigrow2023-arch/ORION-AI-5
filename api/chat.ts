@@ -112,6 +112,14 @@ export default async function chatHandler(
       } catch (error: any) {
         // Erros do provider são técnicos e em inglês: o cliente traduz pelo
         // `code`, então o texto serve apenas para log/diagnóstico.
+        console.error("[chat] stream failed:", {
+          message: error?.message,
+          code: error?.code,
+          status: error?.status,
+          provider: error?.provider,
+          name: error?.name,
+          stack: error?.stack?.split("\n").slice(0, 6).join(" | "),
+        });
         const payload = isOllamaBusyError(error)
           ? { error: apiMessage(locale, "aiBusy"), code: "BUSY", retryable: true }
           : { error: apiMessage(locale, "aiUnavailable"), code: "AI_FAILED" };

@@ -462,7 +462,11 @@ export function normalizeActionPlan(
   }
 
   let messageTemplates = normalizeTemplates(o.messageTemplates, fb);
-  if (messageTemplates.length < 3) {
+  // If the model mostly echoed mentor chat, prefer the curated fallbacks
+  // instead of mixing one leftover line with near-duplicates.
+  if (messageTemplates.length < 2) {
+    messageTemplates = fb.templates.slice(0, 3);
+  } else if (messageTemplates.length < 3) {
     messageTemplates = [...messageTemplates, ...fb.templates].slice(0, 3);
   }
 

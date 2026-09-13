@@ -8,9 +8,10 @@ services:
     container_name: orion-ollama
     restart: unless-stopped
     environment:
-      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-8}"
-      OLLAMA_MAX_LOADED_MODELS: "2"
-      OLLAMA_NUM_THREADS: "${OLLAMA_NUM_THREADS:-8}"
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-2}"
+      OLLAMA_MAX_LOADED_MODELS: "${OLLAMA_MAX_LOADED_MODELS:-1}"
+      OLLAMA_NUM_THREADS: "${OLLAMA_NUM_THREADS:-4}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-5m}"
     volumes:
       - ollama_orion_data:/root/.ollama
       - ./deploy/modelfile:/modelfile:ro

@@ -14,10 +14,8 @@ import {
   unsupportedLanguageReply,
 } from "../lib/language-guard.js";
 import type { Locale } from "../lib/locale.js";
-import {
-  resolveRequestLocale,
-  resolveUserLocale,
-} from "../lib/server-locale.js";
+import { resolveChatReplyLocale } from "../lib/message-locale.js";
+import { resolveRequestLocale } from "../lib/server-locale.js";
 
 export default async function chatHandler(
   req: VercelRequest,
@@ -30,9 +28,8 @@ export default async function chatHandler(
 
   setCorsHeaders(res);
 
-  // Mensagens seguem o idioma da UI que fez a chamada.
+  // Erros da API seguem o idioma da UI; respostas da IA seguem o idioma da mensagem.
   const locale: Locale = resolveRequestLocale(req);
-  // A resposta da IA segue o idioma da conta, definido após identificar o usuário.
   let contentLocale: Locale = locale;
 
   try {
@@ -66,8 +63,6 @@ export default async function chatHandler(
         .json({ error: apiMessage(locale, "accessDenied") });
     }
 
-    contentLocale = resolveUserLocale(user.locale, req);
-
     if (req.method !== "POST") {
       return res
         .status(405)
@@ -75,6 +70,8 @@ export default async function chatHandler(
     }
 
     const { message, history = [] } = req.body;
+
+    contentLocale = resolveChatReplyLocale(String(message), history, req);
 
     if (!message) {
       return res

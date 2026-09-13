@@ -15,10 +15,8 @@ import { isOllamaBusyError } from "../lib/ollama-queue.js";
 import { recordAiUsage } from "../lib/ai-usage.js";
 import { apiMessage } from "../lib/api-messages.js";
 import type { Locale } from "../lib/locale.js";
-import {
-  resolveRequestLocale,
-  resolveUserLocale,
-} from "../lib/server-locale.js";
+import { resolveContentLocaleFromText } from "../lib/message-locale.js";
+import { resolveRequestLocale } from "../lib/server-locale.js";
 
 export default async function planHandler(
   req: VercelRequest,
@@ -31,9 +29,7 @@ export default async function planHandler(
 
   setCorsHeaders(res);
 
-  // Mensagens seguem o idioma da UI que fez a chamada.
   const locale: Locale = resolveRequestLocale(req);
-  // O plano é conteúdo da conta: segue o idioma salvo no usuário.
   let contentLocale: Locale = locale;
 
   try {
@@ -67,8 +63,6 @@ export default async function planHandler(
         .json({ error: apiMessage(locale, "accessDenied") });
     }
 
-    contentLocale = resolveUserLocale(user.locale, req);
-
     if (req.method !== "POST") {
       return res
         .status(405)
@@ -100,6 +94,12 @@ export default async function planHandler(
     }
 
     historyText = truncatePlanContext(historyText);
+
+    contentLocale = resolveContentLocaleFromText(
+      historyText,
+      req,
+      user.locale
+    );
 
     if (!historyText) {
       return res.status(400).json({

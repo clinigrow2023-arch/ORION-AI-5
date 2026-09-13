@@ -156,6 +156,47 @@ const EN_MARKERS = [
   "boyfriend",
   "breakup",
   "broke up",
+  "am",
+  "im",
+  "i'm",
+  "ive",
+  "i've",
+  "sad",
+  "feel",
+  "feeling",
+  "upset",
+  "lonely",
+  "alone",
+  "miss",
+  "hurt",
+  "worried",
+  "anxious",
+  "thanks",
+  "thank you",
+  "hello",
+  "hi",
+  "hey",
+  "cant",
+  "can't",
+  "dont",
+  "don't",
+  "really",
+  "very",
+  "want",
+  "need",
+  "think",
+  "because",
+  "but",
+  "not",
+  "just",
+  "still",
+  "maybe",
+  "please",
+  "sorry",
+  "left",
+  "back",
+  "together",
+  "ex",
 ];
 
 const FR_MARKERS = [
@@ -190,6 +231,36 @@ const FR_MARKERS = [
   "rupture",
   "bonjour",
   "merci",
+  "triste",
+  "mal",
+  "seul",
+  "seule",
+  "peux",
+  "veux",
+  "besoin",
+  "quoi",
+  "pourquoi",
+  "comment",
+  "parce",
+  "sans",
+  "encore",
+  "toujours",
+  "jamais",
+  "peut",
+  "être",
+  "etre",
+  "cette",
+  "cet",
+  "ces",
+  "ton",
+  "son",
+  "leur",
+  "salut",
+  "coucou",
+  "desole",
+  "désolé",
+  "desolée",
+  "désolée",
 ];
 
 function tokenize(text: string): string[] {
@@ -201,6 +272,24 @@ function tokenize(text: string): string[] {
     .join(" ")
     .split(/\s+/)
     .filter((t) => t.length > 0);
+}
+
+/** Scores how strongly a message reads as English vs French. */
+export function scoreSupportedLocales(text: string): { en: number; fr: number } {
+  const normalized = (typeof text === "string" ? text : "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+
+  if (!normalized) {
+    return { en: 0, fr: 0 };
+  }
+
+  return {
+    en: countMarkers(normalized, EN_MARKERS),
+    fr: countMarkers(normalized, FR_MARKERS),
+  };
 }
 
 function countMarkers(haystack: string, markers: string[]): number {

@@ -8,7 +8,7 @@ import {
 
 type HeaderBag = Record<string, string | string[] | undefined>;
 
-interface LocaleRequest {
+export interface LocaleRequest {
   headers: HeaderBag;
   query?: Record<string, string | string[] | undefined>;
 }

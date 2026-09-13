@@ -70,7 +70,7 @@ app.options("/api/:functionName", (_req, res) => {
   );
   res.header(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Stream"
+    "Content-Type, Authorization, X-Stream, X-Locale"
   );
   res.sendStatus(200);
 });
@@ -79,6 +79,7 @@ app.post("/api/auth-register", api(authHandler));
 app.post("/api/auth-login", api(authHandler));
 app.get("/api/auth-verify", api(authHandler));
 app.put("/api/change-password", api(authHandler));
+app.put("/api/user-locale", api(authHandler));
 app.post("/api/set-new-password", api(authHandler));
 
 app.get("/api/conversations", api(conversationsHandler));

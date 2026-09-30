@@ -5,7 +5,6 @@ import crypto from "crypto";
 import {
   sendNewUserEmail,
   sendExistingUserEmail,
-  sendRenewalThankYouEmail,
 } from "../lib/email.js";
 import { DEFAULT_LOCALE, normalizeLocale, type Locale } from "../lib/locale.js";
 
@@ -603,7 +602,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
           } else {
             // Usuário já ativo e com assinatura ativa - RENOVAÇÃO: apenas atualizar dados de pagamento, SEM enviar email
-            // Enviar email de agradecimento por renovação
             user = await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -615,13 +613,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 isBlocked: false, // Garantir que está desbloqueado
               },
             });
-
-            try {
-              await sendRenewalThankYouEmail(user.email, user.name, userLocale);
-            } catch (emailError) {
-              // Log removido por segurança
-              // Não bloquear o processo se email falhar
-            }
 
             return res.status(200).send("OK");
           }
